@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 from database import SessionLocal
 from models import (
     Case,
@@ -9,11 +11,11 @@ from models import (
 
 
 def determine_intervention(
-    risk_level,
-    escalation_probability,
-    trajectory,
-    monitoring_consent=True
-):
+    risk_level: str,
+    escalation_probability: float,
+    trajectory: str,
+    monitoring_consent: bool = True
+) -> dict[str, Any]:
     """
     Determine the appropriate AAROH response
     from the current risk state.
@@ -156,7 +158,8 @@ def create_intervention(case_id):
             .first()
         )
 
-        monitoring_consent = (
+        monitoring_consent = cast(
+            bool,
             case.monitoring_consent
             if consent is None
             else consent.monitoring_consent
@@ -177,7 +180,8 @@ def create_intervention(case_id):
             .first()
         )
 
-        trajectory = (
+        trajectory = cast(
+            str,
             distress_state.trajectory
             if distress_state
             else "STABLE"
@@ -187,8 +191,11 @@ def create_intervention(case_id):
         # DETERMINE RISK LEVEL
         # -----------------------------------------
 
-        probability = (
-            prediction.escalation_probability or 0.0
+        probability = cast(
+            float,
+            prediction.escalation_probability
+            if prediction.escalation_probability is not None
+            else 0.0
         )
 
         if probability >= 0.75:
