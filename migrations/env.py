@@ -17,11 +17,11 @@ import models
 
 # Alembic Config object
 config = context.config
-database_url = os.getenv("AAROH_DATABASE_URL")
+database_url = os.getenv("DATABASE_URL")
 
 if not database_url:
     raise RuntimeError(
-        "AAROH_DATABASE_URL environment variable is not set."
+        "DATABASE_URL environment variable is not set."
     )
 
 config.set_main_option("sqlalchemy.url", database_url)
