@@ -9,11 +9,11 @@ sys.path.append(
     )
 )
 
-from text_features import extract_text_features
-from behavioural_features import (
+from .text_features import extract_text_features
+from .behavioural_features import (
     extract_behavioural_features
 )
-from engagement_features import (
+from .engagement_features import (
     extract_engagement_features
 )
 
