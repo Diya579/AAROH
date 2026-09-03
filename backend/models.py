@@ -8,7 +8,9 @@ from sqlalchemy import (
     Float,
     DateTime,
     Text,
-    ForeignKey
+    ForeignKey,
+    Index,
+    UniqueConstraint
 )
 
 from sqlalchemy.orm import relationship
@@ -52,6 +54,14 @@ class Case(Base):
 class CaseEvent(Base):
     __tablename__ = "case_events"
 
+    __table_args__ = (
+        Index(
+            "ix_case_events_case_id_event_date",
+            "case_id",
+            "event_date"
+        ),
+    )
+
     id = Column(Integer, primary_key=True)
 
     case_id = Column(
@@ -76,6 +86,14 @@ class CaseEvent(Base):
 
 class Interaction(Base):
     __tablename__ = "interactions"
+
+    __table_args__ = (
+        Index(
+            "ix_interactions_case_id_interaction_date",
+            "case_id",
+            "interaction_date"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
 
@@ -113,8 +131,17 @@ class Interaction(Base):
         "Case",
         back_populates="interactions"
     )
+
+
 class TextFeature(Base):
     __tablename__ = "text_features"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "interaction_id",
+            name="uq_text_features_interaction_id"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
 
@@ -136,6 +163,13 @@ class TextFeature(Base):
 
 class VoiceFeature(Base):
     __tablename__ = "voice_features"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "interaction_id",
+            name="uq_voice_features_interaction_id"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
 
@@ -159,6 +193,13 @@ class VoiceFeature(Base):
 class EngagementFeature(Base):
     __tablename__ = "engagement_features"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "interaction_id",
+            name="uq_engagement_features_interaction_id"
+        ),
+    )
+
     id = Column(Integer, primary_key=True)
 
     interaction_id = Column(
@@ -174,6 +215,14 @@ class EngagementFeature(Base):
 
 class DistressState(Base):
     __tablename__ = "distress_states"
+
+    __table_args__ = (
+        Index(
+            "ix_distress_states_case_id_observation_date",
+            "case_id",
+            "observation_date"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
 
@@ -195,6 +244,14 @@ class DistressState(Base):
 class Prediction(Base):
     __tablename__ = "predictions"
 
+    __table_args__ = (
+        Index(
+            "ix_predictions_case_id_prediction_date",
+            "case_id",
+            "prediction_date"
+        ),
+    )
+
     id = Column(Integer, primary_key=True)
 
     case_id = Column(
@@ -214,6 +271,13 @@ class Prediction(Base):
 
 class Consent(Base):
     __tablename__ = "consents"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "case_id",
+            name="uq_consents_case_id"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
 
@@ -235,6 +299,14 @@ class Consent(Base):
 class Intervention(Base):
     __tablename__ = "interventions"
 
+    __table_args__ = (
+        Index(
+            "ix_interventions_case_id_status",
+            "case_id",
+            "status"
+        ),
+    )
+
     id = Column(Integer, primary_key=True)
 
     case_id = Column(
@@ -252,6 +324,14 @@ class Intervention(Base):
 
 class Outcome(Base):
     __tablename__ = "outcomes"
+
+    __table_args__ = (
+        Index(
+            "ix_outcomes_case_id_recorded_at",
+            "case_id",
+            "recorded_at"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
 
