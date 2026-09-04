@@ -1,5 +1,5 @@
-from database import SessionLocal
-from models import Interaction
+from backend.database import SessionLocal
+from backend.models import Interaction
 
 from features.extract_features import extract_all_features
 

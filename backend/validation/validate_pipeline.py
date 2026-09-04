@@ -4,15 +4,17 @@ import os
 sys.path.append(
     os.path.dirname(
         os.path.dirname(
-            os.path.abspath(__file__)
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
         )
     )
 )
 
-from database import SessionLocal
+from backend.database import SessionLocal
 from sqlalchemy import text
 
-from models import (
+from backend.models import (
     Case,
     Interaction,
     DistressState,
@@ -162,9 +164,9 @@ def main():
                 f"interactions={interaction_count} | "
                 f"distress={distress_count} | "
                 f"prediction="
-                f"{'YES' if prediction else 'NO'} | "
+                f"{'YES' if prediction is not None else 'NO'} | "
                 f"intervention="
-                f"{'YES' if intervention else 'NO'} | "
+                f"{'YES' if intervention is not None else 'NO'} | "
                 f"{'PASS' if passed else 'FAIL'}"
             )
 
@@ -185,11 +187,9 @@ def main():
 
         for prediction in predictions:
 
-            probability = (
-                prediction.escalation_probability
-            )
-
+            probability = prediction.escalation_probability
             confidence = prediction.confidence
+            horizon = prediction.target_horizon_days
 
             valid_probability = (
                 probability is not None
@@ -202,13 +202,14 @@ def main():
             )
 
             valid_horizon = (
-                prediction.target_horizon_days > 0
+                horizon is not None
+                and horizon > 0
             )
 
-            passed = (
-                valid_probability
-                and valid_confidence
-                and valid_horizon
+            passed: bool = (
+                bool(valid_probability)
+                and bool(valid_confidence)
+                and bool(valid_horizon)
             )
 
             if not passed:
@@ -218,7 +219,7 @@ def main():
                 f"Case {prediction.case_id} | "
                 f"probability={probability} | "
                 f"confidence={confidence} | "
-                f"horizon={prediction.target_horizon_days}d | "
+                f"horizon={horizon}d | "
                 f"{'PASS' if passed else 'FAIL'}"
             )
 
@@ -245,17 +246,25 @@ def main():
             "NO_AUTOMATED_INTERVENTION"
         }
 
+        valid_statuses = {
+            "PENDING",
+            "COMPLETED",
+            "CANCELLED"
+        }
+
         for intervention in interventions:
 
-            passed = (
-                intervention.intervention_type
-                in valid_types
-                and intervention.status
-                in {
-                    "PENDING",
-                    "COMPLETED",
-                    "CANCELLED"
-                }
+            valid_intervention_type = (
+                intervention.intervention_type in valid_types
+            )
+
+            valid_intervention_status = (
+                intervention.status in valid_statuses
+            )
+
+            passed: bool = (
+                bool(valid_intervention_type)
+                and bool(valid_intervention_status)
             )
 
             if not passed:
