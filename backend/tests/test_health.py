@@ -26,8 +26,41 @@ from sqlalchemy.exc import OperationalError
 from fastapi.testclient import TestClient
 
 from backend.main import app
+from backend.core.config import settings
 
 client = TestClient(app)
+
+
+# ---------------------------------------------------------------------------
+# Application-level tests
+# ---------------------------------------------------------------------------
+
+class TestApplication:
+
+    def test_app_title_matches_settings(self):
+        """The FastAPI app title must match the configured app_name."""
+        assert app.title == settings.app_name
+
+    def test_app_version_matches_settings(self):
+        """The FastAPI app version must match the configured app_version."""
+        assert app.version == settings.app_version
+
+    def test_api_v1_prefix_routes_are_mounted(self):
+        """Routes must be reachable under the /api/v1 prefix."""
+        response = client.get("/api/v1/health")
+        assert response.status_code == 200
+        # A request without the prefix must NOT resolve to the health endpoint
+        response_no_prefix = client.get("/health")
+        assert response_no_prefix.status_code == 404
+
+    def test_openapi_schema_is_available(self):
+        """The OpenAPI JSON schema must be served at /openapi.json."""
+        response = client.get("/openapi.json")
+        assert response.status_code == 200
+        schema = response.json()
+        assert "paths" in schema
+        assert "/api/v1/health" in schema["paths"]
+        assert "/api/v1/ready" in schema["paths"]
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +95,11 @@ class TestHealthEndpoint:
             response = client.get("/api/v1/health")
         # If the health endpoint called the DB, the patch would have raised.
         assert response.status_code == 200
+
+    def test_health_rejects_post(self):
+        """POST /api/v1/health must return 405 Method Not Allowed."""
+        response = client.post("/api/v1/health")
+        assert response.status_code == 405
 
 
 # ---------------------------------------------------------------------------
@@ -174,3 +212,48 @@ class TestReadyEndpoint:
             client.get("/api/v1/ready")
 
         mock_session_fail.close.assert_called_once()
+
+    def test_ready_content_type_is_json(self):
+        """Readiness response must be JSON regardless of DB state."""
+        # --- success path ---
+        mock_session = MagicMock()
+        mock_session.execute.return_value = None
+
+        with patch("backend.api.v1.health.SessionLocal", return_value=mock_session):
+            response = client.get("/api/v1/ready")
+
+        assert "application/json" in response.headers["content-type"]
+
+        # --- failure path ---
+        mock_session_fail = MagicMock()
+        mock_session_fail.execute.side_effect = OperationalError(
+            "refused", None, None
+        )
+
+        with patch("backend.api.v1.health.SessionLocal", return_value=mock_session_fail):
+            response = client.get("/api/v1/ready")
+
+        assert "application/json" in response.headers["content-type"]
+
+    def test_ready_handles_unexpected_exception(self):
+        """
+        Non-SQLAlchemy exceptions must still return 503 with a safe body.
+        The catch-all handler must prevent stack traces from leaking.
+        """
+        mock_session = MagicMock()
+        mock_session.execute.side_effect = RuntimeError(
+            "unexpected internal failure with secret_token_xyz"
+        )
+
+        with patch("backend.api.v1.health.SessionLocal", return_value=mock_session):
+            response = client.get("/api/v1/ready")
+
+        assert response.status_code == 503
+        assert response.json() == {"status": "not_ready"}
+        assert "secret_token_xyz" not in response.text
+        assert "RuntimeError" not in response.text
+
+    def test_ready_rejects_post(self):
+        """POST /api/v1/ready must return 405 Method Not Allowed."""
+        response = client.post("/api/v1/ready")
+        assert response.status_code == 405
