@@ -397,3 +397,121 @@ class EngagementFeatures:
                 features["engagement_trend"] = self.engagement_trend
 
         return features
+
+
+@dataclass(frozen=True)
+class LongitudinalEvidence:
+    """Structured evidence for longitudinal features (User Modification 2).
+
+    Retains baseline values, historical observations, computed deltas, trend calculations,
+    observation counts, timestamps, and contributing factors for downstream explainability.
+    Does not affect numeric feature values directly.
+    """
+
+    observation_count: int
+    timestamps: tuple[str, ...]
+    distress_scores: tuple[Optional[float], ...]
+    baseline_distress: Optional[float]
+    previous_distress: Optional[float]
+    current_distress: Optional[float]
+    delta_from_baseline: Optional[float]
+    delta_from_previous: Optional[float]
+    distress_velocity: Optional[float]
+    distress_acceleration: Optional[float]
+    distress_volatility: Optional[float]
+    trend: str
+    contributing_factors: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "observation_count": self.observation_count,
+            "timestamps": list(self.timestamps),
+            "distress_scores": list(self.distress_scores),
+            "baseline_distress": self.baseline_distress,
+            "previous_distress": self.previous_distress,
+            "current_distress": self.current_distress,
+            "delta_from_baseline": self.delta_from_baseline,
+            "delta_from_previous": self.delta_from_previous,
+            "distress_velocity": self.distress_velocity,
+            "distress_acceleration": self.distress_acceleration,
+            "distress_volatility": self.distress_volatility,
+            "trend": self.trend,
+            "contributing_factors": list(self.contributing_factors),
+        }
+
+
+@dataclass(frozen=True)
+class LongitudinalFeatures:
+    """Strongly typed, immutable container for longitudinal features (Slice 2.5).
+
+    Preserves the None != 0 invariant: missing historical observations, missing
+    baselines, or insufficient history remain None rather than being fabricated as 0.
+    """
+
+    longitudinal_available: bool
+    observation_count: int
+    history_span_days: Optional[int]
+    current_distress: Optional[float]
+    baseline_distress: Optional[float]
+    previous_distress: Optional[float]
+    delta_from_baseline: Optional[float]
+    delta_from_previous: Optional[float]
+    distress_velocity: Optional[float]
+    distress_acceleration: Optional[float]
+    distress_volatility: Optional[float]
+    peak_distress: Optional[float]
+    trough_distress: Optional[float]
+    sustained_distress_count: Optional[int]
+    longitudinal_trend: str
+    evidence: Optional[LongitudinalEvidence] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "longitudinal_available": self.longitudinal_available,
+            "observation_count": self.observation_count,
+            "history_span_days": self.history_span_days,
+            "current_distress": self.current_distress,
+            "baseline_distress": self.baseline_distress,
+            "previous_distress": self.previous_distress,
+            "delta_from_baseline": self.delta_from_baseline,
+            "delta_from_previous": self.delta_from_previous,
+            "distress_velocity": self.distress_velocity,
+            "distress_acceleration": self.distress_acceleration,
+            "distress_volatility": self.distress_volatility,
+            "peak_distress": self.peak_distress,
+            "trough_distress": self.trough_distress,
+            "sustained_distress_count": self.sustained_distress_count,
+            "longitudinal_trend": self.longitudinal_trend,
+            "evidence": None if self.evidence is None else self.evidence.to_dict(),
+        }
+
+    def to_feature_dict(self) -> dict[str, Any]:
+        """Flattens longitudinal features for downstream model consumption without converting None to 0."""
+        features: dict[str, Any] = {
+            "longitudinal_available": int(self.longitudinal_available),
+            "longitudinal_observation_count": self.observation_count,
+        }
+        if self.longitudinal_available:
+            for metric in (
+                "history_span_days",
+                "current_distress",
+                "baseline_distress",
+                "previous_distress",
+                "delta_from_baseline",
+                "delta_from_previous",
+                "distress_velocity",
+                "distress_acceleration",
+                "distress_volatility",
+                "peak_distress",
+                "trough_distress",
+                "sustained_distress_count",
+            ):
+                val = getattr(self, metric)
+                if val is not None:
+                    features[f"longitudinal_{metric}"] = val
+
+            if self.longitudinal_trend is not None:
+                features["longitudinal_trend"] = self.longitudinal_trend
+
+        return features
+

@@ -1,4 +1,4 @@
-# AAROH ML subsystem (Slice 1, Slice 2.1, Slice 2.2, Slice 2.3 & Slice 2.4)
+# AAROH ML subsystem (Slice 1, Slice 2.1, Slice 2.2, Slice 2.3, Slice 2.4 & Slice 2.5)
 
 This package owns machine-learning **contracts, inference interfaces, preprocessing pipelines, and feature extractors**.
 It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
@@ -12,7 +12,7 @@ It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
 | `policies` | Confidence / abstention **interfaces** and a default threshold policy |
 | `inference` | `infer(...)` → Python `dict`. **No database writes.** |
 | `preprocessing` | Input validation, Unicode text normalization, safe missingness handling, and record standardization (Slice 2.1) |
-| `features` | Deterministic text (Slice 2.2), behavioural (Slice 2.3), and engagement (Slice 2.4) feature extraction and explainability evidence |
+| `features` | Deterministic text (Slice 2.2), behavioural (Slice 2.3), engagement (Slice 2.4), and longitudinal (Slice 2.5) feature extraction and explainability evidence |
 | `models` | Future learned-model adapters (rule-based code stays in `backend/risk/`) |
 | `training` | Future reproducible training scripts (offline; not required for inference) |
 | `evaluation` | Future metrics; synthetic scores are not clinical evidence |
@@ -179,6 +179,56 @@ history = [preprocess_interaction(h) for h in history_payloads]
 
 engagement = extract_engagement_features(current, history=history, config=EngagementConfig())
 # engagement is a strongly typed, immutable EngagementFeatures dataclass
+```
+
+## Longitudinal Feature Extraction (Slice 2.5)
+
+The longitudinal feature extraction layer (`backend.ml.features.longitudinal`) tracks multi-interaction timelines to extract distress rate-of-change, acceleration, volatility, baseline deltas, and trajectory patterns:
+
+1. **Centralized Definitions & Trend Classification (`longitudinal_definitions.py`)**:
+   - Single source of truth for trajectory trend enums: `LongitudinalTrend` (`UNKNOWN`, `STABLE`, `IMPROVING`, `WORSENING`, `RAPIDLY_IMPROVING`, `RAPIDLY_WORSENING`).
+   - Configurable policy object `LongitudinalConfig` holding operational cutoffs (`rapid_shift_threshold`, `notable_shift_threshold`, `high_distress_threshold`, `rapid_velocity_threshold`, `volatility_alert_threshold`).
+   - `classify_longitudinal_trend()` centralized classification used across features, future models, and explainability.
+2. **Preserve `None != 0` Invariant & Explicit `UNKNOWN`**:
+   - Missing historical interactions or single-point observations leave baseline distress, historical deltas, velocity, acceleration, and volatility as `None` (never fabricated as 0.0).
+   - Insufficient history (< `min_observations_for_trend`) explicitly produces `longitudinal_trend = "UNKNOWN"` instead of guessing.
+3. **Core Observable Metrics**:
+   - `distress_velocity`: First derivative / slope of composite distress per day.
+   - `distress_acceleration`: Second derivative / rate of change of velocity ($N \ge 3$).
+   - `distress_volatility`: Sample standard deviation of observed distress scores across the timeline ($N \ge 2$).
+   - `delta_from_baseline`: Shift relative to initial interaction.
+   - `delta_from_previous`: Shift relative to immediately preceding interaction.
+   - `peak_distress` & `trough_distress`: Extremes across observed timeline.
+   - `sustained_distress_count`: Consecutive recent interactions exceeding high distress threshold ($\ge 0.65$).
+4. **Structured Explainability Evidence (`LongitudinalEvidence`)**:
+   - Retains observation count, sequence timestamps, distress scores, deltas, rates, trend, and human-readable `contributing_factors` (e.g., `"Distress substantially elevated above baseline (+0.35)"`, `"Rapidly worsening distress trajectory detected"`, `"Sustained high distress across 3 consecutive interactions"`).
+
+### How to extract Longitudinal Features
+
+```python
+from backend.ml import (
+    LongitudinalConfig,
+    extract_longitudinal_features,
+    preprocess_interaction,
+)
+
+current_payload = {
+    "case_id": "AAROH-001",
+    "interaction_date": "2026-09-01",
+    "fear_level": 4,
+    "safety_response": 2,
+}
+
+history_payloads = [
+    {"case_id": "AAROH-001", "interaction_date": "2026-08-18", "fear_level": 1, "safety_response": 5},
+    {"case_id": "AAROH-001", "interaction_date": "2026-08-25", "fear_level": 2, "safety_response": 4},
+]
+
+current = preprocess_interaction(current_payload)
+history = [preprocess_interaction(h) for h in history_payloads]
+
+longitudinal = extract_longitudinal_features(current, history=history, config=LongitudinalConfig())
+# longitudinal is a strongly typed, immutable LongitudinalFeatures dataclass
 ```
 
 ## Application-facing result

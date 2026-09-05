@@ -48,6 +48,25 @@ from backend.ml.features.lexicons import (
     SAFETY_LEXICONS,
     find_matched_terms,
 )
+from backend.ml.features.longitudinal import (
+    LongitudinalFeatureExtractor,
+    compute_interaction_distress,
+    extract_longitudinal_features,
+    extract_longitudinal_features_batch,
+)
+from backend.ml.features.longitudinal_definitions import (
+    DEFAULT_HIGH_DISTRESS_THRESHOLD as DEFAULT_LONGITUDINAL_HIGH_DISTRESS_THRESHOLD,
+    DEFAULT_MIN_OBSERVATIONS_FOR_TREND,
+    DEFAULT_MODERATE_VELOCITY_THRESHOLD,
+    DEFAULT_NOTABLE_SHIFT_THRESHOLD as DEFAULT_LONGITUDINAL_NOTABLE_SHIFT_THRESHOLD,
+    DEFAULT_RAPID_SHIFT_THRESHOLD,
+    DEFAULT_RAPID_VELOCITY_THRESHOLD,
+    DEFAULT_VOLATILITY_ALERT_THRESHOLD,
+    LongitudinalConfig,
+    LongitudinalMetric,
+    LongitudinalTrend,
+    classify_longitudinal_trend,
+)
 from backend.ml.features.safety import extract_safety_indicators
 from backend.ml.features.types import (
     BehaviouralEvidence,
@@ -58,6 +77,8 @@ from backend.ml.features.types import (
     ExplanationEvidence,
     HelpSeekingIndicators,
     LexicalMetrics,
+    LongitudinalEvidence,
+    LongitudinalFeatures,
     SafetyIndicators,
     TextFeatures,
     TextQualityMetadata,
@@ -79,6 +100,25 @@ __all__ = [
     "EngagementFeatureExtractor",
     "extract_engagement_features",
     "extract_engagement_features_batch",
+    # Longitudinal feature containers & extractors (Slice 2.5)
+    "LongitudinalFeatures",
+    "LongitudinalEvidence",
+    "LongitudinalFeatureExtractor",
+    "compute_interaction_distress",
+    "extract_longitudinal_features",
+    "extract_longitudinal_features_batch",
+    # Longitudinal definitions & configuration
+    "LongitudinalTrend",
+    "LongitudinalMetric",
+    "LongitudinalConfig",
+    "classify_longitudinal_trend",
+    "DEFAULT_MIN_OBSERVATIONS_FOR_TREND",
+    "DEFAULT_RAPID_SHIFT_THRESHOLD",
+    "DEFAULT_LONGITUDINAL_NOTABLE_SHIFT_THRESHOLD",
+    "DEFAULT_LONGITUDINAL_HIGH_DISTRESS_THRESHOLD",
+    "DEFAULT_RAPID_VELOCITY_THRESHOLD",
+    "DEFAULT_MODERATE_VELOCITY_THRESHOLD",
+    "DEFAULT_VOLATILITY_ALERT_THRESHOLD",
     # Engagement definitions & configuration
     "EngagementTrend",
     "EngagementMetric",
