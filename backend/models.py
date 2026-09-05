@@ -10,7 +10,8 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Index,
-    UniqueConstraint
+    UniqueConstraint,
+    JSON
 )
 
 from sqlalchemy.orm import relationship
@@ -267,6 +268,10 @@ class Prediction(Base):
     target_horizon_days = Column(Integer, default=7)
 
     confidence = Column(Float)
+
+    risk_level = Column(String(50))
+    
+    explanation = Column(JSON)
 
 
 class Consent(Base):

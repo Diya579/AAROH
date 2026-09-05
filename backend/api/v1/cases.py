@@ -30,7 +30,7 @@ def get_db():
     "/cases",
     response_model=CaseResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("caseworker"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "SYSTEM_SERVICE"))],
 )
 def create_case(
     payload: CaseCreate,
@@ -51,7 +51,7 @@ def create_case(
 @router.get(
     "/cases",
     response_model=List[CaseResponse],
-    dependencies=[Depends(require_role("caseworker", "admin"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def list_cases(
     skip: int = 0,
@@ -66,7 +66,7 @@ def list_cases(
 @router.get(
     "/cases/{case_id}",
     response_model=CaseResponse,
-    dependencies=[Depends(require_role("caseworker", "admin"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def get_case(
     case_id: int,
@@ -86,7 +86,7 @@ def get_case(
 @router.put(
     "/cases/{case_id}",
     response_model=CaseResponse,
-    dependencies=[Depends(require_role("caseworker"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN"))],
 )
 def update_case(
     case_id: int,
@@ -107,7 +107,7 @@ def update_case(
 @router.delete(
     "/cases/{case_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("ADMIN"))],
 )
 def delete_case(
     case_id: int,
@@ -121,3 +121,38 @@ def delete_case(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Case with id {case_id} not found."
         )
+
+
+@router.get(
+    "/cases/{case_id}/timeline",
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
+)
+def get_case_timeline(
+    case_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Fetch combined timeline for a case."""
+    # In a real app we'd query events, interactions, predictions, interventions,
+    # and combine them. For the integration scope tonight, we can stub it.
+    
+    # First, verify case exists:
+    row = case_service.get_case(db, case_id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Case with id {case_id} not found."
+        )
+        
+    # Return a basic structural skeleton
+    return {
+        "case_id": case_id,
+        "timeline": [
+            {
+                "type": "event",
+                "date": row.created_at,
+                "detail": f"Case opened for {row.priority_use_case}"
+            }
+        ]
+    }
+

@@ -49,7 +49,7 @@ class TestEventEndpoints:
         response = client.post("/api/v1/events", json=VALID_EVENT_PAYLOAD)
 
         assert response.status_code == 422
-        assert "Ensure case_id is valid" in response.json()["detail"]
+        assert "Ensure case_id is valid" in response.json()["error"]["message"]
 
     def test_create_event_invalid_payload(self):
         """POST /api/v1/events should return 422 for validation errors."""
@@ -91,4 +91,4 @@ class TestEventEndpoints:
         response = client.get("/api/v1/events/999")
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
+        assert "not found" in response.json()["error"]["message"]

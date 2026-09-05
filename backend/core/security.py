@@ -1,22 +1,4 @@
-"""
-AAROH — Authentication & RBAC Foundation (Stub)
-
-This module provides placeholder dependencies that FastAPI endpoints
-can use via Depends(...).  No real authentication or authorization
-logic is implemented yet — every request is allowed through.
-
-When real auth is added (Day 3+), these stubs will be replaced with
-JWT validation, role checks, etc.  Endpoint signatures will NOT change.
-
-Usage in an endpoint:
-    from backend.core.security import get_current_user
-
-    @router.get("/protected")
-    def protected(user=Depends(get_current_user)):
-        ...
-"""
-
-from fastapi import Request, Depends
+from fastapi import Request, Depends, HTTPException, status
 
 
 def get_current_user(request: Request) -> dict:
@@ -26,22 +8,27 @@ def get_current_user(request: Request) -> dict:
     Will be replaced with real JWT/session validation.
     The return type will become a proper User model.
     """
+    # For testing AAROH roles: USER, COUNSELLOR, DISTRICT_OFFICIAL, STATE_OFFICIAL, NATIONAL_OFFICIAL, ADMIN, SYSTEM_SERVICE
+    mock_role = request.headers.get("X-Mock-Role", "ADMIN")
     return {
-        "id": "stub",
-        "role": "caseworker",
+        "id": "stub-user-id",
+        "role": mock_role,
     }
 
 
 def require_role(*roles: str):
     """
-    Placeholder: returns a dependency that accepts any request.
-
+    Enforces role-based access control.
+    
     Usage:
-        @router.post("/admin-only", dependencies=[Depends(require_role("admin"))])
+        @router.post("/admin-only", dependencies=[Depends(require_role("ADMIN"))])
     """
 
-    def _check(user: dict = Depends(get_current_user)) -> None:  # noqa: ARG001
-        # No-op until real RBAC is wired.
-        pass
+    def _check(user: dict = Depends(get_current_user)) -> None:
+        if user.get("role") not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required one of: {roles}"
+            )
 
     return _check

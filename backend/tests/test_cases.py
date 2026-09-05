@@ -53,7 +53,7 @@ class TestCaseEndpoints:
         response = client.post("/api/v1/cases", json=VALID_CASE_PAYLOAD)
 
         assert response.status_code == 409
-        assert "already exists" in response.json()["detail"]
+        assert "already exists" in response.json()["error"]["message"]
 
     def test_create_case_invalid_payload(self):
         """POST /api/v1/cases should return 422 for validation errors."""
@@ -95,7 +95,7 @@ class TestCaseEndpoints:
         response = client.get("/api/v1/cases/999")
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
+        assert "not found" in response.json()["error"]["message"]
 
     @patch("backend.api.v1.cases.case_service.update_case")
     def test_update_case_success(self, mock_update):

@@ -15,7 +15,11 @@ Run locally (from the project root  d:/SIH PROJECT AAROH/AAROH/):
     python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 """
 
-from fastapi import FastAPI
+import uuid
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.core.config import settings
 from backend.api.v1.router import router as v1_router
@@ -44,3 +48,47 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 
 app.include_router(v1_router, prefix=settings.api_v1_prefix)
+
+# ---------------------------------------------------------------------------
+# Global Exception Handlers (Standard Error Contract)
+# ---------------------------------------------------------------------------
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": "HTTP_EXCEPTION",
+                "message": str(exc.detail),
+                "request_id": str(uuid.uuid4())
+            }
+        },
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Invalid request payload",
+                "request_id": str(uuid.uuid4())
+            }
+        },
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    # Log the exception stacktrace internally here in a real app
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred.",
+                "request_id": str(uuid.uuid4())
+            }
+        },
+    )

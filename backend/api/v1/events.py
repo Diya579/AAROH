@@ -30,7 +30,7 @@ def get_db():
     "/events",
     response_model=EventResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("caseworker"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "SYSTEM_SERVICE", "ADMIN"))],
 )
 def create_event(
     payload: EventCreate,
@@ -51,7 +51,7 @@ def create_event(
 @router.get(
     "/events",
     response_model=List[EventResponse],
-    dependencies=[Depends(require_role("caseworker", "admin"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def list_events(
     case_id: Optional[int] = None,
@@ -67,7 +67,7 @@ def list_events(
 @router.get(
     "/events/{event_id}",
     response_model=EventResponse,
-    dependencies=[Depends(require_role("caseworker", "admin"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def get_event(
     event_id: int,

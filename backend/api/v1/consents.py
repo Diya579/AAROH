@@ -27,7 +27,7 @@ def get_db():
 @router.put(
     "/consents/{case_id}",
     response_model=ConsentResponse,
-    dependencies=[Depends(require_role("caseworker"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "USER", "ADMIN"))],
 )
 def upsert_consent(
     case_id: int,
@@ -49,7 +49,7 @@ def upsert_consent(
 @router.get(
     "/consents/{case_id}",
     response_model=ConsentResponse,
-    dependencies=[Depends(require_role("caseworker", "admin"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL", "USER"))],
 )
 def get_consent(
     case_id: int,

@@ -51,7 +51,7 @@ class TestConsentEndpoints:
         response = client.put("/api/v1/consents/1", json=VALID_CONSENT_PAYLOAD)
 
         assert response.status_code == 422
-        assert "Ensure case_id is valid" in response.json()["detail"]
+        assert "Ensure case_id is valid" in response.json()["error"]["message"]
 
     @patch("backend.api.v1.consents.consent_service.get_consent")
     def test_get_consent_success(self, mock_get):
@@ -72,4 +72,4 @@ class TestConsentEndpoints:
         response = client.get("/api/v1/consents/999")
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
+        assert "not found" in response.json()["error"]["message"]
