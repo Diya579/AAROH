@@ -72,6 +72,32 @@ def enforce_audio_emotion_boundary(output_name: str) -> None:
         )
 
 
+def enforce_fusion_boundary(output_name: str) -> None:
+    """Strictly enforces that multimodal feature fusion never outputs clinical distress or diagnoses."""
+    forbidden = {
+        "distress",
+        "distress_score",
+        "escalation_probability",
+        "depression",
+        "anxiety",
+        "risk_level",
+        "diagnosis",
+        "clinical_diagnosis",
+        "phq",
+        "gad",
+        "medical_diagnosis",
+        "punitive_action",
+        "witness_protection",
+    }
+    lowered = output_name.lower().strip()
+    if lowered in forbidden:
+        raise ValueError(
+            f"CLINICAL BOUNDARY VIOLATION: Fusion output '{output_name}' is forbidden. "
+            "Multimodal Feature Fusion produces representations, modality weights, and fused embeddings only, "
+            "and MUST NEVER output clinical distress scores, escalation predictions, or diagnoses."
+        )
+
+
 # =====================================================================
 # Model Metadata & Export Management
 # =====================================================================

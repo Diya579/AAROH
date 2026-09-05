@@ -1,0 +1,22 @@
+{
+  "tabular": {
+    "dimension": 60,
+    "mask_dimension": 60,
+    "total_input_dimension": 120
+  },
+  "text": {
+    "embedding_dimension": 768,
+    "emotion_probabilities": 28,
+    "stress_probability": 1,
+    "total_input_dimension": 797
+  },
+  "audio": {
+    "embedding_dimension": 768,
+    "emotion_probabilities": 8,
+    "total_input_dimension": 776
+  },
+  "fused_embedding": {
+    "dimension": 256,
+    "normalization": "L2"
+  }
+}

@@ -68,6 +68,7 @@ Outputs produced:
 - **Slice 3.2**: Auxiliary dataset ingestion & preprocessing (`backend/ml/training/preprocessing/`).
 - **Slice 3.3**: Lightweight text representation models (`backend/ml/training/models/`).
 - **Slice 3.4**: Audio emotion representation model (`backend/ml/training/models/audio_emotion/`).
+- **Slice 3.5**: Multimodal feature fusion network (`backend/ml/training/models/fusion/`).
 
 ---
 
@@ -160,7 +161,71 @@ backend/ml/training/models/audio_emotion/
 
 ---
 
-## 6. Training & Evaluation Workflows (Google Colab Ready)
+## 6. Slice 3.5: Multimodal Feature Fusion Network
+
+Slice 3.5 integrates structured tabular features, multilingual text representations, and acoustic audio representations into a unified multimodal latent embedding via dynamic cross-modal gating.
+
+```
+backend/ml/training/models/fusion/
+├── __init__.py               # Exports MultimodalFusionModel, MultimodalInputRecord, dataset utilities
+├── dataset.py                # MultimodalInputRecord container, MultimodalFusionDataset, case splitting
+└── model.py                  # Gated Multimodal Fusion network with self-supervised reconstruction head
+```
+
+### Architecture & Gating Mechanism
+- **Tabular Branch**: Projects 120-dim input (60 continuous/discrete features + 60 binary missingness indicators preserving `None != 0`) $\to$ 128-dim representation.
+- **Text Branch**: Projects 797-dim input (768-dim text embedding + 28 GoEmotions probabilities + 1 Dreaddit stress probability) $\to$ 128-dim representation.
+- **Audio Branch**: Projects 776-dim input (768-dim Wav2Vec 2.0 embedding + 8 RAVDESS emotion probabilities) $\to$ 128-dim representation.
+- **Dynamic Modality Gating**:
+  $$\text{Gate Logits} = W_{\text{gate}} \cdot [h_{\text{tab}}, h_{\text{text}}, h_{\text{audio}}] + b_{\text{gate}} \in \mathbb{R}^3$$
+  Masked Softmax over available modalities ensures absent modalities (e.g. missing audio or absent text) automatically receive strictly `0.0` weight, with active modalities summing to `1.0`.
+- **Fused Latent Space**:
+  $$h_{\text{fused}} = \text{Normalize}_{L_2}\left(W_{\text{fusion}} \cdot [g_{\text{tab}} h_{\text{tab}}, g_{\text{text}} h_{\text{text}}, g_{\text{audio}} h_{\text{audio}}] + b_{\text{fusion}}\right) \in \mathbb{R}^{256}$$
+- **Self-Supervised Reconstruction Head**:
+  Maps $h_{\text{fused}} \to \hat{x}_{\text{tab}} \in \mathbb{R}^{60}$, optimizing masked Mean Squared Error (MSE) over observed tabular signals during representation training.
+
+### Explicit Execution Modes
+1. **`FALLBACK` Mode**:
+   - Executes lightweight pure-Python mathematical forward/backward propagation without requiring PyTorch or HuggingFace transformers.
+   - Pretrained transformer backbones are **referenced in configuration only** and are **NOT instantiated in memory**.
+   - Parameters actually instantiated: **332,223** (trainable projection and fusion heads only).
+2. **`PYTORCH_FROZEN` Mode**:
+   - Instantiates configured HuggingFace backbones (`distilbert-base-multilingual-cased` and `facebook/wav2vec2-base`).
+   - Freezes all backbone parameters (`requires_grad=False`, 229,774,080 parameters).
+   - Trains only the 332,223 fusion head parameters.
+3. **`PYTORCH_FINETUNE` Mode**:
+   - Instantiates backbones and unfreezes them (`requires_grad=True` when `--unfreeze-backbone` is passed).
+   - Trains all 230,106,303 parameters end-to-end on GPU.
+
+### Exact Parameter Accounting
+- **1. Trainable Head Parameters**: **332,223**
+- **2. Backbone Parameters**: **229,774,080**
+- **3. Total Parameters If Instantiated**: **230,106,303**
+- **4. Parameters Actually Instantiated**: **332,223** (in `FALLBACK` mode) / **230,106,303** (in `PYTORCH_*` modes)
+
+### Reusable Public Inference Interface
+```python
+from backend.ml.training.models.fusion import MultimodalFusionModel, MultimodalInputRecord
+
+model = MultimodalFusionModel()
+result = model.fuse(record)
+# Returns:
+# {
+#     "fused_embedding": [0.042, -0.015, ..., 0.089],  # 256-dim unit sphere vector
+#     "modality_weights": {"tabular": 0.397, "text": 0.387, "audio": 0.216},
+#     "reconstructed_tabular": [...],
+#     "active_modalities": ["tabular", "text", "audio"],
+#     "fused_dimension": 256
+# }
+```
+
+### Strict Clinical Boundaries
+- `enforce_fusion_boundary()` programmatically blocks outputs with forbidden names (`distress_score`, `escalation_probability`, `risk_level`, `clinical_diagnosis`, `depression`, `anxiety`).
+- Multimodal feature fusion outputs representations and modality weights exclusively; it NEVER predicts clinical distress or escalation.
+
+---
+
+## 7. Training & Evaluation Workflows (Google Colab Ready)
 
 All training scripts feature Google Colab compatible settings (`fp16`, gradient accumulation, early stopping, Google Drive checkpointing, and `seed=42`).
 
@@ -217,6 +282,20 @@ python3 train_audio_emotion.py \
 
 # Fast Smoke-Test Execution (Single Epoch / Small Batch)
 python3 train_audio_emotion.py --smoke-test
+
+# 5. Train Multimodal Feature Fusion Model (Slice 3.5)
+python3 train_multimodal_fusion.py \
+    --data-dir datasets/processed \
+    --output-dir models/multimodal_fusion \
+    --batch-size 16 \
+    --lr 1e-3 \
+    --epochs 10 \
+    --seed 42 \
+    --fp16 \
+    --drive-checkpoint-dir /content/drive/MyDrive/aaroh_checkpoints/fusion
+
+# Fast Smoke-Test Execution (Single Epoch / Small Batch)
+python3 train_multimodal_fusion.py --smoke-test
 ```
 
 ### Comprehensive Evaluation Suite
@@ -226,16 +305,20 @@ python3 evaluate_text_models.py --model-type all --models-dir models/ --data-dir
 
 # Evaluate Audio Emotion Representation Model:
 python3 evaluate_audio_model.py --model-dir models/audio_emotion/ --data-dir datasets/processed/
+
+# Evaluate Multimodal Feature Fusion Model:
+python3 evaluate_fusion_model.py --model-dir models/multimodal_fusion/ --data-dir datasets/processed/
 ```
 Metrics produced:
 - **Text Emotion**: Accuracy, Precision, Recall, Macro F1, Weighted F1.
 - **Stress**: Accuracy, Precision, Recall, F1, ROC-AUC.
 - **Mental Health Representation**: Mean embedding norm, Cosine separation, Domain alignment.
 - **Audio Emotion**: Overall Accuracy, Precision, Recall, Macro F1, Weighted F1, Confusion Matrix, Per-Class Accuracy for all 8 RAVDESS emotions.
+- **Multimodal Fusion**: Tabular Reconstruction Loss (MSE), Dynamic Modality Gating Weights (`tabular`, `text`, `audio`), Missing Modality Zero-Weight Verification, Mean Fused Embedding Norm, Cross-Case Cosine Diversity.
 
 ---
 
-## 7. Model Export Structure
+## 8. Model Export Structure
 
 Models exported under `models/<model_name>/` save the following standard artifacts:
 - `pytorch_model.bin` / `weights` (model weights)
@@ -245,10 +328,11 @@ Models exported under `models/<model_name>/` save the following standard artifac
 - `label_mapping.json` (class index mappings)
 - `metrics.json` (validation and test performance metrics)
 - `metadata.json` (containing `model_version`, `dataset_version`, `training_date`, `hyperparameters`, and clinical boundary assertions)
+- `modality_schema.json` (multimodal input dimensions, masking schema, fusion dimensions)
 
 ---
 
-## 8. Clinical & Regulatory Boundary Invariant
+## 9. Clinical & Regulatory Boundary Invariant
 
 > [!IMPORTANT]
 > AAROH ML models and features operate exclusively as **clinical decision support**.
@@ -256,7 +340,9 @@ Models exported under `models/<model_name>/` save the following standard artifac
 > - `emotion != distress`
 > - `stress != distress`
 > - `audio_emotion != distress`
+> - `fusion != distress`
 > - `PHQ != AAROH distress`
 > - ML features never override human clinician judgments.
 > - Missing data must remain `None` and must never be fabricated as zero.
+
 

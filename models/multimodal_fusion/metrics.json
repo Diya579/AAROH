@@ -1,0 +1,8 @@
+{
+  "validation_reconstruction_loss": 0.3619,
+  "mean_gate_tabular": 0.4235,
+  "mean_gate_text": 0.3497,
+  "mean_gate_audio": 0.2268,
+  "mean_embedding_norm": 1.0,
+  "validation_samples": 14
+}
