@@ -97,6 +97,57 @@ def enforce_fusion_boundary(output_name: str) -> None:
             "and MUST NEVER output clinical distress scores, escalation predictions, or diagnoses."
         )
 
+def enforce_distress_boundary(label_or_output_name: str) -> None:
+    """Strictly enforces that dynamic distress model outputs are limited to current distress representations.
+
+    Rejects any attempt to output:
+    - Psychiatric diagnosis (e.g. depression, anxiety, PTSD)
+    - Escalation predictions or trajectory forecasting
+    - Future risk or future prediction
+    - Suicide or self-harm prediction
+    - Treatment or intervention recommendations
+    - Clinical instruments (PHQ, GAD)
+
+    Allowed output attributes are strictly:
+    - distress_embedding
+    - distress_score
+    - distress_level
+    - model_version (internal traceability)
+    """
+    forbidden = {
+        "diagnosis",
+        "clinical_diagnosis",
+        "medical_diagnosis",
+        "escalation",
+        "escalation_probability",
+        "future_risk",
+        "future_prediction",
+        "depression",
+        "anxiety",
+        "ptsd",
+        "suicide",
+        "suicide_risk",
+        "suicide_prediction",
+        "treatment",
+        "treatment_recommendation",
+        "intervention",
+        "intervention_recommendation",
+        "phq",
+        "phq_score",
+        "gad",
+        "gad_score",
+        "trajectory",
+        "longitudinal_prediction",
+    }
+    lowered = label_or_output_name.lower().strip()
+    for f in forbidden:
+        if f in lowered:
+            raise ValueError(
+                f"CLINICAL BOUNDARY VIOLATION: Output name '{label_or_output_name}' is forbidden. "
+                "Dynamic Distress Model estimates CURRENT distress state representations only. "
+                "It MUST NEVER predict diagnoses, escalation, future trajectories, suicide risk, or treatment recommendations."
+            )
+
 
 # =====================================================================
 # Model Metadata & Export Management

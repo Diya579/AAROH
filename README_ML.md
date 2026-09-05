@@ -225,7 +225,116 @@ result = model.fuse(record)
 
 ---
 
-## 7. Training & Evaluation Workflows (Google Colab Ready)
+## 7. Dynamic Distress Model (Slice 3.6)
+
+The **Dynamic Distress Model** is the first AAROH-specific model. It converts the current fused multimodal representation alongside behavioral and engagement interaction feature slices into a **CURRENT** distress state representation.
+
+### Architectural Pipeline
+1. **Inputs (301 Dimensions)**:
+   - Fused Multimodal Embedding from Slice 3.5: **256 dimensions** (unit sphere vector).
+   - Behavioural Features Slice (from Slice 3.1): **8 values + 8 missingness indicator masks = 16 dimensions**.
+   - Engagement Features Slice (from Slice 3.1): **13 values + 13 missingness indicator masks = 26 dimensions**.
+   - Modality Gating Weights (from Slice 3.5): **3 dimensions** (`tabular`, `text`, `audio`).
+   - *Strict Invariant*: Preserves `None != 0` via explicit missingness indicator masks.
+   - *Boundary Constraint*: Consumes **current** interaction only. Does **NOT** consume future interactions, trajectories, longitudinal history, or previous distress states.
+2. **Feature Projection**:
+   - `Linear(301, 128)` + `ReLU`.
+3. **Residual Feed Forward Block**:
+   - `Linear(128, 128)` + `ReLU` + `Linear(128, 128)`.
+   - Residual addition: $h_{\text{res}} = \text{ReLU}(h_{\text{proj}} + \text{FFN}(h_{\text{proj}}))$.
+4. **128-Dimensional Distress Embedding**:
+   - Learned latent vector normalized on the unit hypersphere: $h_{\text{distress}} = h_{\text{res}} / \|h_{\text{res}}\|_2$.
+5. **Regression Head**:
+   - `Linear(128, 64)` + `ReLU` + `Linear(64, 1)` + `Sigmoid` $\to$ continuous `distress_score` $\in [0.0, 1.0]$.
+6. **Configurable Threshold Mapper**:
+   - Categorizes continuous score into discrete distress levels:
+     - `LOW`: $[0.0, 0.25)$
+     - `MODERATE`: $[0.25, 0.55)$
+     - `HIGH`: $[0.55, 0.80)$
+     - `CRITICAL`: $[0.80, 1.0]$
+
+### Training Supervision & Smoke-Test Disclaimers
+> [!WARNING]
+> - **Smoke-test metrics are intended only to verify that the training, checkpointing, inference, and evaluation pipelines function correctly. They are NOT indicators of real-world model performance.**
+> - **Synthetic demonstration labels are used solely for engineering verification and architecture validation. They are NOT clinical ground truth.**
+>
+> Public machine learning corpora do not contain clinical AAROH distress labels. The Dynamic Distress Model is trained and verified exclusively using deterministic synthetic demonstration supervision. These labels demonstrate pipeline mechanics, gradient descent convergence, and zero-leakage case-level splits, and **MUST NEVER** be interpreted as clinically validated ground truth.
+
+### Versioned Threshold Configuration
+Thresholds are versioned and stored directly within the model configuration:
+- Primary location: embedded in `models/distress/config.json` under `threshold_configuration`
+- Legacy fallback location: `models/distress/thresholds.json`
+
+Schema (`config.json` snippet):
+```json
+{
+  "model_type": "dynamic_distress_model",
+  "model_version": "aaroh-distress-v1",
+  "threshold_configuration": {
+    "version": "1.0",
+    "model_version": "aaroh-distress-v1",
+    "thresholds": {
+      "low": 0.25,
+      "moderate": 0.55,
+      "high": 0.80
+    },
+    "disclaimer": "Synthetic demonstration labels are used solely for engineering verification and architecture validation. They are NOT clinical ground truth."
+  },
+  "thresholds": {
+    "low": 0.25,
+    "moderate": 0.55,
+    "high": 0.80
+  }
+}
+```
+During model loading (`load_checkpoint` or `DynamicDistressModel(config_path=...)`), thresholds are dynamically loaded by checking the primary `config.json` first, falling back to legacy `thresholds.json` if present, or defaulting to `DEFAULT_THRESHOLDS` (0.25, 0.55, 0.80). This eliminates unneeded standalone files while guaranteeing backwards compatibility and versioned governance.
+
+### Explicit Execution Modes
+1. **`FALLBACK` Mode**:
+   - Lightweight pure-Python neural forward and backward propagation.
+   - Pretrained transformer backbones are **referenced in configuration and metadata only** and are **NOT instantiated in memory**.
+   - Parameters actually instantiated: **80,001** (trainable projection, residual, and regression heads only).
+2. **`PYTORCH_FROZEN` Mode**:
+   - Instantiates configured PyTorch neural module and references HuggingFace backbones with `requires_grad=False`.
+   - Trains only the 80,001 distress model parameters.
+3. **`PYTORCH_FINETUNE` Mode**:
+   - Instantiates backbones and unfreezes them (`requires_grad=True` when `--unfreeze-backbone` is passed) for end-to-end gradient updates.
+
+### Exact Parameter Accounting
+- **1. Trainable Parameters**: **80,001**
+  - Feature Projection: $301 \times 128 + 128 = 38,656$
+  - Residual Layer 1: $128 \times 128 + 128 = 16,512$
+  - Residual Layer 2: $128 \times 128 + 128 = 16,512$
+  - Regression Hidden: $128 \times 64 + 64 = 8,256$
+  - Regression Output: $64 \times 1 + 1 = 65$
+  - Total Trainable Parameters: $38,656 + 16,512 + 16,512 + 8,256 + 65 = 80,001$
+- **2. Upstream Backbone Parameters**: **229,774,080** (DistilBERT: 134,734,080 + Wav2Vec2: 95,040,000)
+- **3. Total Parameters If Instantiated**: **229,854,081** ($80,001 + 229,774,080$)
+- **4. Parameters Actually Instantiated**: **80,001** (in `FALLBACK` mode) / **229,854,081** (in `PYTORCH_*` modes)
+
+### Reusable Public Inference Interface & Model Version Tracking
+```python
+from backend.ml.training.models.distress import DynamicDistressModel, DistressInputRecord
+
+model = DynamicDistressModel()
+result = model.predict_distress(record)
+# Returns:
+# {
+#     "distress_embedding": [0.038, -0.012, ..., 0.091],  # 128-dim unit vector
+#     "distress_score": 0.4834,                           # continuous [0.0, 1.0]
+#     "distress_level": "MODERATE",                       # LOW / MODERATE / HIGH / CRITICAL
+#     "model_version": "aaroh-distress-v1"                # internal model version tracking
+# }
+```
+
+### Strict Clinical & Architectural Boundaries
+- `enforce_distress_boundary()` programmatically blocks outputs with forbidden names (`diagnosis`, `clinical_diagnosis`, `escalation`, `escalation_probability`, `future_risk`, `future_prediction`, `depression`, `anxiety`, `ptsd`, `suicide_risk`, `treatment_recommendation`, `intervention_recommendation`).
+- Dynamic Distress Model outputs ONLY current distress state representations (`distress_embedding`, `distress_score`, `distress_level`, `model_version`).
+- NEVER predicts psychiatric diagnoses, escalation, future trajectory, or treatment recommendations.
+
+---
+
+## 8. Training & Evaluation Workflows (Google Colab Ready)
 
 All training scripts feature Google Colab compatible settings (`fp16`, gradient accumulation, early stopping, Google Drive checkpointing, and `seed=42`).
 
@@ -296,6 +405,20 @@ python3 train_multimodal_fusion.py \
 
 # Fast Smoke-Test Execution (Single Epoch / Small Batch)
 python3 train_multimodal_fusion.py --smoke-test
+
+# 6. Train Dynamic Distress Model (Slice 3.6)
+python3 train_distress.py \
+    --data-dir datasets/processed \
+    --output-dir models/distress \
+    --batch-size 16 \
+    --lr 1e-3 \
+    --epochs 10 \
+    --seed 42 \
+    --fp16 \
+    --drive-checkpoint-dir /content/drive/MyDrive/aaroh_checkpoints/distress
+
+# Fast Smoke-Test Execution (Single Epoch / Small Batch)
+python3 train_distress.py --smoke-test
 ```
 
 ### Comprehensive Evaluation Suite
@@ -308,6 +431,9 @@ python3 evaluate_audio_model.py --model-dir models/audio_emotion/ --data-dir dat
 
 # Evaluate Multimodal Feature Fusion Model:
 python3 evaluate_fusion_model.py --model-dir models/multimodal_fusion/ --data-dir datasets/processed/
+
+# Evaluate Dynamic Distress Model:
+python3 evaluate_distress_model.py --model-dir models/distress/
 ```
 Metrics produced:
 - **Text Emotion**: Accuracy, Precision, Recall, Macro F1, Weighted F1.
@@ -315,24 +441,25 @@ Metrics produced:
 - **Mental Health Representation**: Mean embedding norm, Cosine separation, Domain alignment.
 - **Audio Emotion**: Overall Accuracy, Precision, Recall, Macro F1, Weighted F1, Confusion Matrix, Per-Class Accuracy for all 8 RAVDESS emotions.
 - **Multimodal Fusion**: Tabular Reconstruction Loss (MSE), Dynamic Modality Gating Weights (`tabular`, `text`, `audio`), Missing Modality Zero-Weight Verification, Mean Fused Embedding Norm, Cross-Case Cosine Diversity.
+- **Dynamic Distress**: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), Pearson Correlation ($r$), Threshold Accuracy, Distress Level Distribution (`LOW`, `MODERATE`, `HIGH`, `CRITICAL`), Distress Embedding Norm.
 
 ---
 
-## 8. Model Export Structure
+## 9. Model Export Structure
 
 Models exported under `models/<model_name>/` save the following standard artifacts:
 - `pytorch_model.bin` / `weights` (model weights)
 - `tokenizer_config.json` / `tokenizer` (tokenizer parameters & configuration)
 - `preprocessor_config.json` (audio sampling rate, duration, normalization params)
 - `config.json` (architecture hyper-parameters & dimensions)
-- `label_mapping.json` (class index mappings)
+- `label_mapping.json` (class index / threshold mappings & disclaimers)
 - `metrics.json` (validation and test performance metrics)
-- `metadata.json` (containing `model_version`, `dataset_version`, `training_date`, `hyperparameters`, and clinical boundary assertions)
+- `metadata.json` (containing `model_version`, `dataset_version`, `training_date`, `execution_mode`, `parameter_counts`, `hyperparameters`, and clinical boundary assertions)
 - `modality_schema.json` (multimodal input dimensions, masking schema, fusion dimensions)
 
 ---
 
-## 9. Clinical & Regulatory Boundary Invariant
+## 10. Clinical & Regulatory Boundary Invariant
 
 > [!IMPORTANT]
 > AAROH ML models and features operate exclusively as **clinical decision support**.
@@ -342,6 +469,7 @@ Models exported under `models/<model_name>/` save the following standard artifac
 > - `audio_emotion != distress`
 > - `fusion != distress`
 > - `PHQ != AAROH distress`
+> - Dynamic Distress Model estimates **current** distress representations only and NEVER predicts future trajectories, escalation, suicide risk, or treatment recommendations.
 > - ML features never override human clinician judgments.
 > - Missing data must remain `None` and must never be fabricated as zero.
 

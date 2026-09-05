@@ -1,0 +1,27 @@
+{
+  "model_type": "dynamic_distress_model",
+  "validation_samples": 27,
+  "mae": 0.1211,
+  "rmse": 0.1369,
+  "pearson_correlation": 0.1139,
+  "threshold_accuracy": 0.2963,
+  "distress_level_distribution": {
+    "counts": {
+      "LOW": 0,
+      "MODERATE": 27,
+      "HIGH": 0,
+      "CRITICAL": 0
+    },
+    "percentages": {
+      "LOW": 0.0,
+      "MODERATE": 100.0,
+      "HIGH": 0.0,
+      "CRITICAL": 0.0
+    }
+  },
+  "mean_distress_embedding_norm": 1.0,
+  "clinical_boundaries_enforced": true,
+  "supervision_notice": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH",
+  "smoke_test_notice": "Smoke-test metrics are intended only to verify that the training, checkpointing, inference, and evaluation pipelines function correctly. They are NOT indicators of real-world model performance.",
+  "synthetic_labels_notice": "Synthetic demonstration labels are used solely for engineering verification and architecture validation. They are NOT clinical ground truth."
+}

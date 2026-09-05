@@ -1,0 +1,31 @@
+{
+  "model_type": "dynamic_distress_model",
+  "model_version": "aaroh-distress-v1",
+  "input_dim": 301,
+  "projection_dim": 128,
+  "residual_hidden_dim": 128,
+  "distress_embedding_dim": 128,
+  "regression_hidden_dim": 64,
+  "output_dim": 1,
+  "threshold_configuration": {
+    "version": "1.0",
+    "model_version": "aaroh-distress-v1",
+    "thresholds": {
+      "low": 0.25,
+      "moderate": 0.55,
+      "high": 0.8
+    },
+    "disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH"
+  },
+  "thresholds": {
+    "low": 0.25,
+    "moderate": 0.55,
+    "high": 0.8
+  },
+  "execution_mode": "FALLBACK",
+  "trainable_parameters": 80001,
+  "backbone_parameters": 229774080,
+  "total_parameters_if_instantiated": 229854081,
+  "actually_instantiated_parameters": 80001,
+  "instantiation_note": "In FALLBACK mode, pretrained transformer backbones are referenced in configuration only and are NOT instantiated in memory. Only the 80,001 distress model parameters were instantiated."
+}
