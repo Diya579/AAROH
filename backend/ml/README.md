@@ -1,4 +1,4 @@
-# AAROH ML subsystem (Slice 1, Slice 2.1 & Slice 2.2)
+# AAROH ML subsystem (Slice 1, Slice 2.1, Slice 2.2 & Slice 2.3)
 
 This package owns machine-learning **contracts, inference interfaces, preprocessing pipelines, and feature extractors**.
 It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
@@ -12,7 +12,7 @@ It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
 | `policies` | Confidence / abstention **interfaces** and a default threshold policy |
 | `inference` | `infer(...)` → Python `dict`. **No database writes.** |
 | `preprocessing` | Input validation, Unicode text normalization, safe missingness handling, and record standardization (Slice 2.1) |
-| `features` | Deterministic multilingual text feature extraction and explainability evidence (Slice 2.2) |
+| `features` | Deterministic text (Slice 2.2) and behavioural (Slice 2.3) feature extraction and explainability evidence |
 | `models` | Future learned-model adapters (rule-based code stays in `backend/risk/`) |
 | `training` | Future reproducible training scripts (offline; not required for inference) |
 | `evaluation` | Future metrics; synthetic scores are not clinical evidence |
@@ -90,6 +90,45 @@ raw_payload = {
 interaction = preprocess_interaction(raw_payload)
 features = extract_text_features(interaction)
 # features is a strongly typed, immutable TextFeatures dataclass
+```
+
+## Behavioural Feature Extraction (Slice 2.3)
+
+The behavioural feature extraction layer (`backend.ml.features.behavioural`) consumes `PreprocessedInteraction` records and optional historical interactions to produce structured behavioural distress features:
+
+1. **Centralized Metric Definitions (`definitions.py`)**:
+   - Single source of truth for Likert 1–5 scale boundaries and normalization.
+   - Consistent directionality: scales are mapped such that `1.0` uniformly represents maximal distress.
+   - `safety_response` and `social_support` are inverted (`1 - norm`), while `fear_level` and `sleep_disruption` are direct.
+2. **Normalized Observable Indicators**:
+   - `safety_distress`, `sleep_disturbance`, `fear_intensity`, `low_social_support`, `help_requested`, and `composite_distress` in `[0.0, 1.0]`.
+3. **Longitudinal History Support**:
+   - `change_from_previous` (delta from immediately preceding interaction)
+   - `change_from_baseline` (delta from first recorded interaction in history)
+4. **Explainability Evidence Metadata (`evidence`)**:
+   - Retains `observation_count`, raw 1–5 scores, previous/baseline scores, per-metric deltas, observation timestamps, and human-readable `notable_shifts` (e.g. sharp distress spikes).
+   - This metadata does not affect numeric scores and directly supports downstream prediction justifications.
+5. **Strict `None != 0` Invariant**:
+   - Absent history or missing ratings remain `None`. Never converts missing behavioural data into zero.
+
+### How to extract Behavioural Features
+
+```python
+from backend.ml import extract_behavioural_features, preprocess_interaction
+
+raw_payload = {
+    "case_id": "AAROH-001",
+    "interaction_date": "2026-09-03",
+    "safety_response": 2,
+    "sleep_disruption": 4,
+    "fear_level": 5,
+    "social_support": 1,
+    "help_requested": True,
+}
+
+interaction = preprocess_interaction(raw_payload)
+behavioural = extract_behavioural_features(interaction)
+# behavioural is a strongly typed, immutable BehaviouralFeatures dataclass
 ```
 
 ## Application-facing result

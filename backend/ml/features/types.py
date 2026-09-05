@@ -187,3 +187,102 @@ class TextFeatures:
             )
 
         return features
+
+
+@dataclass(frozen=True)
+class BehaviouralEvidence:
+    """Metadata and evidence supporting explainability for behavioural features.
+
+    Stores observation counts, raw Likert inputs, previous values, baseline values,
+    deltas, timestamps, and notable shift factors.
+    Does not affect numeric feature values.
+    """
+
+    observation_count: int
+    raw_scores: Mapping[str, Optional[float]]
+    previous_scores: Optional[Mapping[str, Optional[float]]] = None
+    baseline_scores: Optional[Mapping[str, Optional[float]]] = None
+    deltas_from_previous: Optional[Mapping[str, Optional[float]]] = None
+    deltas_from_baseline: Optional[Mapping[str, Optional[float]]] = None
+    timestamps: tuple[str, ...] = ()
+    notable_shifts: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "observation_count": self.observation_count,
+            "raw_scores": dict(self.raw_scores),
+            "previous_scores": (
+                None if self.previous_scores is None else dict(self.previous_scores)
+            ),
+            "baseline_scores": (
+                None if self.baseline_scores is None else dict(self.baseline_scores)
+            ),
+            "deltas_from_previous": (
+                None
+                if self.deltas_from_previous is None
+                else dict(self.deltas_from_previous)
+            ),
+            "deltas_from_baseline": (
+                None
+                if self.deltas_from_baseline is None
+                else dict(self.deltas_from_baseline)
+            ),
+            "timestamps": list(self.timestamps),
+            "notable_shifts": list(self.notable_shifts),
+        }
+
+
+@dataclass(frozen=True)
+class BehaviouralFeatures:
+    """Strongly typed, immutable container for behavioural features (Slice 2.3).
+
+    Preserves None != 0 invariant: missing ratings or missing history remain None.
+    Normalized to [0.0, 1.0] where 1.0 uniformly represents maximal distress.
+    """
+
+    behavioural_available: bool
+    safety_distress: Optional[float]
+    sleep_disturbance: Optional[float]
+    fear_intensity: Optional[float]
+    low_social_support: Optional[float]
+    help_requested: Optional[float]
+    composite_distress: Optional[float]
+    change_from_previous: Optional[float] = None
+    change_from_baseline: Optional[float] = None
+    evidence: Optional[BehaviouralEvidence] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "behavioural_available": self.behavioural_available,
+            "safety_distress": self.safety_distress,
+            "sleep_disturbance": self.sleep_disturbance,
+            "fear_intensity": self.fear_intensity,
+            "low_social_support": self.low_social_support,
+            "help_requested": self.help_requested,
+            "composite_distress": self.composite_distress,
+            "change_from_previous": self.change_from_previous,
+            "change_from_baseline": self.change_from_baseline,
+            "evidence": None if self.evidence is None else self.evidence.to_dict(),
+        }
+
+    def to_feature_dict(self) -> dict[str, Any]:
+        """Flattens features for downstream model consumption without converting None to 0."""
+        features: dict[str, Any] = {
+            "behavioural_available": int(self.behavioural_available),
+        }
+        if self.behavioural_available:
+            for metric in (
+                "safety_distress",
+                "sleep_disturbance",
+                "fear_intensity",
+                "low_social_support",
+                "help_requested",
+                "composite_distress",
+                "change_from_previous",
+                "change_from_baseline",
+            ):
+                val = getattr(self, metric)
+                if val is not None:
+                    features[f"behavioural_{metric}"] = val
+
+        return features

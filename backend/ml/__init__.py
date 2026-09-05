@@ -20,7 +20,9 @@ from backend.ml.contract import (
     Trajectory,
 )
 from backend.ml.features import (
+    BehaviouralFeatures,
     TextFeatures,
+    extract_behavioural_features,
     extract_text_features,
 )
 from backend.ml.inference.service import infer
@@ -36,6 +38,7 @@ from backend.ml.preprocessing import (
 
 __all__ = [
     "DEFAULT_TARGET_HORIZON_DAYS",
+    "BehaviouralFeatures",
     "ConfidenceAbstentionPolicy",
     "DistressOutput",
     "EvidenceContext",
@@ -51,6 +54,7 @@ __all__ = [
     "TextFeatures",
     "ThresholdConfidencePolicy",
     "Trajectory",
+    "extract_behavioural_features",
     "extract_text_features",
     "infer",
     "preprocess_interaction",

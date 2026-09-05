@@ -1,9 +1,23 @@
-"""ML Feature Extraction layer (Slice 2.2).
+"""ML Feature Extraction layer (Slice 2.2 & Slice 2.3).
 
-Provides deterministic, multilingual text feature extraction consuming
+Provides deterministic text and behavioural feature extraction consuming
 Slice 2.1 ``PreprocessedInteraction`` records.
 """
 
+from backend.ml.features.behavioural import (
+    BehaviouralFeatureExtractor,
+    extract_behavioural_features,
+    extract_behavioural_features_batch,
+)
+from backend.ml.features.definitions import (
+    ALL_BEHAVIOURAL_INPUT_FIELDS,
+    HIGH_DISTRESS_THRESHOLD,
+    MAX_LIKERT_RATING,
+    MIN_LIKERT_RATING,
+    NOTABLE_SHIFT_THRESHOLD,
+    BehaviouralMetric,
+    normalize_likert_rating,
+)
 from backend.ml.features.distress import extract_distress_indicators
 from backend.ml.features.extractor import (
     TextFeatureExtractor,
@@ -20,6 +34,8 @@ from backend.ml.features.lexicons import (
 )
 from backend.ml.features.safety import extract_safety_indicators
 from backend.ml.features.types import (
+    BehaviouralEvidence,
+    BehaviouralFeatures,
     DistressIndicators,
     ExplanationEvidence,
     HelpSeekingIndicators,
@@ -30,11 +46,24 @@ from backend.ml.features.types import (
 )
 
 __all__ = [
-    # Top-level feature container & orchestrator
+    # Top-level feature containers & orchestrators
     "TextFeatures",
     "TextFeatureExtractor",
     "extract_text_features",
     "extract_text_features_batch",
+    "BehaviouralFeatures",
+    "BehaviouralEvidence",
+    "BehaviouralFeatureExtractor",
+    "extract_behavioural_features",
+    "extract_behavioural_features_batch",
+    # Behavioural definitions & constants
+    "BehaviouralMetric",
+    "MIN_LIKERT_RATING",
+    "MAX_LIKERT_RATING",
+    "NOTABLE_SHIFT_THRESHOLD",
+    "HIGH_DISTRESS_THRESHOLD",
+    "ALL_BEHAVIOURAL_INPUT_FIELDS",
+    "normalize_likert_rating",
     # Dataclasses
     "DistressIndicators",
     "ExplanationEvidence",
