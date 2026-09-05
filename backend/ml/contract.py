@@ -166,6 +166,7 @@ class MlInferenceResult:
     explanation: Optional[ExplanationOutput] = None
     model: Optional[ModelOutput] = None
     message: Optional[str] = None
+    metadata: Optional[Mapping[str, Any]] = None
 
     def __post_init__(self) -> None:
         if not self.case_id:
@@ -226,6 +227,8 @@ class MlInferenceResult:
         }
         if self.message is not None:
             payload["message"] = self.message
+        if self.metadata is not None:
+            payload["metadata"] = dict(self.metadata)
         return payload
 
 
@@ -236,6 +239,7 @@ def failed_result(
     message: str,
     source: ResultSource = ResultSource.ML,
     model: Optional[ModelOutput] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
 ) -> MlInferenceResult:
     """Technical failure: no fabricated LOW / 0.0 prediction."""
 
@@ -249,6 +253,7 @@ def failed_result(
         explanation=None,
         model=model,
         message=message,
+        metadata=metadata,
     )
 
 
@@ -258,6 +263,7 @@ def insufficient_data_result(
     *,
     message: str,
     model: Optional[ModelOutput] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
 ) -> MlInferenceResult:
     return MlInferenceResult(
         case_id=case_id,
@@ -269,6 +275,7 @@ def insufficient_data_result(
         explanation=None,
         model=model,
         message=message,
+        metadata=metadata,
     )
 
 
@@ -281,6 +288,7 @@ def abstained_result(
     distress: Optional[DistressOutput] = None,
     explanation: Optional[ExplanationOutput] = None,
     model: Optional[ModelOutput] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
 ) -> MlInferenceResult:
     return MlInferenceResult(
         case_id=case_id,
@@ -292,6 +300,7 @@ def abstained_result(
         explanation=explanation,
         model=model,
         message=message,
+        metadata=metadata,
     )
 
 
@@ -347,6 +356,7 @@ def result_from_mapping(data: Mapping[str, Any]) -> MlInferenceResult:
         explanation=explanation,
         model=model,
         message=data.get("message"),
+        metadata=data.get("metadata"),
     )
 
 

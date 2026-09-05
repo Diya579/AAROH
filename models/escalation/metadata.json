@@ -3,7 +3,7 @@
   "model_version": "aaroh-escalation-v1",
   "dataset_version": "3.8.0",
   "feature_schema_version": "1.0",
-  "training_date": "2026-09-05T21:11:05.561880+00:00",
+  "training_date": "2026-09-05T21:27:23.518646+00:00",
   "target_horizon_days": 7,
   "calibration": {
     "method": "logistic_sigmoid",

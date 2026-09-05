@@ -756,5 +756,129 @@ Models exported under `models/<model_name>/` save the following standard artifac
 > - ML features never override human clinician judgments.
 > - Missing data must remain `None` and must never be fabricated as zero.
 
+---
 
+## 13. End-to-End ML Inference Pipeline (Slice 3.9)
 
+Slice 3.9 is the production orchestration layer wiring all completed slices (Slices 3.1–3.8) into a single deterministic inference pipeline returning the official `MlInferenceResult` contract (`backend.ml.contract`).
+
+### Architecture & Pipeline Execution Order
+
+Execution flows strictly through the completed ML slices without shortcuts, recomputation, or rule engines:
+
+```
+MLInput / Case History (Slice 3.1 / 3.2)
+       │
+       ▼
+Behavioural & Engagement Feature Extraction (8 + 13 features)
+       │
+       ├──► Text Representation (TextEmotionModel, 768-dim, Slice 3.3)
+       │
+       ├──► Audio Representation (AudioEmotionModel, 768-dim, Slice 3.4)
+       │
+       ▼
+Multimodal Feature Fusion (MultimodalFusionModel, 256-dim, Slice 3.5)
+       │
+       ▼
+Dynamic Distress Model (DynamicDistressModel, 128-dim + score, Slice 3.6)
+       │
+       ▼
+Longitudinal Trajectory Model (LongitudinalTrajectoryModel, 128-dim + trend, Slice 3.7)
+       │
+       ▼
+Escalation Assessment Model (EscalationAssessmentModel, probability + risk_level, Slice 3.8)
+       │
+       ▼
+Grounded Explanation Forwarding (factors, trend, baseline_deviation)
+       │
+       ▼
+MlInferenceResult (backend.ml.contract)
+```
+
+### Key Components
+
+- **`MLInferencePipeline`** (`backend/ml/inference/pipeline.py`):
+  Public entry points:
+  - `load_models(base_dir=None)`: Validates exports, checks versions, and initializes models into cache.
+  - `warmup()`: Runs a synthetic dummy payload through all stages to warm up layers and caches.
+  - `health_check()`: Returns readiness, component status, execution mode, and cache stats.
+  - `run(input_record)`: Runs single-turn inference, returning `MlInferenceResult`.
+  - `run_case(case_history)`: Runs longitudinal multi-turn inference across history window.
+- **`PipelineConfig`** (`backend/ml/inference/config.py`):
+  Centralized versioned dataclass specifying `pipeline_version`, `default_execution_mode`, `seed`, `warmup_on_load`, `strict_stage_validation`, and manifest paths.
+- **`ModelRegistry`** (`backend/ml/inference/registry.py`):
+  Verifies required artifact files (`weights`, `config.json`, `metadata.json`, `label_mapping.json`), computes SHA-256 checksums, and validates version compatibility against `DEFAULT_MODEL_VERSIONS` and aliases.
+- **`InferenceCache`** (`backend/ml/inference/cache.py`):
+  Thread-safe in-memory cache for loaded model instances, configs, and metadata to eliminate repeated disk reads.
+- **`StageTimer` & `PipelineLogger`** (`backend/ml/inference/runner.py`):
+  Instruments high-precision execution timings in milliseconds for each stage (`text_time_ms`, `audio_time_ms`, `fusion_time_ms`, `distress_time_ms`, `trajectory_time_ms`, `escalation_time_ms`, `total_pipeline_time_ms`) and logs structured traces tagged by `pipeline_run_id`.
+- **Strict Stage Interface Validation** (`backend/ml/inference/runner.py`):
+  Validates output shapes, types, value bounds, and required keys between every stage before downstream consumption. Raises `PipelineExecutionError` on non-compliant outputs.
+- **Pipeline Manifest** (`models/pipeline_manifest.json`):
+  Persists pipeline version, build timestamp, execution order, loaded model versions, execution mode, configuration, and artifact SHA-256 checksums.
+
+---
+
+## 14. Production Inference Lifecycle
+
+```
+Startup
+  │
+  ▼
+Warmup
+  │
+  ▼
+Health Check
+  │
+  ▼
+Model Registry Validation
+  │
+  ▼
+Pipeline Execution
+  │
+  ▼
+Escalation Assessment
+  │
+  ▼
+MlInferenceResult
+  │
+  ▼
+Failure Recovery
+```
+
+1. **Startup**: Instantiates `MLInferencePipeline(config, registry, cache)`. Sets deterministic random seed (`seed=42`).
+2. **Warmup**: Executes `warmup()`. Passes dummy interaction through all 6 models to prime caches and memory.
+3. **Health Check**: Calls `health_check()`. Checks `ready: True`, `overall_status: "HEALTHY"`, and all component load flags.
+4. **Model Registry Validation**: Checks presence and SHA-256 checksums of all 6 exported model artifact directories under `models/`. Asserts model versions match expected versions (`VersionMismatchError` if incompatible).
+5. **Pipeline Execution**:
+   - Assigns a unique `pipeline_run_id` (e.g. `run_72df1e33799e`) to track structured logs.
+   - Extracts behavioural (8) and engagement (13) features.
+   - Encoders extract 768-dim text and audio emotion representations.
+   - Multimodal fusion computes 256-dim gated representation and modality weights.
+   - Dynamic distress model estimates 128-dim distress embedding and continuous score.
+   - Longitudinal trajectory model evaluates distress trend across the history window.
+6. **Escalation Assessment**: Interpretable calibrated logistic regression computes 7-day escalation probability, risk level (`LOW`, `MODERATE`, `HIGH`), evidence-based confidence, and feature-contribution grounded explanations.
+7. **`MlInferenceResult` Packaging**:
+   - Packages `DistressOutput`, `PredictionOutput`, `ExplanationOutput`, `ModelOutput`, and metadata (including `pipeline_run_id` and stage timings).
+   - Explanations are forwarded verbatim from Slice 3.8.
+8. **Failure Recovery & Abstention**:
+   - Missing text or audio: Gracefully uses zero representations and updates evidence flags.
+   - Insufficient evidence (< 2 observations or 0 modalities): Emits `status: INSUFFICIENT_DATA` with `source: insufficient_evidence` and `prediction: None`. Never fabricates a fake `LOW` risk or `0.0` probability.
+   - Low confidence: Emits `status: LOW_CONFIDENCE` or `status: ABSTAINED`.
+   - Technical failures (corrupt metadata, missing checkpoints): Emits `status: FAILED` with detailed diagnostic message. Never crashes unhandled.
+
+### Verification Commands
+
+```bash
+# Run Slice 3.9 End-to-End Verification:
+python3 verify_slice_3_9.py
+
+# Run Full Unit Test Suite (All Slices):
+python3 -m unittest discover -s backend/ml/tests
+
+# Run Slices 3.5 - 3.8 Verifications:
+python3 verify_slice_3_5.py
+python3 verify_slice_3_6.py
+python3 verify_slice_3_7.py
+python3 verify_slice_3_8.py
+```
