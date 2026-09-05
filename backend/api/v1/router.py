@@ -7,7 +7,7 @@ Business logic must NOT live here — only router includes.
 
 from fastapi import APIRouter
 
-from backend.api.v1 import health, cases, interactions, events, consents
+from backend.api.v1 import health, cases, interactions, events, consents, audio
 
 router = APIRouter()
 
@@ -20,3 +20,4 @@ router.include_router(cases.router)
 router.include_router(interactions.router)
 router.include_router(events.router)
 router.include_router(consents.router)
+router.include_router(audio.router)
