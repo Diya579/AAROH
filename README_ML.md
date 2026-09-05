@@ -69,6 +69,9 @@ Outputs produced:
 - **Slice 3.3**: Lightweight text representation models (`backend/ml/training/models/`).
 - **Slice 3.4**: Audio emotion representation model (`backend/ml/training/models/audio_emotion/`).
 - **Slice 3.5**: Multimodal feature fusion network (`backend/ml/training/models/fusion/`).
+- **Slice 3.6**: Dynamic distress model (`backend/ml/training/models/distress/`).
+- **Slice 3.7**: Longitudinal trajectory model (`backend/ml/training/models/trajectory/`).
+- **Slice 3.8**: Escalation assessment model (`backend/ml/training/models/escalation/`).
 
 ---
 
@@ -421,7 +424,163 @@ result = model.predict_trajectory(case_trajectory)
 
 ---
 
-## 9. Training & Evaluation Workflows (Google Colab Ready)
+## 9. Slice 3.8: Escalation Assessment Model (v1)
+
+Slice 3.8 provides the **Escalation Assessment Model** (`EscalationAssessmentModel`), the final predictive decision layer in the AAROH ML pipeline.
+
+### Architectural Overview & Decision Pipeline
+Rather than an uninterpretable deep neural network, Slice 3.8 implements a transparent, calibrated **Logistic Regression baseline** exposing continuous probabilities via the logistic sigmoid $\sigma(z) = \frac{1}{1 + e^{-z}}$.
+
+The strict hierarchical pipeline flows as follows:
+```
+MLInput (Slice 3.1)
+  │
+  ├── Representation Models (Slice 3.3 / 3.4)
+  │     ├── Text: DistilBERT (Emotion 7-dim, Stress 2-dim, Mental Health 768-dim)
+  │     └── Audio: Wav2Vec2 (8-dim probabilities, 768-dim embedding)
+  │
+  └── Multimodal Feature Fusion (Slice 3.5)
+        ├── Dynamic modality gating (tabular, text, audio)
+        └── Fused multimodal representation (256-dim)
+              │
+              ├── Dynamic Distress Model (Slice 3.6)
+              │     └── Current distress state (128-dim embedding, score, level)
+              │           │
+              │           └── Longitudinal Trajectory Model (Slice 3.7)
+              │                 └── Distress change over time (128-dim embedding, score, label)
+              │                       │
+              └───────────────────────┴──► Escalation Assessment Model (Slice 3.8)
+                                            └── Calibrated operational assessment signal
+```
+
+```
+backend/ml/training/models/escalation/
+├── __init__.py
+├── dataset.py                # EscalationConfig, EscalationInputRecord, 28 interpretable features, zero-leakage case splitter
+└── model.py                  # EscalationAssessmentModel (Interpretable Logistic Regression, confidence, explainability, abstention)
+```
+
+### Strict Pipeline Responsibility Separation
+The AAROH ML subsystem enforces a strict division of clinical and operational responsibilities across pipeline layers:
+
+1. **Representation Models (Slices 3.3 / 3.4 / 3.5)**:
+   - Produce latent embeddings and intermediate multimodal representations only (`text_embedding`, `audio_embedding`, `fused_embedding`, `modality_weights`).
+   - Do NOT estimate distress, trajectory, escalation, diagnosis, or triage actions.
+
+2. **Current Distress Model (Slice 3.6)**:
+   - Estimates **current state only** (`distress_score`, `distress_level`, `distress_embedding`).
+   - Does NOT perform longitudinal reasoning, predict future states, or output escalation signals.
+
+3. **Longitudinal Trajectory Model (Slice 3.7)**:
+   - Estimates **temporal direction only** (`trajectory_score`, `trajectory_label`, `trajectory_probabilities`, `trajectory_embedding`).
+   - Models distress rate of change over time; does NOT predict operational escalation, triage decisions, or diagnoses.
+
+4. **Escalation Assessment Model (Slice 3.8 — This Slice)**:
+   - The **ONLY** layer in the ML pipeline authorized to produce:
+     - `escalation_probability`
+     - `confidence`
+     - `target_horizon_days`
+     - `risk_level`
+     - `grounded explanation` (and `factors`)
+     - `model_version`
+   - **Important Clinical Boundary on Explanations**: In the AAROH subsystem, `explanation` refers strictly to **feature-level mathematical evidence** (traceable positive feature contributions $w_i \cdot x_i$) supporting the model's operational assessment signal. It does **NOT** represent a clinical opinion, medical judgment, psychiatric evaluation, or diagnosis.
+
+### Centralized Escalation Risk Taxonomy (`RiskLevel`)
+Risk levels are determined strictly via configurable probability thresholds defined in `EscalationConfig`:
+- `LOW` ($P < 0.40$): Low probability of acute distress escalation within horizon; standard workflow continues.
+- `MODERATE` ($0.40 \le P < 0.75$): Intermediate escalation probability; scheduled follow-up and monitoring indicated.
+- `HIGH` ($P \ge 0.75$): Elevated escalation probability; prompt case manager review and assessment signal triggered.
+- **Strict Clinical Invariant**: `CRITICAL` is strictly forbidden in Slice 3.8. Emergency triage is handled exclusively by deterministic safety guardrails in downstream layers.
+
+### Configurable Target Horizon
+The prediction horizon is configurable via `EscalationConfig(target_horizon_days=7)` and is never hardcoded. All inference outputs explicitly state `target_horizon_days`.
+
+### Interpretable 28-Dimensional Feature Representation
+Each escalation record derives 28 structured, interpretable features from upstream slices without recomputation:
+1. **Distress State (Slice 3.6)**: `distress_score`, `distress_is_high`, `distress_is_critical`.
+2. **Longitudinal Trajectory (Slice 3.7)**: `trajectory_score`, `trajectory_is_worsening`, `trajectory_is_rapidly_worsening`.
+3. **Multimodal Alignment (Slice 3.5)**: `modality_weight_tabular`, `modality_weight_text`, `modality_weight_audio`, `modality_entropy`.
+4. **Behavioural Metrics (Slice 3.1)**: `sleep_disturbance_level`, `social_withdrawal_score`, `appetite_change_score`, `mood_variability`.
+5. **Engagement Metrics (Slice 3.1)**: `checkin_frequency_drop`, `response_delay_hours`, `session_duration_zscore`, `missed_checkins_count`.
+6. **Observation Completeness & Missing Indicators**: `valid_observation_count`, `has_text_modality`, `has_audio_modality`, plus explicit missing indicators preserving `None != 0` (`sleep_missing`, `social_missing`, `appetite_missing`, `mood_missing`, `checkin_drop_missing`, `delay_missing`).
+
+### Evidence-Based Confidence Policy (`ConfidencePolicyConfig`)
+Confidence is strictly decoupled from probability ($C \ne P$ and $C \ne |P - 0.5| \times 2$). It reflects epistemic completeness governed by a versioned `ConfidencePolicyConfig`:
+- `observation_weight = 0.35`: Depth of observation history ($\le 5$ points).
+- `text_weight = 0.20`: Availability of text modality observations.
+- `audio_weight = 0.15`: Availability of acoustic modality observations.
+- `missingness_weight = 0.15`: Proportion of non-missing clinical/behavioural indicators.
+- `uncertainty_weight = 0.15`: Margin of certainty away from ambiguity ($2 \times |P - 0.5|$).
+- `minimum_history = 2`: Minimum required observation count to attempt assessment.
+- `minimum_modalities = 1`: Minimum active modalities required.
+- `minimum_confidence = 0.25`: Threshold below which status transitions to `LOW_CONFIDENCE`.
+
+$$C = w_{\text{obs}} \times \min\left(1.0, \frac{\text{obs\_count}}{5}\right) + w_{\text{text}} \times M_{\text{text}} + w_{\text{audio}} \times M_{\text{audio}} + w_{\text{miss}} \times (1 - M_{\text{missing\_ratio}}) + w_{\text{unc}} \times 2|P - 0.5|$$
+
+### Explicit Abstention Policy
+When data is insufficient to form an evidence-based assessment, the model explicitly abstains rather than fabricating `LOW` risk or $0.0$ probability:
+- Returns `status = "INSUFFICIENT_DATA"`, `escalation_probability = None`, and `risk_level = None` when:
+  - Observation count is below minimum threshold (`valid_observation_count < 2`).
+  - Required upstream distress state is missing (`distress_score is None`).
+  - Neither text nor audio modality is present.
+- When confidence drops below threshold ($C < 0.25$), outputs `status = "LOW_CONFIDENCE"`.
+- Supported lifecycle statuses: `SUCCESS`, `FAILED`, `LOW_CONFIDENCE`, `INSUFFICIENT_DATA`, `ABSTAINED`.
+
+### Grounded Explainability & Raw Contribution Tracking
+Explanations are computed directly from feature contributions ($c_i = w_i \cdot x_i$):
+- **Raw Contribution Table**: Preserved internally on `model.get_last_feature_contributions()` for auditing, debugging, and explainability verification.
+- **Traceable Clinical Factors**: Top positive drivers ($c_i > 0.05$) are mapped to standardized clinical factor names (e.g. `recent_distress_elevation`, `worsening_trajectory`, `sleep_disruption`, `social_withdrawal`, `engagement_drop`, `elevated_response_delay`).
+- **Modality Availability Invariant**: Explanations never reference unavailable modalities.
+- **Clinical Safety Guarantee**: Prohibits generating psychiatric diagnoses, disorder labels (e.g. depression, anxiety, PTSD), suicide predictions, or medical/treatment recommendations.
+- **Explanation vs. Diagnosis Clarification**: Explanation refers to **feature-level mathematical evidence** and does NOT represent a clinical opinion or diagnosis.
+
+### Model Parameters & Exported Assets
+- **Trainable Parameters**: **29** (28 feature weights + 1 bias term).
+- **Export Directory**: `models/escalation/`
+  - `weights`: Model parameters `[w_1, ..., w_28, b]`.
+  - `config.json`: Feature count, thresholds (`low_threshold=0.40`, `high_threshold=0.75`), `target_horizon_days=7`, `min_confidence_threshold=0.25`, versioned `confidence_policy`, versioned `calibration`.
+  - `metadata.json`: Model version (`aaroh-escalation-v1`), training timestamp, parameter counts, versioned `calibration` (`{"method": "logistic_sigmoid", "version": "1.0"}`), versioned `confidence_policy` (`{"version": "1.0", ...}`), feature schema version (`"1.0"`), dataset version (`"3.8.0"`), and upstream model lineage (`aaroh-fusion-v1`, `aaroh-distress-v1`, `aaroh-trajectory-v1`).
+  - `metrics.json`: Calibration metrics (Brier score, ECE, calibration curve) and discrimination metrics (ROC-AUC, PR-AUC, Accuracy, Precision, Recall, F1).
+  - `label_mapping.json`: Risk levels and smoke-test disclaimer.
+
+### Calibration & Evaluation Suite
+- **Calibration Evaluation**: Brier Score, Expected Calibration Error (ECE), and 5-bin calibration curve mapping mean predicted probability to empirical frequency.
+- **Discrimination Evaluation**: ROC-AUC, PR-AUC, Precision, Recall, Macro F1.
+
+### Public Inference Interface & Contract Conformance
+Outputs strictly conform to the AAROH `MlInferenceResult` specification:
+```python
+from backend.ml.training.models.escalation import EscalationAssessmentModel, EscalationInputRecord
+
+model = EscalationAssessmentModel.load("models/escalation")
+result = model.predict_escalation(record)
+
+# Returns dictionary conforming to MlInferenceResult:
+# {
+#     "case_id": "case_101",
+#     "prediction_date": "2026-09-06T02:00:00.000000+00:00",
+#     "escalation_probability": 0.8124,
+#     "target_horizon_days": 7,
+#     "confidence": 0.8250,
+#     "risk_level": "HIGH",
+#     "factors": ["recent_distress_elevation", "worsening_trajectory", "sleep_disruption"],
+#     "explanation": "Elevated escalation risk driven by recent distress elevation, worsening trajectory, sleep disruption over the next 7 days.",
+#     "trend": "WORSENING",
+#     "baseline_deviation": 0.4215,
+#     "model_version": "aaroh-escalation-v1",
+#     "status": "SUCCESS",
+#     "source": "model",
+#     "message": None
+# }
+```
+
+### Strict Clinical & Architectural Boundaries
+- `enforce_escalation_boundary()` guarantees no psychiatric diagnoses, disorder labels, medical advice, therapy/medication recommendations, or `CRITICAL` risk levels are emitted.
+- Invariance to future data: temporal filtering ensures predictions at cutoff $T$ remain identical even if interactions after $T$ exist in history.
+
+---
+
+## 10. Training & Evaluation Workflows (Google Colab Ready)
 
 All training scripts feature Google Colab compatible settings (`fp16`, gradient accumulation, early stopping, Google Drive checkpointing, and `seed=42`).
 
@@ -520,6 +679,19 @@ python3 train_trajectory.py \
 
 # Fast Smoke-Test Execution
 python3 train_trajectory.py --smoke-test
+
+# 8. Train Escalation Assessment Model (Slice 3.8)
+python3 train_escalation.py \
+    --output-dir models/escalation \
+    --checkpoint-dir checkpoints/escalation \
+    --batch-size 8 \
+    --lr 1e-3 \
+    --epochs 5 \
+    --seed 42 \
+    --drive-checkpoint-dir /content/drive/MyDrive/aaroh_checkpoints/escalation
+
+# Fast Smoke-Test Execution
+python3 train_escalation.py --smoke-test
 ```
 
 ### Comprehensive Evaluation Suite
@@ -538,6 +710,9 @@ python3 evaluate_distress_model.py --model-dir models/distress/
 
 # Evaluate Longitudinal Trajectory Model:
 python3 evaluate_trajectory_model.py --model-dir models/trajectory/
+
+# Evaluate Escalation Assessment Model:
+python3 evaluate_escalation_model.py --model-dir models/escalation/
 ```
 Metrics produced:
 - **Text Emotion**: Accuracy, Precision, Recall, Macro F1, Weighted F1.
@@ -547,10 +722,11 @@ Metrics produced:
 - **Multimodal Fusion**: Tabular Reconstruction Loss (MSE), Dynamic Modality Gating Weights (`tabular`, `text`, `audio`), Missing Modality Zero-Weight Verification, Mean Fused Embedding Norm, Cross-Case Cosine Diversity.
 - **Dynamic Distress**: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), Pearson Correlation ($r$), Threshold Accuracy, Distress Level Distribution (`LOW`, `MODERATE`, `HIGH`, `CRITICAL`), Distress Embedding Norm.
 - **Longitudinal Trajectory**: Overall Accuracy, Macro Precision, Macro Recall, Macro F1, Weighted F1, 4x4 Confusion Matrix, Per-Class Accuracy, Trajectory Label Distribution (`STABLE`, `IMPROVING`, `WORSENING`, `RAPIDLY_WORSENING`), Mean Trajectory Embedding Norm.
+- **Escalation Assessment**: Brier Score, Expected Calibration Error (ECE), Calibration Curve (5 bins), ROC-AUC, PR-AUC, Accuracy, Precision, Recall, Macro F1, Risk Level Distribution (`LOW`, `MODERATE`, `HIGH`), Mean Escalation Probability, Mean Confidence, Abstention Rate.
 
 ---
 
-## 10. Model Export Structure
+## 11. Model Export Structure
 
 Models exported under `models/<model_name>/` save the following standard artifacts:
 - `pytorch_model.bin` / `weights` (model weights)
@@ -559,12 +735,12 @@ Models exported under `models/<model_name>/` save the following standard artifac
 - `config.json` (architecture hyper-parameters & dimensions)
 - `label_mapping.json` (class index / threshold mappings & disclaimers)
 - `metrics.json` (validation and test performance metrics)
-- `metadata.json` (containing `model_version`, `dataset_version`, `training_date`, `execution_mode`, `parameter_counts`, `hyperparameters`, and clinical boundary assertions)
+- `metadata.json` (containing `model_version`, `dataset_version`, `training_date`, `execution_mode`, `parameter_counts`, `hyperparameters`, `upstream_models`, and clinical boundary assertions)
 - `modality_schema.json` (multimodal input dimensions, masking schema, fusion dimensions)
 
 ---
 
-## 10. Clinical & Regulatory Boundary Invariant
+## 12. Clinical & Regulatory Boundary Invariant
 
 > [!IMPORTANT]
 > AAROH ML models and features operate exclusively as **clinical decision support**.
@@ -575,7 +751,10 @@ Models exported under `models/<model_name>/` save the following standard artifac
 > - `fusion != distress`
 > - `PHQ != AAROH distress`
 > - Dynamic Distress Model estimates **current** distress representations only and NEVER predicts future trajectories, escalation, suicide risk, or treatment recommendations.
+> - Longitudinal Trajectory Model estimates **change over time** only.
+> - Escalation Assessment Model provides an **escalation assessment signal** only and is NOT a clinical decision maker, diagnostic tool, or treatment planner.
 > - ML features never override human clinician judgments.
 > - Missing data must remain `None` and must never be fabricated as zero.
+
 
 

@@ -205,6 +205,62 @@ def enforce_trajectory_boundary(label_or_output_name: str) -> None:
             )
 
 
+def enforce_escalation_boundary(label_or_output_name: str) -> None:
+    """Strictly enforces that escalation assessment model outputs remain operational ML signals.
+
+    Permits official contract fields:
+    - case_id, prediction_date, escalation_probability, target_horizon_days,
+      confidence, risk_level, explanation, factors, trend, baseline_deviation,
+      model_version, status, source, message
+
+    Strictly rejects any attempt to output:
+    - Psychiatric diagnosis (depression, anxiety, PTSD, etc.)
+    - Suicide or self-harm prediction
+    - Treatment, medication, or therapy recommendations
+    - Clinical instruments (PHQ, GAD)
+    - Medical/intervention advice
+    - Unsanctioned risk levels (e.g. CRITICAL)
+    """
+    forbidden = {
+        "clinical_diagnosis",
+        "medical_diagnosis",
+        "psychiatric_diagnosis",
+        "depression",
+        "anxiety",
+        "ptsd",
+        "bipolar",
+        "schizophrenia",
+        "suicide",
+        "suicide_risk",
+        "suicide_prediction",
+        "self_harm",
+        "treatment",
+        "treatment_recommendation",
+        "treatment_advice",
+        "medication",
+        "medication_recommendation",
+        "prescription",
+        "therapy",
+        "therapy_recommendation",
+        "intervention_plan",
+        "intervention_advice",
+        "medical_advice",
+        "phq",
+        "phq9",
+        "gad",
+        "gad7",
+        "critical",
+    }
+    lowered = label_or_output_name.lower().strip()
+    for f in forbidden:
+        if f == lowered or (len(f) > 3 and f in lowered):
+            raise ValueError(
+                f"CLINICAL BOUNDARY VIOLATION: Output '{label_or_output_name}' violates clinical boundaries. "
+                "Escalation Assessment Model provides an automated ML assessment signal only. "
+                "It MUST NEVER produce diagnoses, medical advice, treatment/therapy recommendations, or psychiatric claims."
+            )
+
+
 # =====================================================================
 # Model Metadata & Export Management
 # =====================================================================

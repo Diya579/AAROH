@@ -1,0 +1,36 @@
+{
+  "model_name": "aaroh-escalation-assessment",
+  "model_version": "aaroh-escalation-v1",
+  "dataset_version": "3.8.0",
+  "feature_schema_version": "1.0",
+  "training_date": "2026-09-05T21:11:05.561880+00:00",
+  "target_horizon_days": 7,
+  "calibration": {
+    "method": "logistic_sigmoid",
+    "version": "1.0"
+  },
+  "calibration_method": "logistic_sigmoid",
+  "confidence_policy": {
+    "version": "1.0",
+    "observation_weight": 0.35,
+    "text_weight": 0.2,
+    "audio_weight": 0.15,
+    "missingness_weight": 0.15,
+    "uncertainty_weight": 0.15,
+    "minimum_history": 2,
+    "minimum_modalities": 1,
+    "minimum_confidence": 0.25
+  },
+  "threshold_configuration": {
+    "low": "< 0.4",
+    "moderate": "0.4 - 0.75",
+    "high": ">= 0.75"
+  },
+  "upstream_models": {
+    "fusion": "aaroh-fusion-v1",
+    "distress": "aaroh-distress-v1",
+    "trajectory": "aaroh-trajectory-v1"
+  },
+  "label_disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH. Supervised solely for engineering verification and architecture validation.",
+  "smoke_test_disclaimer": "Smoke-test metrics are intended only to verify that the training, checkpointing, inference, and evaluation pipelines function correctly. They are NOT indicators of real-world model performance."
+}
