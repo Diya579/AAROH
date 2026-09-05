@@ -67,6 +67,25 @@ from backend.ml.features.longitudinal_definitions import (
     LongitudinalTrend,
     classify_longitudinal_trend,
 )
+from backend.ml.features.assembly import (
+    MLInput,
+    MLInputAssembler,
+    assemble_ml_input,
+    assemble_ml_input_batch,
+)
+from backend.ml.features.registry import (
+    FEATURE_INDEX_TO_NAME,
+    FEATURE_NAME_TO_INDEX,
+    FEATURE_NAMES,
+    FEATURE_REGISTRY,
+    FEATURE_SOURCE_MAP,
+    FEATURE_SOURCES,
+    ML_INPUT_SCHEMA_VERSION,
+    TOTAL_FEATURES_COUNT,
+    FeatureDefinition,
+    get_feature_definition,
+    validate_feature_value,
+)
 from backend.ml.features.safety import extract_safety_indicators
 from backend.ml.features.types import (
     BehaviouralEvidence,
@@ -83,8 +102,26 @@ from backend.ml.features.types import (
     TextFeatures,
     TextQualityMetadata,
 )
+from backend.ml.features.voice import VoiceFeatures
 
 __all__ = [
+    # ML Input Assembly (Slice 3.1)
+    "MLInput",
+    "MLInputAssembler",
+    "assemble_ml_input",
+    "assemble_ml_input_batch",
+    "VoiceFeatures",
+    "FeatureDefinition",
+    "FEATURE_REGISTRY",
+    "FEATURE_NAMES",
+    "FEATURE_SOURCES",
+    "FEATURE_NAME_TO_INDEX",
+    "FEATURE_INDEX_TO_NAME",
+    "FEATURE_SOURCE_MAP",
+    "ML_INPUT_SCHEMA_VERSION",
+    "TOTAL_FEATURES_COUNT",
+    "get_feature_definition",
+    "validate_feature_value",
     # Top-level feature containers & orchestrators
     "TextFeatures",
     "TextFeatureExtractor",

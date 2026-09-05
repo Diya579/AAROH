@@ -515,3 +515,7 @@ class LongitudinalFeatures:
 
         return features
 
+
+from backend.ml.features.voice import VoiceFeatures
+
+

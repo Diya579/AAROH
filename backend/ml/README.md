@@ -1,4 +1,4 @@
-# AAROH ML subsystem (Slice 1, Slice 2.1, Slice 2.2, Slice 2.3, Slice 2.4 & Slice 2.5)
+# AAROH ML subsystem (Slice 1, Slice 2.1-2.5 & Slice 3.1)
 
 This package owns machine-learning **contracts, inference interfaces, preprocessing pipelines, and feature extractors**.
 It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
@@ -12,7 +12,7 @@ It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
 | `policies` | Confidence / abstention **interfaces** and a default threshold policy |
 | `inference` | `infer(...)` → Python `dict`. **No database writes.** |
 | `preprocessing` | Input validation, Unicode text normalization, safe missingness handling, and record standardization (Slice 2.1) |
-| `features` | Deterministic text (Slice 2.2), behavioural (Slice 2.3), engagement (Slice 2.4), and longitudinal (Slice 2.5) feature extraction and explainability evidence |
+| `features` | Deterministic text (2.2), behavioural (2.3), engagement (2.4), longitudinal (2.5), and ML input assembly (3.1) with feature registry and explainability |
 | `models` | Future learned-model adapters (rule-based code stays in `backend/risk/`) |
 | `training` | Future reproducible training scripts (offline; not required for inference) |
 | `evaluation` | Future metrics; synthetic scores are not clinical evidence |
@@ -229,6 +229,68 @@ history = [preprocess_interaction(h) for h in history_payloads]
 
 longitudinal = extract_longitudinal_features(current, history=history, config=LongitudinalConfig())
 # longitudinal is a strongly typed, immutable LongitudinalFeatures dataclass
+```
+
+## ML Input Assembly (Slice 3.1)
+
+The input assembly layer (`backend.ml.features.assembly`) unifies multimodal features into a standardized, deterministic numeric representation (`MLInput`) ready for future baseline and escalation modeling:
+
+1. **Centralized Feature Registry & Permanent Ordering (`registry.py`)**:
+   - Single source of truth for all 60 numerical features spanning text (0–17), behavioural (18–25), engagement (26–38), longitudinal (39–51), and voice (52–59).
+   - Indices are contiguous from 0 to $N-1$ and permanently frozen to prevent silent reordering across future model calibrations.
+   - Schema versioning: `ML_INPUT_SCHEMA_VERSION = "3.1.0"`. Any breaking index or feature ordering changes require an explicit schema version increment.
+2. **Deterministic Numeric Feature Vector (`feature_vector()`)**:
+   - `ml_input.feature_vector()` returns an ordered tuple of floats matching `FEATURE_REGISTRY`.
+   - **Strict `None != 0` Preservation**: Missing features (e.g., absent voice, missing text, or absent history) evaluate strictly to `None` in the vector, preventing false zero attribution.
+   - Optional imputation `feature_vector(impute_missing=0.0)` is available when models require non-null dense arrays.
+3. **Locked Voice→ML Contract (`voice.py`)**:
+   - Consumes acoustic metrics (`speech_rate`, `pause_ratio`, `response_latency`, `pitch_variability`, `energy_variation`, `audio_quality`, `asr_confidence`, `baseline_deviation`) through `VoiceFeatures`.
+   - Voice features are purely consumed; ASR and acoustic processing remain external to the ML package.
+4. **Explainability Mapping**:
+   - `ml_input.get_feature_metadata(name_or_index)` produces an explicit explainability record (`index → name → source + value + description + range`), enabling future inference layers to generate feature-grounded explanation factors.
+5. **Schema and Range Validation**:
+   - Enforces strict type checking on all sub-feature objects.
+   - Validates feature values against declared `[min_value, max_value]` ranges, rejecting out-of-bounds values with descriptive errors.
+   - Supports explicit feature masking (`mask_feature_names`) for ablation studies.
+
+### How to assemble ML Input
+
+```python
+from backend.ml import (
+    VoiceFeatures,
+    assemble_ml_input,
+    extract_behavioural_features,
+    extract_engagement_features,
+    extract_longitudinal_features,
+    extract_text_features,
+    preprocess_interaction,
+)
+
+current = preprocess_interaction({
+    "case_id": "AAROH-001",
+    "interaction_date": "2026-09-01",
+    "text_response": "मुझे बहुत डर लग रहा है।",
+    "safety_response": 2,
+    "fear_level": 4,
+})
+
+text_feat = extract_text_features(current)
+beh_feat = extract_behavioural_features(current)
+eng_feat = extract_engagement_features(current)
+long_feat = extract_longitudinal_features(current)
+voice_feat = VoiceFeatures(voice_available=True, speech_rate=2.8, audio_quality=0.85)
+
+ml_input = assemble_ml_input(
+    text_features=text_feat,
+    behavioural_features=beh_feat,
+    engagement_features=eng_feat,
+    longitudinal_features=long_feat,
+    voice_features=voice_feat,
+    case_id="AAROH-001",
+    interaction_date="2026-09-01",
+)
+
+vector = ml_input.feature_vector()  # ordered tuple of 60 features (None != 0)
 ```
 
 ## Application-facing result
