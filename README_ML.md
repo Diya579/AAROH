@@ -334,7 +334,94 @@ result = model.predict_distress(record)
 
 ---
 
-## 8. Training & Evaluation Workflows (Google Colab Ready)
+## 8. Longitudinal Trajectory Model (Slice 3.7)
+
+The **Longitudinal Trajectory Model** models how an individual's distress state evolves across ordered interactions over time.
+
+### Model Purpose: Temporal Progression (NOT Current Distress)
+- Estimates **how an individual is changing over time** (direction and velocity of progression).
+- It is **NOT** "How distressed are they?" (which is modeled exclusively by Slice 3.6).
+- Does **NOT** perform escalation prediction, confidence estimation, intervention planning, or clinical diagnosis.
+
+### Trajectory Categories
+- `STABLE`: Distress state remains consistent across the recent interaction window.
+- `IMPROVING`: Distress state exhibits a significant downward trajectory over recent interactions.
+- `WORSENING`: Distress state exhibits a gradual upward progression over recent interactions.
+- `RAPIDLY_WORSENING`: Distress state exhibits sharp escalation across consecutive interactions.
+
+### Fixed History Window & Sequence Handling
+- Configurable history window (default: `history_window = 10`).
+- **If interactions < history_window**: Left-padded with zero vectors while preserving chronological order. Padded timesteps are marked with `padding_mask = True` and ignored during recurrent/pooling processing.
+- **If interactions == history_window**: Consumed directly (`padding_mask = all False`).
+- **If interactions > history_window**: Truncates to retain **ONLY the most recent `history_window` interactions**; older interactions outside the window are discarded. Chronological ordering within the window is strictly preserved.
+
+### Timestep Feature Vector (432 Dimensions)
+Each interaction in the longitudinal sequence is encoded into a 432-dimensional vector:
+1. **Fused Multimodal Embedding (Slice 3.5)**: 256 dimensions.
+2. **Distress Embedding (Slice 3.6)**: 128 dimensions.
+3. **Distress Continuous Score (Slice 3.6)**: 1 dimension $\in [0.0, 1.0]$.
+4. **Distress Discrete Level One-Hot (Slice 3.6)**: 4 dimensions (`LOW`, `MODERATE`, `HIGH`, `CRITICAL`).
+5. **Behavioural Features Slice (Slice 3.1)**: 16 dimensions (8 values + 8 missingness masks).
+6. **Engagement Features Slice (Slice 3.1)**: 26 dimensions (13 values + 13 missingness masks).
+7. **Normalized Time Delta**: 1 dimension (hours since previous interaction normalized).
+
+### Dual-Mode Architecture
+1. **`FALLBACK` Mode**:
+   - Sequence Projection: `Linear(432, 128)` + `ReLU`.
+   - Deterministic Temporal Aggregation: Computes valid-timestep mean pooling (`128-dim`) + first-to-last valid timestep delta (`128-dim`) $\to$ concatenated `256-dim` representation.
+   - Aggregation MLP: `Linear(256, 128)` + `ReLU` + `Linear(128, 128)`.
+   - Unit Sphere Normalization: $L_2$ normalized to `128-dim` `trajectory_embedding`.
+   - Trajectory Head: `Linear(128, 64)` + `ReLU` + `Linear(64, 4)` + `Softmax`.
+   - Parameter Count: **113,348** trainable parameters. Pure Python. Zero transformer backbones in memory.
+2. **`PYTORCH_FROZEN` Mode**:
+   - Sequence Projection: `Linear(432, 128)` + `ReLU`.
+   - Recurrent Core: Single-layer `nn.GRU(input_size=128, hidden_size=128, batch_first=True)`.
+   - Trajectory Head: `Linear(128, 64)` + `ReLU` + `Linear(64, 4)` + `Softmax`.
+   - Parameter Count: **163,012** trainable parameters. Backbones frozen.
+3. **`PYTORCH_FINETUNE` Mode**:
+   - Same GRU architecture with backbones unfrozen when `--unfreeze-backbone` is supplied.
+
+### Exact Parameter Accounting
+- **1. Trainable Parameters**:
+  - `FALLBACK` Mode: **113,348**
+  - `PYTORCH_*` Modes: **163,012**
+- **2. Upstream Backbone Parameters**: **229,774,080** (DistilBERT: 134,734,080 + Wav2Vec2: 95,040,000)
+- **3. Total Parameters If Instantiated**: **229,887,428** (Fallback) / **229,937,092** (PyTorch)
+- **4. Parameters Actually Instantiated**: **113,348** in Fallback mode (transformers referenced in config only) / **229,937,092** in PyTorch mode
+
+### Training Supervision & Smoke-Test Disclaimers
+> [!WARNING]
+> - **Smoke-test metrics are intended only to verify that the training, checkpointing, inference, and evaluation pipelines function correctly. They are NOT indicators of real-world model performance.**
+> - **Synthetic demonstration labels are used solely for engineering verification and architecture validation. They are NOT clinical ground truth.**
+
+### Reusable Public Inference Interface
+```python
+from backend.ml.training.models.trajectory import LongitudinalTrajectoryModel, CaseTrajectory
+
+model = LongitudinalTrajectoryModel()
+result = model.predict_trajectory(case_trajectory)
+# Returns strictly:
+# {
+#     "trajectory_embedding": [0.042, -0.018, ..., 0.088],  # 128-dim unit vector
+#     "trajectory_probabilities": {
+#         "STABLE": 0.05,
+#         "IMPROVING": 0.02,
+#         "WORSENING": 0.21,
+#         "RAPIDLY_WORSENING": 0.72
+#     },
+#     "trajectory_score": 0.825,                            # continuous direction index [-1.0, 1.0]
+#     "trajectory_label": "RAPIDLY_WORSENING",              # categorical argmax
+#     "model_version": "aaroh-trajectory-v1"                # traceability
+# }
+```
+
+### Strict Clinical & Architectural Boundaries
+- `enforce_trajectory_boundary()` strictly blocks: `diagnosis`, `escalation`, `future_risk`, `confidence`, `explanation`, `intervention`, `recommendation`, `depression`, `anxiety`, `ptsd`, `suicide_risk`, `phq`, `gad`.
+- Model outputs strictly limited to: `trajectory_embedding`, `trajectory_probabilities`, `trajectory_score`, `trajectory_label`, and `model_version`.
+
+---
+
+## 9. Training & Evaluation Workflows (Google Colab Ready)
 
 All training scripts feature Google Colab compatible settings (`fp16`, gradient accumulation, early stopping, Google Drive checkpointing, and `seed=42`).
 
@@ -419,6 +506,20 @@ python3 train_distress.py \
 
 # Fast Smoke-Test Execution (Single Epoch / Small Batch)
 python3 train_distress.py --smoke-test
+
+# 7. Train Longitudinal Trajectory Model (Slice 3.7)
+python3 train_trajectory.py \
+    --output-dir models/trajectory \
+    --checkpoint-dir checkpoints/trajectory \
+    --history-window 10 \
+    --batch-size 8 \
+    --lr 1e-3 \
+    --epochs 5 \
+    --seed 42 \
+    --drive-checkpoint-dir /content/drive/MyDrive/aaroh_checkpoints/trajectory
+
+# Fast Smoke-Test Execution
+python3 train_trajectory.py --smoke-test
 ```
 
 ### Comprehensive Evaluation Suite
@@ -434,6 +535,9 @@ python3 evaluate_fusion_model.py --model-dir models/multimodal_fusion/ --data-di
 
 # Evaluate Dynamic Distress Model:
 python3 evaluate_distress_model.py --model-dir models/distress/
+
+# Evaluate Longitudinal Trajectory Model:
+python3 evaluate_trajectory_model.py --model-dir models/trajectory/
 ```
 Metrics produced:
 - **Text Emotion**: Accuracy, Precision, Recall, Macro F1, Weighted F1.
@@ -442,10 +546,11 @@ Metrics produced:
 - **Audio Emotion**: Overall Accuracy, Precision, Recall, Macro F1, Weighted F1, Confusion Matrix, Per-Class Accuracy for all 8 RAVDESS emotions.
 - **Multimodal Fusion**: Tabular Reconstruction Loss (MSE), Dynamic Modality Gating Weights (`tabular`, `text`, `audio`), Missing Modality Zero-Weight Verification, Mean Fused Embedding Norm, Cross-Case Cosine Diversity.
 - **Dynamic Distress**: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), Pearson Correlation ($r$), Threshold Accuracy, Distress Level Distribution (`LOW`, `MODERATE`, `HIGH`, `CRITICAL`), Distress Embedding Norm.
+- **Longitudinal Trajectory**: Overall Accuracy, Macro Precision, Macro Recall, Macro F1, Weighted F1, 4x4 Confusion Matrix, Per-Class Accuracy, Trajectory Label Distribution (`STABLE`, `IMPROVING`, `WORSENING`, `RAPIDLY_WORSENING`), Mean Trajectory Embedding Norm.
 
 ---
 
-## 9. Model Export Structure
+## 10. Model Export Structure
 
 Models exported under `models/<model_name>/` save the following standard artifacts:
 - `pytorch_model.bin` / `weights` (model weights)

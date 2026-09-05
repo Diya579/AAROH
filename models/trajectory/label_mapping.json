@@ -1,0 +1,35 @@
+{
+  "task": "longitudinal_trajectory_estimation",
+  "model_version": "aaroh-trajectory-v1",
+  "labels": [
+    "STABLE",
+    "IMPROVING",
+    "WORSENING",
+    "RAPIDLY_WORSENING"
+  ],
+  "label_to_id": {
+    "STABLE": 0,
+    "IMPROVING": 1,
+    "WORSENING": 2,
+    "RAPIDLY_WORSENING": 3
+  },
+  "id_to_label": {
+    "0": "STABLE",
+    "1": "IMPROVING",
+    "2": "WORSENING",
+    "3": "RAPIDLY_WORSENING"
+  },
+  "internal_scores": {
+    "STABLE": 0.0,
+    "IMPROVING": -1.0,
+    "WORSENING": 0.5,
+    "RAPIDLY_WORSENING": 1.0
+  },
+  "disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH. Supervised solely for engineering verification and architectural integrity.",
+  "definitions": {
+    "STABLE": "Distress state remains consistent across recent interaction window.",
+    "IMPROVING": "Distress state exhibits significant downward trajectory over recent interactions.",
+    "WORSENING": "Distress state exhibits gradual upward progression over recent interactions.",
+    "RAPIDLY_WORSENING": "Distress state exhibits sharp escalation across consecutive interactions."
+  }
+}

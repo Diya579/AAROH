@@ -1,0 +1,28 @@
+{
+  "model_name": "aaroh-longitudinal-trajectory",
+  "model_version": "aaroh-trajectory-v1",
+  "dataset_name": "aaroh-synthetic-trajectory-demonstration",
+  "dataset_version": "3.7.0",
+  "label_disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH. Supervised solely for engineering verification and architectural integrity.",
+  "smoke_test_disclaimer": "Smoke-test metrics are intended only to verify that the training, checkpointing, inference, and evaluation pipelines function correctly. They are NOT indicators of real-world model performance.",
+  "execution_mode": "FALLBACK",
+  "parameter_counts": {
+    "trainable_parameters": 113348,
+    "trainable_head_parameters": 113348,
+    "backbone_parameters": 229774080,
+    "total_parameters_if_instantiated": 229887428,
+    "actually_instantiated_parameters": 113348,
+    "frozen_backbone_parameters": 229774080
+  },
+  "hyperparameters": {
+    "input_dim": 432,
+    "history_window": 10,
+    "trajectory_embedding_dim": 128,
+    "seed": 141
+  },
+  "backbones": {
+    "text": "distilbert-base-multilingual-cased",
+    "audio": "facebook/wav2vec2-base",
+    "status": "FROZEN"
+  }
+}

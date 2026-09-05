@@ -149,6 +149,62 @@ def enforce_distress_boundary(label_or_output_name: str) -> None:
             )
 
 
+def enforce_trajectory_boundary(label_or_output_name: str) -> None:
+    """Strictly enforces that longitudinal trajectory model outputs are limited to trajectory representations.
+
+    Rejects any attempt to output:
+    - Psychiatric diagnosis (e.g. depression, anxiety, PTSD)
+    - Escalation predictions or future escalation probability
+    - Future risk or future clinical prediction
+    - Suicide or self-harm prediction
+    - Treatment or intervention recommendations
+    - Clinical instruments (PHQ, GAD)
+    - Confidence estimation or explanation/explainability
+
+    Allowed output attributes are strictly:
+    - trajectory_embedding
+    - trajectory_probabilities
+    - trajectory_score
+    - trajectory_label
+    - model_version (internal traceability)
+    """
+    forbidden = {
+        "diagnosis",
+        "clinical_diagnosis",
+        "medical_diagnosis",
+        "escalation",
+        "escalation_probability",
+        "future_risk",
+        "future_prediction",
+        "depression",
+        "anxiety",
+        "ptsd",
+        "suicide",
+        "suicide_risk",
+        "suicide_prediction",
+        "treatment",
+        "treatment_recommendation",
+        "intervention",
+        "intervention_recommendation",
+        "confidence",
+        "confidence_estimation",
+        "explanation",
+        "explainability",
+        "phq",
+        "phq_score",
+        "gad",
+        "gad_score",
+    }
+    lowered = label_or_output_name.lower().strip()
+    for f in forbidden:
+        if f in lowered:
+            raise ValueError(
+                f"CLINICAL BOUNDARY VIOLATION: Output name '{label_or_output_name}' is forbidden. "
+                "Longitudinal Trajectory Model estimates trajectory representations across time only. "
+                "It MUST NEVER predict diagnoses, escalation, future risk, confidence, interventions, or explanations."
+            )
+
+
 # =====================================================================
 # Model Metadata & Export Management
 # =====================================================================
