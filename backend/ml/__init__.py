@@ -25,6 +25,10 @@ from backend.ml.policies import (
     EvidenceContext,
     ThresholdConfidencePolicy,
 )
+from backend.ml.preprocessing import (
+    PreprocessedInteraction,
+    preprocess_interaction,
+)
 
 __all__ = [
     "DEFAULT_TARGET_HORIZON_DAYS",
@@ -36,10 +40,12 @@ __all__ = [
     "MlInferenceResult",
     "ModelOutput",
     "PredictionOutput",
+    "PreprocessedInteraction",
     "ProcessingStatus",
     "ResultSource",
     "RiskLevel",
     "ThresholdConfidencePolicy",
     "Trajectory",
     "infer",
+    "preprocess_interaction",
 ]
