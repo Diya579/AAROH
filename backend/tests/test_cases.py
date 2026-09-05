@@ -27,6 +27,7 @@ VALID_CASE_PAYLOAD = {
 VALID_CASE_RESPONSE = {
     "id": 1,
     "created_at": "2026-09-05T10:00:00",
+    "state": None,  # state is Optional — None when not populated
     **VALID_CASE_PAYLOAD
 }
 
