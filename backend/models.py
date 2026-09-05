@@ -371,3 +371,31 @@ class ModelVersion(Base):
     version = Column(String(50))
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IdempotencyRecord(Base):
+    __tablename__ = "idempotency_records"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "actor_user_id",
+            "operation",
+            "idempotency_key",
+            name="uq_idempotency_actor_op_key"
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+    idempotency_key = Column(String(255), nullable=False)
+    operation = Column(String(100), nullable=False)
+    actor_user_id = Column(String(100), nullable=False)  # User ID of the actor making the request
+    request_hash = Column(String(255), nullable=False)   # Hash of the request payload
+    
+    resource_type = Column(String(100))
+    resource_id = Column(Integer, nullable=True)         # ID of the generated resource (if applicable)
+    
+    response_status = Column(Integer, nullable=False)
+    response_body = Column(JSON)                         # Stored JSON representation of the response
+    
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime, nullable=True)         # TTL for expiration

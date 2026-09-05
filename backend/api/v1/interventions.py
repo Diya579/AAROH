@@ -5,11 +5,12 @@ AAROH — Intervention API Endpoints
 from typing import List, Optional
 
 from backend.schemas.error import common_responses
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Header, Response
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role, verify_case_id_access
+from backend.core.idempotency import execute_idempotent
 from backend.core.errors import raise_not_found, raise_unprocessable
 from backend.schemas.intervention import (
     InterventionCreate,
@@ -39,14 +40,29 @@ def get_db():
 )
 def create_intervention(
     payload: InterventionCreate,
+    response: Response,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
-    try:
-        return intervention_service.create_intervention(db, payload)
-    except Exception:
-        db.rollback()
-        raise_unprocessable("INTERVENTION_INVALID", "Failed to create intervention.")
+    """Create a new intervention."""
+    def _create():
+        try:
+            return intervention_service.create_intervention(db, payload)
+        except Exception:
+            db.rollback()
+            raise_unprocessable("INTERVENTION_INVALID", "Failed to create intervention.")
+
+    return execute_idempotent(
+        db=db,
+        actor_user_id=user.id,
+        operation="CREATE_INTERVENTION",
+        idempotency_key=idempotency_key,
+        payload=payload,
+        executor=_create,
+        response_status=status.HTTP_201_CREATED,
+        response_obj=response
+    )
 
 
 @router.get(
@@ -72,17 +88,31 @@ def get_interventions(
 def update_intervention(
     intervention_id: int,
     payload: InterventionUpdate,
+    response: Response,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
-    existing = intervention_service.get_intervention(db, intervention_id)
-    if not existing:
-        raise_not_found("Intervention", intervention_id)
-        
-    verify_case_id_access(existing.case_id, user, db)
+    def _update():
+        existing = intervention_service.get_intervention(db, intervention_id)
+        if not existing:
+            raise_not_found("Intervention", intervention_id)
+            
+        verify_case_id_access(existing.case_id, user, db)
+    
+        row = intervention_service.update_intervention(db, intervention_id, payload)
+        return row
 
-    row = intervention_service.update_intervention(db, intervention_id, payload)
-    return row
+    return execute_idempotent(
+        db=db,
+        actor_user_id=user.id,
+        operation="UPDATE_INTERVENTION",
+        idempotency_key=idempotency_key,
+        payload=payload,
+        executor=_update,
+        response_status=status.HTTP_200_OK,
+        response_obj=response
+    )
 
 
 @router.post(
@@ -93,14 +123,29 @@ def update_intervention(
 )
 def create_outcome(
     payload: OutcomeCreate,
+    response: Response,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
-    try:
-        return intervention_service.create_outcome(db, payload)
-    except Exception:
-        db.rollback()
-        raise_unprocessable("OUTCOME_INVALID", "Failed to create outcome.")
+    """Record an outcome for an intervention."""
+    def _create():
+        try:
+            return intervention_service.create_outcome(db, payload)
+        except Exception:
+            db.rollback()
+            raise_unprocessable("OUTCOME_INVALID", "Failed to create outcome.")
+
+    return execute_idempotent(
+        db=db,
+        actor_user_id=user.id,
+        operation="CREATE_OUTCOME",
+        idempotency_key=idempotency_key,
+        payload=payload,
+        executor=_create,
+        response_status=status.HTTP_201_CREATED,
+        response_obj=response
+    )
 
 
 @router.get(

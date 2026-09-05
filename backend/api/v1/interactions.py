@@ -7,11 +7,12 @@ Endpoints for the interactions table.
 from typing import List, Optional
 
 from backend.schemas.error import common_responses
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Header, Response
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role, verify_case_id_access
+from backend.core.idempotency import execute_idempotent
 from backend.core.audio_validation import validate_audio, AudioValidationError
 from backend.schemas.interaction import InteractionCreate, InteractionResponse
 from backend.services import interaction_service, voice_service
@@ -37,19 +38,34 @@ def get_db():
 )
 def create_interaction(
     payload: InteractionCreate,
+    response: Response,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
     """Create a new interaction."""
-    try:
-        return interaction_service.create_interaction(db, payload)
-    except Exception:
-        db.rollback()
-        # Prevent leaking raw DB errors (e.g. FK violation on case_id)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to create interaction. Ensure case_id is valid.",
-        )
+    
+    def _create():
+        try:
+            return interaction_service.create_interaction(db, payload)
+        except Exception:
+            db.rollback()
+            # Prevent leaking raw DB errors (e.g. FK violation on case_id)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Failed to create interaction. Ensure case_id is valid.",
+            )
+
+    return execute_idempotent(
+        db=db,
+        actor_user_id=user.id,
+        operation="CREATE_INTERACTION",
+        idempotency_key=idempotency_key,
+        payload=payload,
+        executor=_create,
+        response_status=status.HTTP_201_CREATED,
+        response_obj=response
+    )
 
 
 @router.get(
@@ -98,8 +114,10 @@ def get_interaction(
 def upload_interaction_voice(
     interaction_id: int,
     file: UploadFile = File(...),
+    response: Response = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
     """
     Ingest voice audio for an interaction.
@@ -150,20 +168,32 @@ def upload_interaction_voice(
             detail="Voice analysis consent has not been granted for this case.",
         )
 
-    # ------------------------------------------------------------------
-    # 4. Delegate to voice pipeline.
-    #    Temp file is created, used, and deleted inside delegate_voice_processing.
-    #    We never leave audio on disk after this call returns.
-    # ------------------------------------------------------------------
-    processing_state = voice_service.delegate_voice_processing(
-        interaction_id=interaction_id,
-        case_id=interaction.case_id,
-        language=interaction.language,
-        audio_bytes=audio_bytes,
-    )
+    def _upload():
+        # ------------------------------------------------------------------
+        # 4. Delegate to voice pipeline.
+        #    Temp file is created, used, and deleted inside delegate_voice_processing.
+        #    We never leave audio on disk after this call returns.
+        # ------------------------------------------------------------------
+        processing_state = voice_service.delegate_voice_processing(
+            interaction_id=interaction_id,
+            case_id=interaction.case_id,
+            language=interaction.language,
+            audio_bytes=audio_bytes,
+        )
 
-    return {
-        "message": "Audio accepted for processing.",
-        "interaction_id": interaction_id,
-        "status": processing_state,
-    }
+        return {
+            "message": "Audio accepted for processing.",
+            "interaction_id": interaction_id,
+            "status": processing_state,
+        }
+
+    return execute_idempotent(
+        db=db,
+        actor_user_id=user.id,
+        operation="UPLOAD_VOICE",
+        idempotency_key=idempotency_key,
+        payload=audio_bytes,
+        executor=_upload,
+        response_status=status.HTTP_202_ACCEPTED,
+        response_obj=response
+    )
