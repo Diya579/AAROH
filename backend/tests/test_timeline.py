@@ -98,6 +98,7 @@ def timeline_case():
             intervention_type="SAFE_HOUSE_REFERRAL",
             status="PENDING",
             assigned_to="Couns-1",
+            created_at=now + timedelta(hours=2, minutes=30),
         )
         db.add_all([event, interaction, prediction, intervention])
         db.commit()
@@ -142,10 +143,9 @@ class TestTimeline:
     def test_timeline_is_sorted_chronologically(self, timeline_case):
         r = client.get(f"/api/v1/cases/{timeline_case}/timeline")
         items = r.json()["timeline"]
-        # Entries with timestamps should appear before entries without
-        timestamped = [i for i in items if i["timestamp"] is not None]
-        timestamps = [i["timestamp"] for i in timestamped]
+        timestamps = [i["timestamp"] for i in items]
         assert timestamps == sorted(timestamps), "Timeline is not sorted chronologically"
+        assert None not in timestamps, "All timeline items should now have a timestamp"
 
     def test_timeline_missing_case_returns_404(self):
         r = client.get("/api/v1/cases/99999/timeline")

@@ -11,7 +11,8 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     UniqueConstraint,
-    JSON
+    JSON,
+    func
 )
 
 from sqlalchemy.orm import relationship
@@ -326,6 +327,8 @@ class Intervention(Base):
     status = Column(String(50))
 
     assigned_to = Column(String(100))
+
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 
 class Outcome(Base):

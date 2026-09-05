@@ -157,12 +157,13 @@ def get_case_timeline(db: Session, case_id: int) -> list[dict]:
     interventions = (
         db.query(Intervention)
         .filter(Intervention.case_id == case_id)
+        .order_by(Intervention.created_at)
         .all()
     )
     for iv in interventions:
         entries.append({
             "type": "intervention",
-            "timestamp": None,   # Interventions have no date column in current schema
+            "timestamp": iv.created_at.isoformat() if iv.created_at else None,
             "intervention_type": iv.intervention_type,
             "status": iv.status,
             "assigned_to": iv.assigned_to,
