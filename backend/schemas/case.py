@@ -19,6 +19,7 @@ class CaseCreate(BaseModel):
     language: str = Field(..., max_length=20)
     district_type: str = Field(..., max_length=20)
     district: str = Field(..., max_length=100)
+    state: Optional[str] = Field(None, max_length=100, description="State/province for STATE_OFFICIAL scoping")
     priority_use_case: str = Field(..., max_length=100)
     current_stage: str = Field(..., max_length=50)
     voice_opted_in: Optional[bool] = False
@@ -31,6 +32,7 @@ class CaseUpdate(BaseModel):
     language: Optional[str] = Field(None, max_length=20)
     district_type: Optional[str] = Field(None, max_length=20)
     district: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
     priority_use_case: Optional[str] = Field(None, max_length=100)
     current_stage: Optional[str] = Field(None, max_length=50)
     voice_opted_in: Optional[bool] = None
@@ -47,6 +49,7 @@ class CaseResponse(BaseModel):
     language: str
     district_type: str
     district: str
+    state: Optional[str]
     priority_use_case: str
     current_stage: str
     voice_opted_in: Optional[bool]

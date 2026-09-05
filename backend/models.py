@@ -29,6 +29,7 @@ class Case(Base):
 
     district_type = Column(String(20), nullable=False)
     district = Column(String(100), nullable=False)
+    state = Column(String(100), nullable=True)  # Required for STATE_OFFICIAL scoping
 
     priority_use_case = Column(String(100), nullable=False)
 

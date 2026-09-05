@@ -89,47 +89,89 @@ def require_role(*roles: str):
 
 def verify_case_access(case, user: AuthenticatedUser, db) -> None:
     """
-    Enforces row-level access control for a specific Case.
-    Raises HTTP 403 if the user is not authorized to access this case.
+    Enforces row-level access control for a specific Case row.
+    Raises HTTP 403 if the user is not authorised to access this case.
+
+    FIELD USAGE NOTES — two distinct identifier columns exist on the Case model:
+    ─────────────────────────────────────────────────────────────────────────────
+      Case.id        Integer auto-increment PRIMARY KEY (e.g. 1, 2, 3…)
+                     Used everywhere in FK relationships (Intervention.case_id
+                     is an Integer FK referencing cases.id).
+
+      Case.case_id   String(50) human-readable external identifier
+                     (e.g. "CASE-001", "VICTIM-1"). This is what the victim
+                     knows as their "case ID" and maps to user.id for victims.
+
+    VICTIM/USER check: compares Case.case_id (the human string) to user.id
+                       because the victim's user identity IS their case_id string.
+
+    COUNSELLOR check:  queries Intervention.case_id (the Integer FK → cases.id)
+                       matched against Case.id (the Integer PK) — correctly using
+                       the integer primary key for the FK join, not the string.
+    ─────────────────────────────────────────────────────────────────────────────
     """
     if user.role == "ADMIN":
         return
-        
+
     if user.role in ("USER", "VICTIM"):
-        # Victim can only access their own case.
-        # Assuming user.id corresponds to case.case_id
+        # Case.case_id is the human-readable string identifier that victims
+        # receive as their "case number". user.id is also set to this string
+        # when a victim authenticates. We compare the string fields deliberately.
         if case.case_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to access another person's case."
+                detail="Not authorised to access another person's case."
             )
-            
+
     elif user.role == "DISTRICT_OFFICIAL":
+        # Scoped to their assigned district only.
         if case.district != user.district:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Not authorized to access cases outside district: {user.district}"
+                detail=f"Not authorised to access cases outside district: {user.district}"
             )
-            
+
+    elif user.role == "STATE_OFFICIAL":
+        # Scoped to their assigned state only.
+        # Case.state must be populated for this check to be meaningful.
+        if not user.state:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="STATE_OFFICIAL identity has no state attribute configured."
+            )
+        if case.state != user.state:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Not authorised to access cases outside state: {user.state}"
+            )
+
+    elif user.role == "NATIONAL_OFFICIAL":
+        # Unscoped — national mandate covers all states and districts.
+        return
+
     elif user.role == "COUNSELLOR":
-        # Check if an intervention for this case is assigned to this counsellor
+        # Counsellor can only access a case if they are listed as assigned_to
+        # on at least one Intervention row for that case.
+        # Note: Intervention.case_id is an Integer FK referencing cases.id
+        #       (the integer PK), NOT cases.case_id (the string).
         from backend.models import Intervention
         assigned = db.query(Intervention).filter(
-            Intervention.case_id == case.id,
+            Intervention.case_id == case.id,   # Integer PK join — correct
             Intervention.assigned_to == user.id
         ).first()
         if not assigned:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized: you are not assigned to any interventions for this case."
+                detail="Not authorised: you are not assigned to any interventions for this case."
             )
-            
-    elif user.role in ("STATE_OFFICIAL", "NATIONAL_OFFICIAL", "SYSTEM_SERVICE"):
-        # Assumed full read access across all cases for these roles
+
+    elif user.role == "SYSTEM_SERVICE":
+        # Internal service account — full access.
         return
-        
+
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Role {user.role} is not mapped for case access."
+            detail=f"Role '{user.role}' is not mapped for case-level access control."
         )
+
