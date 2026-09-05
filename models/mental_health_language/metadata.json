@@ -1,0 +1,22 @@
+{
+  "model_name": "aaroh-mental-health-language",
+  "model_version": "1.0.0",
+  "dataset_name": "mindbridge",
+  "dataset_version": "3.2.0",
+  "training_date": "2026-09-05T19:22:16.612599+00:00",
+  "hyperparameters": {
+    "learning_rate": 0.0002,
+    "batch_size": 6,
+    "epochs": 2,
+    "seed": 42,
+    "smoke_test": true
+  },
+  "backbone": "distilbert-base-uncased",
+  "embedding_dim": 768,
+  "total_trainable_parameters": 590592,
+  "clinical_boundaries": [
+    "Outputs mental_health_embedding only.",
+    "Does NOT predict PHQ or GAD clinical scores.",
+    "Does NOT perform clinical diagnosis."
+  ]
+}

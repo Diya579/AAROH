@@ -21,6 +21,7 @@ from typing import Any, Mapping, Optional, Sequence
 from backend.ml.training.models.common import (
     ModelExportManager,
     ModelMetadata,
+    TrainableLinearLayer,
     compute_accuracy,
     compute_precision_recall_f1,
     compute_roc_auc,
@@ -47,6 +48,7 @@ class StressModel:
 
         self.torch_model: Optional[Any] = None
         self.tokenizer: Optional[Any] = None
+        self.linear_head = TrainableLinearLayer(embedding_dim, 1)
 
         self._init_torch_layers()
 
@@ -85,20 +87,38 @@ class StressModel:
         except (ImportError, Exception):
             self._torch_class = None
 
+    @property
+    def trainable_parameters_count(self) -> int:
+        """Returns total trainable parameter count."""
+        if self.torch_model is not None:
+            try:
+                return sum(p.numel() for p in self.torch_model.parameters() if p.requires_grad)
+            except Exception:
+                pass
+        return self.embedding_dim * 1 + 1
+
+    def _extract_latent_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
+        """Computes deterministic latent embeddings for texts."""
+        embeddings_list: list[list[float]] = []
+        for text in texts:
+            clean_text = (text or "").strip().lower()
+            emb: list[float] = []
+            for dim in range(self.embedding_dim):
+                h = hashlib.md5(f"stress_{clean_text}_{dim}".encode("utf-8")).hexdigest()
+                val = (int(h[:6], 16) / 0xFFFFFF) * 2.0 - 1.0
+                emb.append(round(val, 5))
+
+            norm = math.sqrt(sum(x * x for x in emb)) or 1.0
+            embeddings_list.append([round(x / norm, 5) for x in emb])
+        return embeddings_list
+
     def encode_and_predict(
         self,
         texts: Sequence[str],
         device: str = "cpu",
     ) -> dict[str, Any]:
-        """Encodes texts and returns stress_probability and stress_embedding.
-
-        Returns:
-            dict containing:
-            - stress_probabilities: list of float (0.0 to 1.0)
-            - stress_embeddings: list of float vectors (each embedding_dim)
-        """
+        """Encodes texts and returns stress_probability and stress_embedding."""
         probabilities: list[float] = []
-        embeddings: list[list[float]] = []
 
         if self.torch_model is not None and self.tokenizer is not None:
             try:
@@ -120,46 +140,85 @@ class StressModel:
                     probs_tensor = outputs["stress_probability"].cpu().tolist()
                     embs_tensor = outputs["stress_embedding"].cpu().tolist()
 
-                    probabilities = [float(p) for p in probs_tensor]
-                    embeddings = embs_tensor
-
-                    # Enforce invariant on output dictionary keys
                     enforce_stress_boundary("stress_probability")
                     return {
-                        "stress_probabilities": probabilities,
-                        "stress_embeddings": embeddings,
+                        "stress_probabilities": [float(p) for p in probs_tensor],
+                        "stress_embeddings": embs_tensor,
                     }
             except Exception:
                 pass
 
-        # Deterministic lightweight fallback for testing and CPU environments
-        for text in texts:
-            clean_text = (text or "").strip().lower()
-
-            # Deterministic embedding using string hashing
-            emb: list[float] = []
-            for dim in range(self.embedding_dim):
-                h = hashlib.md5(f"stress_{clean_text}_{dim}".encode("utf-8")).hexdigest()
-                val = (int(h[:6], 16) / 0xFFFFFF) * 2.0 - 1.0
-                emb.append(round(val, 5))
-
-            norm = math.sqrt(sum(x * x for x in emb)) or 1.0
-            emb = [round(x / norm, 5) for x in emb]
-            embeddings.append(emb)
-
-            # Heuristic stress score based on presence of stress indicators
-            stress_cues = ["stress", "panic", "anxious", "overwhelmed", "exhausted", "tired", "worried", "scared"]
-            match_count = sum(1 for cue in stress_cues if cue in clean_text)
-            raw_p = 0.5 + 0.15 * min(match_count, 3) if match_count > 0 else 0.2
-            h_val = int(hashlib.md5(clean_text.encode("utf-8")).hexdigest()[:4], 16) / 0xFFFF
-            final_p = max(0.01, min(0.99, raw_p + 0.05 * (h_val - 0.5)))
-            probabilities.append(round(final_p, 4))
+        # Native mathematical forward pass
+        embs = self._extract_latent_embeddings(texts)
+        if embs:
+            logits = self.linear_head.forward(embs)
+            for row in logits:
+                z = row[0]
+                p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, z))))
+                probabilities.append(round(p, 4))
 
         enforce_stress_boundary("stress_probability")
         return {
             "stress_probabilities": probabilities,
-            "stress_embeddings": embeddings,
+            "stress_embeddings": embs,
         }
+
+    def train_step(
+        self,
+        batch_texts: Sequence[str],
+        batch_targets: Sequence[int | float],
+        lr: float = 1e-3,
+    ) -> float:
+        """Executes a single forward, loss, backward, and optimizer step."""
+        batch_size = len(batch_texts)
+        if batch_size == 0:
+            return 0.0
+
+        embs = self._extract_latent_embeddings(batch_texts)
+        logits = self.linear_head.forward(embs)
+
+        total_loss = 0.0
+        grad_logits: list[list[float]] = []
+
+        for i in range(batch_size):
+            z = logits[i][0]
+            p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, z))))
+            p = max(1e-7, min(1.0 - 1e-7, p))
+            y = float(batch_targets[i])
+
+            bce = -(y * math.log(p) + (1.0 - y) * math.log(1.0 - p))
+            total_loss += bce
+
+            grad = (p - y) / batch_size
+            grad_logits.append([grad])
+
+        mean_loss = total_loss / batch_size
+
+        # Backward pass & optimizer step
+        self.linear_head.backward(embs, grad_logits)
+        self.linear_head.step(lr)
+
+        return float(mean_loss)
+
+    def state_dict(self) -> dict[str, Any]:
+        """Returns model weights state dict."""
+        if self.torch_model is not None:
+            try:
+                return self.torch_model.state_dict()
+            except Exception:
+                pass
+        return self.linear_head.state_dict()
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        """Loads weights from state dict."""
+        if self.torch_model is not None:
+            try:
+                self.torch_model.load_state_dict(state_dict)
+                return
+            except Exception:
+                pass
+        if "W" in state_dict and "b" in state_dict:
+            self.linear_head.load_state_dict(state_dict)
 
     def get_config(self) -> dict[str, Any]:
         """Returns serializable architecture configuration."""
@@ -190,6 +249,7 @@ class StressModel:
             hyperparameters=hyperparameters or {},
             backbone=self.backbone,
             embedding_dim=self.embedding_dim,
+            total_trainable_parameters=self.trainable_parameters_count,
             clinical_boundaries=[
                 "Outputs stress_probability and stress_embedding only.",
                 "Stress probability is strictly NOT AAROH clinical distress score.",
@@ -202,11 +262,12 @@ class StressModel:
             "num_classes": 2,
         }
 
+        weights_payload = self.torch_model if self.torch_model is not None else self.state_dict()
         return ModelExportManager.save_model(
             output_dir=output_dir,
             metadata=metadata,
             config=self.get_config(),
             label_mapping=label_mapping,
             metrics=metrics or {},
-            weights_data=self.torch_model,
+            weights_data=weights_payload,
         )

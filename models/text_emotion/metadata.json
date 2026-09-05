@@ -1,0 +1,21 @@
+{
+  "model_name": "aaroh-text-emotion",
+  "model_version": "1.0.0",
+  "dataset_name": "goemotions_and_emohind",
+  "dataset_version": "3.2.0",
+  "training_date": "2026-09-05T19:22:15.143976+00:00",
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "batch_size": 16,
+    "epochs": 1,
+    "seed": 42,
+    "smoke_test": true
+  },
+  "backbone": "distilbert-base-multilingual-cased",
+  "embedding_dim": 768,
+  "total_trainable_parameters": 21532,
+  "clinical_boundaries": [
+    "Outputs emotion probabilities and embeddings only.",
+    "Does NOT predict AAROH clinical distress score."
+  ]
+}

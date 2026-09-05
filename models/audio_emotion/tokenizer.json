@@ -1,0 +1,8 @@
+{
+  "model": {
+    "backbone": "facebook/wav2vec2-base",
+    "max_length": 128,
+    "tokenizer_type": "AutoTokenizer"
+  },
+  "vocab_size": 30522
+}

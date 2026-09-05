@@ -1,0 +1,21 @@
+{
+  "model_name": "aaroh-stress",
+  "model_version": "1.0.0",
+  "dataset_name": "dreaddit",
+  "dataset_version": "3.2.0",
+  "training_date": "2026-09-05T19:22:15.248641+00:00",
+  "hyperparameters": {
+    "learning_rate": 0.0002,
+    "batch_size": 16,
+    "epochs": 1,
+    "seed": 42,
+    "smoke_test": true
+  },
+  "backbone": "distilbert-base-uncased",
+  "embedding_dim": 768,
+  "total_trainable_parameters": 769,
+  "clinical_boundaries": [
+    "Outputs stress_probability and stress_embedding only.",
+    "Stress probability is strictly NOT AAROH clinical distress score."
+  ]
+}

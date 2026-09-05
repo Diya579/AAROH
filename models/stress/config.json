@@ -1,0 +1,9 @@
+{
+  "model_type": "stress",
+  "backbone": "distilbert-base-uncased",
+  "embedding_dim": 768,
+  "max_length": 128,
+  "dropout_rate": 0.2,
+  "output_target": "stress_probability",
+  "clinical_boundary": "stress_probability != distress_score"
+}

@@ -1,0 +1,8 @@
+{
+  "accuracy": 0.0312,
+  "precision": 0.0357,
+  "recall": 0.0011,
+  "macro_f1": 0.0022,
+  "weighted_f1": 0.0606,
+  "val_samples_evaluated": 32
+}

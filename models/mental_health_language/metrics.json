@@ -1,0 +1,9 @@
+{
+  "mean_embedding_norm": 1.0,
+  "cosine_separation": 0.899,
+  "embedding_dim": 768,
+  "evaluated_samples": 6,
+  "clinical_boundaries_enforced": true,
+  "predicts_phq": false,
+  "predicts_gad": false
+}

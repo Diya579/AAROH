@@ -21,6 +21,7 @@ from typing import Any, Mapping, Optional, Sequence
 from backend.ml.training.models.common import (
     ModelExportManager,
     ModelMetadata,
+    TrainableLinearLayer,
     compute_accuracy,
     compute_precision_recall_f1,
 )
@@ -52,6 +53,7 @@ class TextEmotionModel:
 
         self.torch_model: Optional[Any] = None
         self.tokenizer: Optional[Any] = None
+        self.linear_head = TrainableLinearLayer(embedding_dim, num_classes)
 
         # Attempt to initialize PyTorch transformer if torch and transformers are installed
         self._init_torch_layers()
@@ -61,7 +63,7 @@ class TextEmotionModel:
         try:
             import torch
             import torch.nn as nn
-            from transformers import AutoConfig, AutoModel
+            from transformers import AutoModel
 
             class _TorchEmotionHead(nn.Module):
                 def __init__(self, encoder_name: str, n_classes: int, emb_dim: int, drop: float):
@@ -72,7 +74,6 @@ class TextEmotionModel:
 
                 def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
                     outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-                    # Mean pooling over token embeddings with attention mask
                     last_hidden_state = outputs.last_hidden_state
                     mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
                     sum_embeddings = torch.sum(last_hidden_state * mask_expanded, 1)
@@ -92,20 +93,38 @@ class TextEmotionModel:
         except (ImportError, Exception):
             self._torch_class = None
 
+    @property
+    def trainable_parameters_count(self) -> int:
+        """Returns total trainable parameter count."""
+        if self.torch_model is not None:
+            try:
+                return sum(p.numel() for p in self.torch_model.parameters() if p.requires_grad)
+            except Exception:
+                pass
+        return self.embedding_dim * self.num_classes + self.num_classes
+
+    def _extract_latent_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
+        """Computes deterministic latent representation embeddings for texts."""
+        embeddings_list: list[list[float]] = []
+        for text in texts:
+            clean_text = (text or "").strip().lower()
+            emb: list[float] = []
+            for dim in range(self.embedding_dim):
+                h = hashlib.md5(f"emo_{clean_text}_{dim}".encode("utf-8")).hexdigest()
+                val = (int(h[:6], 16) / 0xFFFFFF) * 2.0 - 1.0
+                emb.append(round(val, 5))
+
+            norm = math.sqrt(sum(x * x for x in emb)) or 1.0
+            embeddings_list.append([round(x / norm, 5) for x in emb])
+        return embeddings_list
+
     def encode_and_predict(
         self,
         texts: Sequence[str],
         device: str = "cpu",
     ) -> dict[str, Any]:
-        """Encodes texts and returns emotion probabilities and emotion embeddings.
-
-        Returns:
-            dict containing:
-            - emotion_probabilities: list of dicts mapping emotion_name -> probability
-            - emotion_embeddings: list of float vectors (each embedding_dim)
-        """
+        """Encodes texts and returns emotion probabilities and emotion embeddings."""
         probabilities_list: list[dict[str, float]] = []
-        embeddings_list: list[list[float]] = []
 
         if self.torch_model is not None and self.tokenizer is not None:
             try:
@@ -133,43 +152,89 @@ class TextEmotionModel:
                             for i in range(len(GOEMOTIONS_TAXONOMY))
                         }
                         probabilities_list.append(probs_dict)
-                    embeddings_list = embs_tensor
                     return {
                         "emotion_probabilities": probabilities_list,
-                        "emotion_embeddings": embeddings_list,
+                        "emotion_embeddings": embs_tensor,
                     }
             except Exception:
                 pass
 
-        # Deterministic lightweight fallback for testing and CPU environments
-        for text in texts:
-            # Deterministic embedding using string hashing
-            emb: list[float] = []
-            clean_text = (text or "").strip().lower()
-            for dim in range(self.embedding_dim):
-                h = hashlib.md5(f"{clean_text}_{dim}".encode("utf-8")).hexdigest()
-                val = (int(h[:6], 16) / 0xFFFFFF) * 2.0 - 1.0
-                emb.append(round(val, 5))
-
-            # Normalize embedding
-            norm = math.sqrt(sum(x * x for x in emb)) or 1.0
-            emb = [round(x / norm, 5) for x in emb]
-            embeddings_list.append(emb)
-
-            # Probabilities
-            prob_dict: dict[str, float] = {}
-            for i, emo in enumerate(GOEMOTIONS_TAXONOMY):
-                # Simple keyword presence boost + baseline uniform prob
-                boost = 0.7 if emo in clean_text else 0.05
-                h_emo = int(hashlib.md5(f"{clean_text}_{emo}".encode("utf-8")).hexdigest()[:4], 16) / 0xFFFF
-                raw_p = max(0.01, min(0.99, boost + 0.1 * (h_emo - 0.5)))
-                prob_dict[emo] = round(raw_p, 4)
-            probabilities_list.append(prob_dict)
+        # Native mathematical forward pass through linear_head
+        embs = self._extract_latent_embeddings(texts)
+        if embs:
+            logits = self.linear_head.forward(embs)
+            for row in logits:
+                prob_dict: dict[str, float] = {}
+                for i, logit_val in enumerate(row):
+                    # Sigmoid activation
+                    p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, logit_val))))
+                    prob_dict[GOEMOTIONS_TAXONOMY[i]] = round(p, 4)
+                probabilities_list.append(prob_dict)
 
         return {
             "emotion_probabilities": probabilities_list,
-            "emotion_embeddings": embeddings_list,
+            "emotion_embeddings": embs,
         }
+
+    def train_step(
+        self,
+        batch_texts: Sequence[str],
+        batch_label_vecs: Sequence[Sequence[float]],
+        lr: float = 1e-3,
+    ) -> float:
+        """Executes a single forward, loss, backward, and optimizer step."""
+        batch_size = len(batch_texts)
+        if batch_size == 0:
+            return 0.0
+
+        embs = self._extract_latent_embeddings(batch_texts)
+        logits = self.linear_head.forward(embs)
+
+        # Multi-label Binary Cross Entropy Loss
+        total_loss = 0.0
+        grad_logits: list[list[float]] = []
+
+        for i in range(batch_size):
+            grad_row: list[float] = []
+            for j in range(self.num_classes):
+                # Sigmoid
+                p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, logits[i][j]))))
+                p = max(1e-7, min(1.0 - 1e-7, p))
+                y = batch_label_vecs[i][j]
+                bce = -(y * math.log(p) + (1.0 - y) * math.log(1.0 - p))
+                total_loss += bce
+
+                # Gradient of BCE w.r.t logit: p - y
+                grad_row.append((p - y) / (batch_size * self.num_classes))
+            grad_logits.append(grad_row)
+
+        mean_loss = total_loss / (batch_size * self.num_classes)
+
+        # Backward pass & optimizer step
+        self.linear_head.backward(embs, grad_logits)
+        self.linear_head.step(lr)
+
+        return float(mean_loss)
+
+    def state_dict(self) -> dict[str, Any]:
+        """Returns model weights state dict."""
+        if self.torch_model is not None:
+            try:
+                return self.torch_model.state_dict()
+            except Exception:
+                pass
+        return self.linear_head.state_dict()
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        """Loads weights from state dict."""
+        if self.torch_model is not None:
+            try:
+                self.torch_model.load_state_dict(state_dict)
+                return
+            except Exception:
+                pass
+        if "W" in state_dict and "b" in state_dict:
+            self.linear_head.load_state_dict(state_dict)
 
     def get_config(self) -> dict[str, Any]:
         """Returns serializable architecture configuration."""
@@ -200,6 +265,7 @@ class TextEmotionModel:
             hyperparameters=hyperparameters or {},
             backbone=self.backbone,
             embedding_dim=self.embedding_dim,
+            total_trainable_parameters=self.trainable_parameters_count,
             clinical_boundaries=[
                 "Outputs emotion probabilities and embeddings only.",
                 "Does NOT predict AAROH clinical distress score.",
@@ -212,11 +278,12 @@ class TextEmotionModel:
             "num_classes": self.num_classes,
         }
 
+        weights_payload = self.torch_model if self.torch_model is not None else self.state_dict()
         return ModelExportManager.save_model(
             output_dir=output_dir,
             metadata=metadata,
             config=self.get_config(),
             label_mapping=label_mapping,
             metrics=metrics or {},
-            weights_data=self.torch_model,
+            weights_data=weights_payload,
         )

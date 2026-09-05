@@ -67,6 +67,7 @@ Outputs produced:
 - **Slice 3.1**: ML input assembly & schema registry (`backend/ml/assembly/`).
 - **Slice 3.2**: Auxiliary dataset ingestion & preprocessing (`backend/ml/training/preprocessing/`).
 - **Slice 3.3**: Lightweight text representation models (`backend/ml/training/models/`).
+- **Slice 3.4**: Audio emotion representation model (`backend/ml/training/models/audio_emotion/`).
 
 ---
 
@@ -115,7 +116,51 @@ backend/ml/training/models/
 
 ---
 
-## 5. Training & Evaluation Workflows (Google Colab Ready)
+## 5. Slice 3.4: Audio Emotion Representation Model
+
+Slice 3.4 provides an audio representation encoder trained on the speech-only RAVDESS dataset (`Actor_01` to `Actor_24`, speech statements 01-02, excluding songs) to output reusable audio emotion representations and embeddings.
+
+```
+backend/ml/training/models/audio_emotion/
+├── __init__.py               # Exports dataset, model, and constant definitions
+├── dataset.py                # RavdessDataset with lazy loading, 16kHz resampling, and actor splitting
+└── model.py                  # AudioEmotionModel (wav2vec 2.0 backbone, frozen/unfrozen, projection head)
+```
+
+### Architecture & Capabilities
+- **Backbone**: `facebook/wav2vec2-base` (768-dim latent space).
+- **Backbone Status**: **Frozen by default** (trains linear classification and projection heads only, ~6,152 parameters). Full fine-tuning can be enabled via `--unfreeze-backbone`.
+- **Audio Preprocessing**:
+  - Resampling to 16,000 Hz mono (via `torchaudio`/`librosa` with deterministic interpolation fallback).
+  - Amplitude normalization to $[-1.0, 1.0]$.
+  - Fixed-length padding or center truncation to 80,000 samples (5.0 seconds).
+  - **Lazy Loading**: Audio waveforms are read from disk during iteration to preserve RAM.
+- **Actor-Level Splitting**:
+  - Programmatic, deterministic actor-level split with `seed=42`.
+  - Strict validation ensures $\text{Actors}_{\text{train}} \cap \text{Actors}_{\text{val}} = \emptyset$ (zero actor leakage).
+- **Model Outputs**:
+  - `audio_emotion_probabilities`: 8-class probability distribution (`neutral`, `calm`, `happy`, `sad`, `angry`, `fearful`, `disgust`, `surprised`).
+  - `audio_embedding`: 768-dim latent audio representation vector.
+- **Reusable Public Inference Interface**:
+  ```python
+  from backend.ml.training.models.audio_emotion import AudioEmotionModel
+
+  model = AudioEmotionModel()
+  result = model.predict_audio_embedding(waveform)
+  # Returns: {"audio_embedding": [...], "audio_emotion_probabilities": {...}}
+  ```
+  *(To be consumed directly in future Slice 3.5 feature fusion).*
+
+### Strict Architectural & Clinical Boundaries
+- **Clinical Invariant**: `Audio Emotion != Clinical Distress`.
+  - The model outputs exclusively acoustic emotional affect representations.
+  - It NEVER outputs `distress_score`, `escalation_probability`, `depression_prediction`, `anxiety_prediction`, `risk_level`, or `clinical_diagnosis`.
+- **Voice Service Invariant**:
+  - Low-level acoustic and conversational dynamics (ASR transcription, Voice Activity Detection / VAD, speech rate, pause ratio, pitch variability, energy variation, response latency, audio quality metrics, baseline acoustic deviation) belong strictly to **Diya's Voice Service** and are NOT duplicated or handled by this model.
+
+---
+
+## 6. Training & Evaluation Workflows (Google Colab Ready)
 
 All training scripts feature Google Colab compatible settings (`fp16`, gradient accumulation, early stopping, Google Drive checkpointing, and `seed=42`).
 
@@ -157,25 +202,45 @@ python3 train_mental_health.py \
     --fp16 \
     --seed 42 \
     --drive-checkpoint-dir /content/drive/MyDrive/aaroh_checkpoints/mental_health
+
+# 4. Train Audio Emotion Representation Model (RAVDESS)
+python3 train_audio_emotion.py \
+    --data-dir datasets/processed \
+    --output-dir models/audio_emotion \
+    --backbone facebook/wav2vec2-base \
+    --batch-size 16 \
+    --lr 1e-4 \
+    --epochs 10 \
+    --seed 42 \
+    --fp16 \
+    --drive-checkpoint-dir /content/drive/MyDrive/aaroh_checkpoints/audio_emotion
+
+# Fast Smoke-Test Execution (Single Epoch / Small Batch)
+python3 train_audio_emotion.py --smoke-test
 ```
 
 ### Comprehensive Evaluation Suite
-Run evaluation across all models:
 ```bash
+# Evaluate Text Representation Models:
 python3 evaluate_text_models.py --model-type all --models-dir models/ --data-dir datasets/processed/
+
+# Evaluate Audio Emotion Representation Model:
+python3 evaluate_audio_model.py --model-dir models/audio_emotion/ --data-dir datasets/processed/
 ```
 Metrics produced:
-- **Emotion**: Accuracy, Precision, Recall, Macro F1, Weighted F1.
+- **Text Emotion**: Accuracy, Precision, Recall, Macro F1, Weighted F1.
 - **Stress**: Accuracy, Precision, Recall, F1, ROC-AUC.
 - **Mental Health Representation**: Mean embedding norm, Cosine separation, Domain alignment.
+- **Audio Emotion**: Overall Accuracy, Precision, Recall, Macro F1, Weighted F1, Confusion Matrix, Per-Class Accuracy for all 8 RAVDESS emotions.
 
 ---
 
-## 6. Model Export Structure
+## 7. Model Export Structure
 
 Models exported under `models/<model_name>/` save the following standard artifacts:
-- `pytorch_model.bin` (model weights)
-- `tokenizer_config.json` (tokenizer parameters & configuration)
+- `pytorch_model.bin` / `weights` (model weights)
+- `tokenizer_config.json` / `tokenizer` (tokenizer parameters & configuration)
+- `preprocessor_config.json` (audio sampling rate, duration, normalization params)
 - `config.json` (architecture hyper-parameters & dimensions)
 - `label_mapping.json` (class index mappings)
 - `metrics.json` (validation and test performance metrics)
@@ -183,13 +248,15 @@ Models exported under `models/<model_name>/` save the following standard artifac
 
 ---
 
-## 7. Clinical & Regulatory Boundary Invariant
+## 8. Clinical & Regulatory Boundary Invariant
 
 > [!IMPORTANT]
 > AAROH ML models and features operate exclusively as **clinical decision support**.
 > - Datasets and models do NOT provide psychiatric diagnoses.
 > - `emotion != distress`
 > - `stress != distress`
+> - `audio_emotion != distress`
 > - `PHQ != AAROH distress`
 > - ML features never override human clinician judgments.
 > - Missing data must remain `None` and must never be fabricated as zero.
+
