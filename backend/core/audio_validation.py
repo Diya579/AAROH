@@ -36,8 +36,8 @@ from fastapi import HTTPException, UploadFile, status
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-
-MAX_AUDIO_SIZE_BYTES: int = 25 * 1024 * 1024   # 25 MB
+# Limits
+MAX_AUDIO_SIZE_BYTES: int = 10 * 1024 * 1024   # 10 MB
 MIN_DURATION_SECONDS: float = 1.0
 MAX_DURATION_SECONDS: float = 120.0
 

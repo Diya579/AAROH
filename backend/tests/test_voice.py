@@ -245,11 +245,11 @@ class TestAudioValidation:
 
     def test_oversized_file_returns_413(self, standard_setup):
         _, interaction_id = standard_setup
-        # Build a fake file that reports as .wav but is too large (26 MB of zeros)
+        # Build a fake file that reports as .wav but is too large (11 MB of zeros)
         # We use actual WAV header so magic bytes pass, then pad with zeros
         header = _make_valid_wav(duration_seconds=0.01)
-        # Pad to exceed 25MB
-        large_data = header + (b"\x00" * (25 * 1024 * 1024 + 100))
+        # Pad to exceed 10MB
+        large_data = header + (b"\x00" * (10 * 1024 * 1024 + 100))
         files = {"file": ("recording.wav", io.BytesIO(large_data), "audio/wav")}
         response = client.post(_voice_url(interaction_id), files=files)
         assert response.status_code == 413
