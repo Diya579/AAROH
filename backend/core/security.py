@@ -13,6 +13,8 @@ IMPORTANT:
 """
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from backend.core.auth_provider import (
     AuthenticatedUser,
@@ -174,4 +176,53 @@ def verify_case_access(case, user: AuthenticatedUser, db) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Role '{user.role}' is not mapped for case-level access control."
         )
+
+
+def verify_case_id_access(case_id: int, user: AuthenticatedUser, db: Session) -> None:
+    """
+    Convenience wrapper to load a Case by its primary key and verify access.
+    Raises 404 if not found, 403 if unauthorized.
+    """
+    from backend.models import Case
+    from backend.core.errors import raise_not_found
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise_not_found("Case", case_id)
+    verify_case_access(case, user, db)
+
+
+def apply_scope_filter(query, model, user: AuthenticatedUser):
+    """
+    Applies role-based scope filtering to a query.
+    Assumes `model` has a `case_id` column that is a ForeignKey to `cases.id`,
+    OR `model` is `Case` itself.
+    """
+    from backend.models import Case, Intervention
+
+    if user.role in ("ADMIN", "NATIONAL_OFFICIAL", "SYSTEM_SERVICE"):
+        return query
+
+    if model is Case:
+        if user.role == "DISTRICT_OFFICIAL":
+            return query.filter(Case.district == user.district)
+        elif user.role == "STATE_OFFICIAL":
+            return query.filter(Case.state == user.state)
+        elif user.role == "COUNSELLOR":
+            return query.join(Intervention, Case.id == Intervention.case_id).filter(Intervention.assigned_to == user.id)
+        elif user.role in ("USER", "VICTIM"):
+            return query.filter(Case.case_id == user.id)
+    else:
+        # For child models that have a case_id FK to Case.id
+        if user.role == "DISTRICT_OFFICIAL":
+            return query.join(Case, model.case_id == Case.id).filter(Case.district == user.district)
+        elif user.role == "STATE_OFFICIAL":
+            return query.join(Case, model.case_id == Case.id).filter(Case.state == user.state)
+        elif user.role == "COUNSELLOR":
+            # Optimization: could join directly Intervention to model if we want, but joining via Case is safe too
+            return query.join(Intervention, model.case_id == Intervention.case_id).filter(Intervention.assigned_to == user.id)
+        elif user.role in ("USER", "VICTIM"):
+             return query.join(Case, model.case_id == Case.id).filter(Case.case_id == user.id)
+
+    # Fallback restrictive filter if role is unknown
+    return query.filter(False)
 

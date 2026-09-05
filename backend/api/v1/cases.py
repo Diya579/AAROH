@@ -6,11 +6,12 @@ CRUD operations for the cases table.
 
 from typing import List, Optional
 
+from backend.schemas.error import common_responses
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
-from backend.core.security import get_current_user, require_role, verify_case_access
+from backend.core.security import get_current_user, require_role, verify_case_id_access, verify_case_access
 from backend.core.errors import raise_not_found, raise_conflict
 from backend.schemas.case import CaseCreate, CaseUpdate, CaseResponse
 from backend.services import case_service
@@ -28,7 +29,7 @@ def get_db():
 
 
 @router.post(
-    "/cases",
+    "/cases", responses=common_responses,
     response_model=CaseResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "SYSTEM_SERVICE"))],
@@ -46,7 +47,7 @@ def create_case(
 
 
 @router.get(
-    "/cases",
+    "/cases", responses=common_responses,
     response_model=List[CaseResponse],
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
@@ -59,11 +60,11 @@ def list_cases(
     user: dict = Depends(get_current_user),
 ):
     """List cases with pagination and optional district/state filters."""
-    return case_service.list_cases(db, skip=skip, limit=limit, district=district, state=state)
+    return case_service.list_cases(db, user=user, skip=skip, limit=limit, district=district, state=state)
 
 
 @router.get(
-    "/cases/{case_id}",
+    "/cases/{case_id}", responses=common_responses,
     response_model=CaseResponse,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL", "USER", "VICTIM"))],
 )
@@ -81,7 +82,7 @@ def get_case(
 
 
 @router.patch(
-    "/cases/{case_id}",
+    "/cases/{case_id}", responses=common_responses,
     response_model=CaseResponse,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN"))],
 )
@@ -102,7 +103,7 @@ def update_case(
 
 
 @router.delete(
-    "/cases/{case_id}",
+    "/cases/{case_id}", responses=common_responses,
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_role("ADMIN"))],
 )
@@ -121,7 +122,7 @@ def delete_case(
 
 
 @router.get(
-    "/cases/{case_id}/timeline",
+    "/cases/{case_id}/timeline", responses=common_responses,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL", "USER", "VICTIM"))],
 )
 def get_case_timeline(

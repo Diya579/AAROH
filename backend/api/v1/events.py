@@ -6,11 +6,12 @@ Endpoints for the case_events table.
 
 from typing import List, Optional
 
+from backend.schemas.error import common_responses
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
-from backend.core.security import get_current_user, require_role
+from backend.core.security import get_current_user, require_role, verify_case_id_access
 from backend.core.errors import raise_not_found
 from backend.schemas.event import EventCreate, EventResponse
 from backend.services import event_service
@@ -28,7 +29,7 @@ def get_db():
 
 
 @router.post(
-    "/events",
+    "/events", responses=common_responses,
     response_model=EventResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role("COUNSELLOR", "SYSTEM_SERVICE", "ADMIN"))],
@@ -42,6 +43,7 @@ def create_event(
     try:
         return event_service.create_event(db, payload)
     except Exception as e:
+        db.rollback()
         # Prevent leaking raw DB errors.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -50,7 +52,7 @@ def create_event(
 
 
 @router.get(
-    "/events",
+    "/events", responses=common_responses,
     response_model=List[EventResponse],
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
@@ -62,11 +64,11 @@ def list_events(
     user: dict = Depends(get_current_user),
 ):
     """List events with pagination and optional case filtering."""
-    return event_service.list_events(db, case_id=case_id, skip=skip, limit=limit)
+    return event_service.list_events(db, user=user, case_id=case_id, skip=skip, limit=limit)
 
 
 @router.get(
-    "/events/{event_id}",
+    "/events/{event_id}", responses=common_responses,
     response_model=EventResponse,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
@@ -79,4 +81,5 @@ def get_event(
     row = event_service.get_event(db, event_id)
     if row is None:
         raise_not_found("Event", event_id)
+    verify_case_id_access(row.case_id, user, db)
     return row

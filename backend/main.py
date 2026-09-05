@@ -25,6 +25,23 @@ from backend.core.config import settings
 from backend.api.v1.router import router as v1_router
 
 # ---------------------------------------------------------------------------
+# Global Middleware
+# ---------------------------------------------------------------------------
+
+async def request_id_middleware(request: Request, call_next):
+    # Generate a unique correlation ID for the request
+    request_id = str(uuid.uuid4())
+    # Attach to the request state so routes and exception handlers can access it
+    request.state.request_id = request_id
+    
+    # Process the request
+    response = await call_next(request)
+    
+    # Attach the correlation ID to the response headers
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+# ---------------------------------------------------------------------------
 # Create the FastAPI application instance
 # ---------------------------------------------------------------------------
 
@@ -49,6 +66,8 @@ app = FastAPI(
 
 app.include_router(v1_router, prefix=settings.api_v1_prefix)
 
+app.middleware("http")(request_id_middleware)
+
 # ---------------------------------------------------------------------------
 # Global Exception Handlers (Standard Error Contract)
 # ---------------------------------------------------------------------------
@@ -57,6 +76,8 @@ app.include_router(v1_router, prefix=settings.api_v1_prefix)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     # Preserve headers from the original exception (e.g. WWW-Authenticate for 401)
     headers = dict(exc.headers) if exc.headers else {}
+    req_id = getattr(request.state, "request_id", "UNKNOWN")
+    headers["X-Request-ID"] = req_id
     code = getattr(exc, "code", "HTTP_EXCEPTION")
     return JSONResponse(
         status_code=exc.status_code,
@@ -64,7 +85,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
             "error": {
                 "code": code,
                 "message": str(exc.detail),
-                "request_id": getattr(request.state, "request_id", str(uuid.uuid4()))
+                "request_id": getattr(request.state, "request_id", "UNKNOWN")
             }
         },
         headers=headers,
@@ -78,9 +99,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Invalid request payload",
-                "request_id": str(uuid.uuid4())
+                "request_id": getattr(request.state, "request_id", "UNKNOWN")
             }
         },
+        headers={"X-Request-ID": getattr(request.state, "request_id", "UNKNOWN")},
     )
 
 @app.exception_handler(Exception)
@@ -92,7 +114,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
             "error": {
                 "code": "INTERNAL_ERROR",
                 "message": "An unexpected error occurred.",
-                "request_id": str(uuid.uuid4())
+                "request_id": getattr(request.state, "request_id", "UNKNOWN")
             }
         },
+        headers={"X-Request-ID": getattr(request.state, "request_id", "UNKNOWN")},
     )

@@ -13,6 +13,7 @@ GET /api/v1/ready
 
 import logging
 
+from backend.schemas.error import common_responses
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -32,7 +33,7 @@ router = APIRouter(tags=["Health"])
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/health",
+    "/health", responses=common_responses,
     summary="Liveness check",
     description="Returns 200 if the FastAPI process is running.",
 )
@@ -49,7 +50,7 @@ def health() -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/ready",
+    "/ready", responses=common_responses,
     summary="Readiness check",
     description=(
         "Returns 200 when the application can reach PostgreSQL. "
@@ -81,6 +82,7 @@ def ready() -> JSONResponse:
         )
 
     except Exception:  # noqa: BLE001 — safety net; no raw tracebacks in responses
+        db.rollback()
         logger.warning(
             "Readiness check: unexpected error during database probe.",
             exc_info=False,

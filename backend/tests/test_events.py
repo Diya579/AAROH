@@ -75,8 +75,9 @@ class TestEventEndpoints:
     @patch("backend.api.v1.events.event_service.get_event")
     def test_get_event_success(self, mock_get):
         """GET /api/v1/events/{id} should return 200 on success."""
-        mock_get.return_value = VALID_EVENT_RESPONSE
-
+        import types
+        mock_get.return_value = types.SimpleNamespace(**VALID_EVENT_RESPONSE)
+        
         response = client.get("/api/v1/events/1")
 
         assert response.status_code == 200

@@ -4,11 +4,12 @@ AAROH — Prediction API Endpoints
 
 from typing import List
 
+from backend.schemas.error import common_responses
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
-from backend.core.security import get_current_user, require_role
+from backend.core.security import get_current_user, require_role, verify_case_id_access
 from backend.core.errors import raise_unprocessable
 from backend.schemas.prediction import PredictionCreate, PredictionResponse
 from backend.services import prediction_service
@@ -25,7 +26,7 @@ def get_db():
 
 
 @router.post(
-    "/predictions",
+    "/predictions", responses=common_responses,
     response_model=PredictionResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role("SYSTEM_SERVICE", "ADMIN"))],
@@ -39,11 +40,12 @@ def create_prediction(
     try:
         return prediction_service.create_prediction(db, payload)
     except Exception:
+        db.rollback()
         raise_unprocessable("PREDICTION_INVALID", "Failed to create prediction. Ensure case_id is valid.")
 
 
 @router.get(
-    "/predictions/{case_id}",
+    "/predictions/{case_id}", responses=common_responses,
     response_model=List[PredictionResponse],
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
@@ -55,4 +57,5 @@ def get_predictions_for_case(
     user: dict = Depends(get_current_user),
 ):
     """Fetch predictions for a specific case."""
+    verify_case_id_access(case_id, user, db)
     return prediction_service.get_predictions_by_case(db, case_id=case_id, skip=skip, limit=limit)

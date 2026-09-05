@@ -6,11 +6,12 @@ Endpoints for the interactions table.
 
 from typing import List, Optional
 
+from backend.schemas.error import common_responses
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
-from backend.core.security import get_current_user, require_role
+from backend.core.security import get_current_user, require_role, verify_case_id_access
 from backend.core.audio_validation import validate_audio, AudioValidationError
 from backend.schemas.interaction import InteractionCreate, InteractionResponse
 from backend.services import interaction_service, voice_service
@@ -29,7 +30,7 @@ def get_db():
 
 
 @router.post(
-    "/interactions",
+    "/interactions", responses=common_responses,
     response_model=InteractionResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role("COUNSELLOR", "SYSTEM_SERVICE", "ADMIN"))],
@@ -43,6 +44,7 @@ def create_interaction(
     try:
         return interaction_service.create_interaction(db, payload)
     except Exception:
+        db.rollback()
         # Prevent leaking raw DB errors (e.g. FK violation on case_id)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -51,7 +53,7 @@ def create_interaction(
 
 
 @router.get(
-    "/interactions",
+    "/interactions", responses=common_responses,
     response_model=List[InteractionResponse],
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
@@ -63,11 +65,11 @@ def list_interactions(
     user=Depends(get_current_user),
 ):
     """List interactions with pagination and optional case filtering."""
-    return interaction_service.list_interactions(db, case_id=case_id, skip=skip, limit=limit)
+    return interaction_service.list_interactions(db, user=user, case_id=case_id, skip=skip, limit=limit)
 
 
 @router.get(
-    "/interactions/{interaction_id}",
+    "/interactions/{interaction_id}", responses=common_responses,
     response_model=InteractionResponse,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
@@ -83,11 +85,13 @@ def get_interaction(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Interaction with id {interaction_id} not found.",
         )
+
+    verify_case_id_access(row.case_id, user, db)
     return row
 
 
 @router.post(
-    "/interactions/{interaction_id}/voice",
+    "/interactions/{interaction_id}/voice", responses=common_responses,
     status_code=status.HTTP_202_ACCEPTED,
     dependencies=[Depends(require_role("COUNSELLOR", "USER", "ADMIN"))],
 )
@@ -127,6 +131,8 @@ def upload_interaction_voice(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Interaction with id {interaction_id} not found.",
         )
+
+    verify_case_id_access(interaction.case_id, user, db)
 
     # ------------------------------------------------------------------
     # 3. Verify voice_analysis_consent from the Consent table.

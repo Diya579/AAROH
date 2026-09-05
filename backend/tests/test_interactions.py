@@ -83,8 +83,9 @@ class TestInteractionEndpoints:
     @patch("backend.api.v1.interactions.interaction_service.get_interaction")
     def test_get_interaction_success(self, mock_get):
         """GET /api/v1/interactions/{id} should return 200 on success."""
-        mock_get.return_value = VALID_INTERACTION_RESPONSE
-
+        import types
+        mock_get.return_value = types.SimpleNamespace(**VALID_INTERACTION_RESPONSE)
+        
         response = client.get("/api/v1/interactions/1")
 
         assert response.status_code == 200

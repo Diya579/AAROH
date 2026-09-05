@@ -12,6 +12,7 @@ Endpoints:
     GET /analytics/national          — national aggregate (NATIONAL_OFFICIAL/ADMIN)
 """
 
+from backend.schemas.error import common_responses
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -57,7 +58,7 @@ def _case_counts(db: Session) -> dict:
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/cases",
+    "/cases", responses=common_responses,
     dependencies=[Depends(require_role("ADMIN", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def analytics_cases_summary(
@@ -92,7 +93,7 @@ def analytics_cases_summary(
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/cases/{case_id}",
+    "/cases/{case_id}", responses=common_responses,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def analytics_case_detail(
@@ -125,7 +126,7 @@ def analytics_case_detail(
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/district/{district}",
+    "/district/{district}", responses=common_responses,
     dependencies=[Depends(require_role("DISTRICT_OFFICIAL", "ADMIN", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def analytics_district(
@@ -134,6 +135,9 @@ def analytics_district(
     user: dict = Depends(get_current_user),
 ):
     """Aggregate counts for a specific district."""
+    if user.role == "DISTRICT_OFFICIAL" and user.district != district:
+        from backend.core.errors import raise_forbidden
+        raise_forbidden("OUT_OF_SCOPE", "Cannot access analytics for a different district.")
     case_ids = [
         r.id for r in db.query(Case.id).filter(Case.district == district).all()
     ]
@@ -159,7 +163,7 @@ def analytics_district(
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/state/{state}",
+    "/state/{state}", responses=common_responses,
     dependencies=[Depends(require_role("STATE_OFFICIAL", "ADMIN", "NATIONAL_OFFICIAL"))],
 )
 def analytics_state(
@@ -168,6 +172,9 @@ def analytics_state(
     user: dict = Depends(get_current_user),
 ):
     """Aggregate counts for a specific state."""
+    if user.role == "STATE_OFFICIAL" and user.state != state:
+        from backend.core.errors import raise_forbidden
+        raise_forbidden("OUT_OF_SCOPE", "Cannot access analytics for a different state.")
     case_ids = [
         r.id for r in db.query(Case.id).filter(Case.state == state).all()
     ]
@@ -193,7 +200,7 @@ def analytics_state(
 # ---------------------------------------------------------------------------
 
 @router.get(
-    "/national",
+    "/national", responses=common_responses,
     dependencies=[Depends(require_role("NATIONAL_OFFICIAL", "ADMIN"))],
 )
 def analytics_national(

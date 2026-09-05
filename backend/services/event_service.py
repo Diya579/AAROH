@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from backend.models import CaseEvent
+from backend.core.security import apply_scope_filter
 from backend.schemas.event import EventCreate
 
 
@@ -28,12 +29,17 @@ def get_event(db: Session, event_id: int) -> Optional[CaseEvent]:
 
 def list_events(
     db: Session,
+    user,
     case_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
 ) -> List[CaseEvent]:
     """Return a paginated list of case events, optionally filtered by case_id."""
     query = db.query(CaseEvent)
+    
+    # Apply RBAC scope filter
+    query = apply_scope_filter(query, CaseEvent, user)
+    
     if case_id is not None:
         query = query.filter(CaseEvent.case_id == case_id)
     return query.offset(skip).limit(limit).all()

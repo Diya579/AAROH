@@ -19,6 +19,7 @@ from backend.models import (
     Intervention,
     Outcome,
 )
+from backend.core.security import apply_scope_filter
 from backend.schemas.case import CaseCreate, CaseUpdate
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ def get_case(db: Session, case_id: int) -> Optional[Case]:
 
 def list_cases(
     db: Session,
+    user,
     skip: int = 0,
     limit: int = 50,
     district: Optional[str] = None,
@@ -51,6 +53,10 @@ def list_cases(
 ) -> list[Case]:
     """Return a paginated, optionally-filtered list of cases."""
     q = db.query(Case)
+    
+    # Apply RBAC scope filter
+    q = apply_scope_filter(q, Case, user)
+    
     if district:
         q = q.filter(Case.district == district)
     if state:

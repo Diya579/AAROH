@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from backend.models import Interaction
+from backend.core.security import apply_scope_filter
 from backend.schemas.interaction import InteractionCreate
 
 
@@ -28,12 +29,17 @@ def get_interaction(db: Session, interaction_id: int) -> Optional[Interaction]:
 
 def list_interactions(
     db: Session,
+    user,
     case_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
 ) -> List[Interaction]:
     """Return a paginated list of interactions, optionally filtered by case_id."""
     query = db.query(Interaction)
+    
+    # Apply RBAC scope filter
+    query = apply_scope_filter(query, Interaction, user)
+    
     if case_id is not None:
         query = query.filter(Interaction.case_id == case_id)
     return query.offset(skip).limit(limit).all()
