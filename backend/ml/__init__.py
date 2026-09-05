@@ -19,6 +19,10 @@ from backend.ml.contract import (
     RiskLevel,
     Trajectory,
 )
+from backend.ml.features import (
+    TextFeatures,
+    extract_text_features,
+)
 from backend.ml.inference.service import infer
 from backend.ml.policies import (
     ConfidenceAbstentionPolicy,
@@ -44,8 +48,10 @@ __all__ = [
     "ProcessingStatus",
     "ResultSource",
     "RiskLevel",
+    "TextFeatures",
     "ThresholdConfidencePolicy",
     "Trajectory",
+    "extract_text_features",
     "infer",
     "preprocess_interaction",
 ]

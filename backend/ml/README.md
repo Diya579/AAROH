@@ -1,6 +1,6 @@
-# AAROH ML subsystem (Slice 1 & Slice 2.1)
+# AAROH ML subsystem (Slice 1, Slice 2.1 & Slice 2.2)
 
-This package owns machine-learning **contracts, inference interfaces, and preprocessing pipelines**.
+This package owns machine-learning **contracts, inference interfaces, preprocessing pipelines, and feature extractors**.
 It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
 
 ## Responsibilities
@@ -12,6 +12,7 @@ It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
 | `policies` | Confidence / abstention **interfaces** and a default threshold policy |
 | `inference` | `infer(...)` → Python `dict`. **No database writes.** |
 | `preprocessing` | Input validation, Unicode text normalization, safe missingness handling, and record standardization (Slice 2.1) |
+| `features` | Deterministic multilingual text feature extraction and explainability evidence (Slice 2.2) |
 | `models` | Future learned-model adapters (rule-based code stays in `backend/risk/`) |
 | `training` | Future reproducible training scripts (offline; not required for inference) |
 | `evaluation` | Future metrics; synthetic scores are not clinical evidence |
@@ -55,6 +56,42 @@ record = preprocess_interaction(raw_payload)
 # record is a PreprocessedInteraction dataclass ready for feature extraction
 ```
 
+## Text Feature Extraction (Slice 2.2)
+
+The text feature extraction layer (`backend.ml.features`) consumes `PreprocessedInteraction` objects to generate structured, deterministic text features:
+
+1. **Basic Lexical Metrics (`lexical.py`)**:
+   - `word_count`, `character_count`, `sentence_count` (including Indic dandas `।`, `॥`), `average_word_length`, `uppercase_ratio`, and `punctuation_ratio`.
+2. **Distress Indicators (`distress.py`)**:
+   - Observable indicators: `fear`, `hopelessness`, `isolation`, `helplessness`, `intimidation`, `sadness`, `anxiety` in `[0.0, 1.0]`.
+3. **Help-Seeking Indicators (`help_seeking.py`)**:
+   - `asking_for_help`, `requesting_support`, `emergency_language` in `[0.0, 1.0]`.
+4. **Safety Indicators (`safety.py`)**:
+   - `urgency`, `danger_related_wording` in `[0.0, 1.0]`.
+5. **Centralized Multilingual Lexicons (`lexicons.py`)**:
+   - Single source of truth supporting English, Hindi (Devanagari), and Hinglish (Romanized Hindi).
+6. **Explainability Evidence (`evidence`)**:
+   - Matched keywords/phrases are captured inside `ExplanationEvidence` without altering scores, enabling downstream inference layers to cite grounded terms in predictions.
+7. **Safe Missingness Invariant (`None != 0`)**:
+   - If text is absent or empty, `text_available` is `False`, and feature indicator blocks are `None` (never fabricated as `0.0`).
+
+### How to extract Text Features
+
+```python
+from backend.ml import extract_text_features, preprocess_interaction
+
+raw_payload = {
+    "case_id": "AAROH-001",
+    "interaction_date": "2026-09-03",
+    "language": "Hindi",
+    "text_response": "मुझे बहुत डर लग रहा है, कृपया मदद चाहिए।",
+}
+
+interaction = preprocess_interaction(raw_payload)
+features = extract_text_features(interaction)
+# features is a strongly typed, immutable TextFeatures dataclass
+```
+
 ## Application-facing result
 
 `infer` returns a dict shaped like `docs/ML_API_CONTRACT.md`:
@@ -86,7 +123,7 @@ hard-coded inside training or scoring logic in this package.
 - No PostgreSQL access
 - Existing `features/` and `risk/` behaviour is unchanged
 - If no estimates/estimator are supplied, `infer` returns `status: FAILED`
-- Preprocessing does not perform feature extraction (reserved for Slice 2.2)
+- Text feature extraction prepares observable features; model training and inference scoring belong to subsequent slices
 
 ## How the application should call inference
 
