@@ -91,7 +91,7 @@ def get_interaction(
 @router.post(
     "/interactions/{interaction_id}/voice",
     status_code=status.HTTP_202_ACCEPTED,
-    dependencies=[Depends(require_role("COUNSELLOR", "USER"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "USER", "ADMIN"))],
 )
 def upload_interaction_voice(
     interaction_id: int,
