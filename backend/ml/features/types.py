@@ -286,3 +286,114 @@ class BehaviouralFeatures:
                     features[f"behavioural_{metric}"] = val
 
         return features
+
+
+@dataclass(frozen=True)
+class EngagementEvidence:
+    """Metadata and evidence supporting explainability for engagement features.
+
+    Stores observation counts, completion counts, streaks, delay statistics,
+    and notable shift descriptions. Does not alter numeric feature values.
+    """
+
+    observation_count: int
+    timestamps: tuple[str, ...]
+    completed_count: int
+    missed_count: int
+    current_streak: int
+    delays: tuple[float, ...] = ()
+    previous_engagement_score: Optional[float] = None
+    baseline_engagement_score: Optional[float] = None
+    notable_shifts: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "observation_count": self.observation_count,
+            "timestamps": list(self.timestamps),
+            "completed_count": self.completed_count,
+            "missed_count": self.missed_count,
+            "current_streak": self.current_streak,
+            "delays": list(self.delays),
+            "previous_engagement_score": self.previous_engagement_score,
+            "baseline_engagement_score": self.baseline_engagement_score,
+            "notable_shifts": list(self.notable_shifts),
+        }
+
+
+@dataclass(frozen=True)
+class EngagementFeatures:
+    """Strongly typed, immutable container for engagement features (Slice 2.4).
+
+    Preserves the None != 0 invariant: missing delay or absent history remain None.
+    Measures interaction adherence/behaviour, NOT clinical distress (User Modification 2).
+    """
+
+    engagement_available: bool
+    completed_checkin: Optional[float]
+    missed_checkin: Optional[float]
+    missed_checkin_streak: Optional[int]
+    checkin_consistency: Optional[float]
+    response_delay: Optional[float]
+    average_response_delay: Optional[float]
+    response_frequency: Optional[float]
+    engagement_drop: Optional[float]
+    interaction_count: int
+    recent_activity_count: Optional[int] = None
+    inactivity_duration: Optional[float] = None
+    engagement_score: Optional[float] = None
+    change_from_previous: Optional[float] = None
+    change_from_baseline: Optional[float] = None
+    engagement_trend: Optional[str] = None
+    evidence: Optional[EngagementEvidence] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "engagement_available": self.engagement_available,
+            "completed_checkin": self.completed_checkin,
+            "missed_checkin": self.missed_checkin,
+            "missed_checkin_streak": self.missed_checkin_streak,
+            "checkin_consistency": self.checkin_consistency,
+            "response_delay": self.response_delay,
+            "average_response_delay": self.average_response_delay,
+            "response_frequency": self.response_frequency,
+            "engagement_drop": self.engagement_drop,
+            "interaction_count": self.interaction_count,
+            "recent_activity_count": self.recent_activity_count,
+            "inactivity_duration": self.inactivity_duration,
+            "engagement_score": self.engagement_score,
+            "change_from_previous": self.change_from_previous,
+            "change_from_baseline": self.change_from_baseline,
+            "engagement_trend": self.engagement_trend,
+            "evidence": None if self.evidence is None else self.evidence.to_dict(),
+        }
+
+    def to_feature_dict(self) -> dict[str, Any]:
+        """Flattens features for downstream model consumption without converting None to 0."""
+        features: dict[str, Any] = {
+            "engagement_available": int(self.engagement_available),
+            "engagement_interaction_count": self.interaction_count,
+        }
+        if self.engagement_available:
+            for metric in (
+                "completed_checkin",
+                "missed_checkin",
+                "missed_checkin_streak",
+                "checkin_consistency",
+                "response_delay",
+                "average_response_delay",
+                "response_frequency",
+                "engagement_drop",
+                "recent_activity_count",
+                "inactivity_duration",
+                "engagement_score",
+                "change_from_previous",
+                "change_from_baseline",
+            ):
+                val = getattr(self, metric)
+                if val is not None:
+                    features[f"engagement_{metric}"] = val
+
+            if self.engagement_trend is not None:
+                features["engagement_trend"] = self.engagement_trend
+
+        return features

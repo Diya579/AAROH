@@ -21,8 +21,11 @@ from backend.ml.contract import (
 )
 from backend.ml.features import (
     BehaviouralFeatures,
+    EngagementConfig,
+    EngagementFeatures,
     TextFeatures,
     extract_behavioural_features,
+    extract_engagement_features,
     extract_text_features,
 )
 from backend.ml.inference.service import infer
@@ -41,6 +44,8 @@ __all__ = [
     "BehaviouralFeatures",
     "ConfidenceAbstentionPolicy",
     "DistressOutput",
+    "EngagementConfig",
+    "EngagementFeatures",
     "EvidenceContext",
     "ExplanationOutput",
     "InferenceConfig",
@@ -55,6 +60,7 @@ __all__ = [
     "ThresholdConfidencePolicy",
     "Trajectory",
     "extract_behavioural_features",
+    "extract_engagement_features",
     "extract_text_features",
     "infer",
     "preprocess_interaction",

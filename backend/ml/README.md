@@ -1,4 +1,4 @@
-# AAROH ML subsystem (Slice 1, Slice 2.1, Slice 2.2 & Slice 2.3)
+# AAROH ML subsystem (Slice 1, Slice 2.1, Slice 2.2, Slice 2.3 & Slice 2.4)
 
 This package owns machine-learning **contracts, inference interfaces, preprocessing pipelines, and feature extractors**.
 It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
@@ -12,7 +12,7 @@ It does not own FastAPI, interventions, voice/ASR, or PostgreSQL persistence.
 | `policies` | Confidence / abstention **interfaces** and a default threshold policy |
 | `inference` | `infer(...)` → Python `dict`. **No database writes.** |
 | `preprocessing` | Input validation, Unicode text normalization, safe missingness handling, and record standardization (Slice 2.1) |
-| `features` | Deterministic text (Slice 2.2) and behavioural (Slice 2.3) feature extraction and explainability evidence |
+| `features` | Deterministic text (Slice 2.2), behavioural (Slice 2.3), and engagement (Slice 2.4) feature extraction and explainability evidence |
 | `models` | Future learned-model adapters (rule-based code stays in `backend/risk/`) |
 | `training` | Future reproducible training scripts (offline; not required for inference) |
 | `evaluation` | Future metrics; synthetic scores are not clinical evidence |
@@ -129,6 +129,56 @@ raw_payload = {
 interaction = preprocess_interaction(raw_payload)
 behavioural = extract_behavioural_features(interaction)
 # behavioural is a strongly typed, immutable BehaviouralFeatures dataclass
+```
+
+## Engagement Feature Extraction (Slice 2.4)
+
+The engagement feature extraction layer (`backend.ml.features.engagement`) consumes `PreprocessedInteraction` records and previous interaction history to produce structured interaction engagement patterns:
+
+1. **Configurable Thresholds (`EngagementConfig`)**:
+   - Thresholds (`expected_interval_days`, `delayed_response_threshold_hours`, `disengagement_inactivity_days`, `trend_change_threshold`, etc.) are exposed as a configurable dataclass rather than hard-coded constants, enabling model calibration without extractor changes.
+2. **Explicit Semantic Boundary**:
+   - `engagement_score` measures interaction adherence/regularity (`[0.0, 1.0]`).
+   - It is strictly an engineered behavioural feature and is **never** used as an implicit distress or clinical escalation score (distress estimation remains the responsibility of baseline models in Slice 2.5+).
+3. **Core Observable Metrics**:
+   - `frequency_days`: Mean interval in days between recorded interactions.
+   - `response_delay_hours`: Latency in hours between prompt delivery and beneficiary response.
+   - `completion_rate`: Proportion of requested questions or check-ins answered.
+   - `streak_count`: Consecutive expected check-ins completed without missed days.
+   - `days_since_last_interaction`: Inactivity duration relative to the current interaction date.
+   - `engagement_trend`: Trajectory enum (`IMPROVING`, `STABLE`, `DECLINING`, `UNKNOWN`).
+4. **Strict `None != 0` Invariant**:
+   - Missing response delays, intervals, or absence of historical interactions evaluate to `None`.
+   - Never converts absent data into 0.0 hours or 0.0 frequency.
+5. **Explainability Evidence Metadata (`evidence`)**:
+   - Retains grounded explanation signals: `total_interactions`, `valid_delays_count`, `previous_score`, `baseline_score`, `score_change`, `disengagement_risk_flag`, `delayed_response_flag`, and human-readable `engagement_alerts`.
+
+### How to extract Engagement Features
+
+```python
+from backend.ml import (
+    EngagementConfig,
+    extract_engagement_features,
+    preprocess_interaction,
+)
+
+current_payload = {
+    "case_id": "AAROH-001",
+    "interaction_date": "2026-09-03",
+    "response_delay_hours": 1.5,
+    "completed": True,
+}
+
+history_payloads = [
+    {"case_id": "AAROH-001", "interaction_date": "2026-08-20", "response_delay_hours": 2.0, "completed": True},
+    {"case_id": "AAROH-001", "interaction_date": "2026-08-27", "response_delay_hours": 1.0, "completed": True},
+]
+
+current = preprocess_interaction(current_payload)
+history = [preprocess_interaction(h) for h in history_payloads]
+
+engagement = extract_engagement_features(current, history=history, config=EngagementConfig())
+# engagement is a strongly typed, immutable EngagementFeatures dataclass
 ```
 
 ## Application-facing result
