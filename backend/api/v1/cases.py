@@ -4,13 +4,14 @@ AAROH — Case API Endpoints
 CRUD operations for the cases table.
 """
 
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role, verify_case_access
+from backend.core.errors import raise_not_found, raise_conflict
 from backend.schemas.case import CaseCreate, CaseUpdate, CaseResponse
 from backend.services import case_service
 
@@ -41,11 +42,7 @@ def create_case(
     try:
         return case_service.create_case(db, payload)
     except ValueError as e:
-        # e.g., duplicate case_id
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+        raise_conflict("CASE_DUPLICATE", str(e))
 
 
 @router.get(
@@ -54,13 +51,15 @@ def create_case(
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
 )
 def list_cases(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=50, ge=1, le=200, description="Max records to return (1–200)"),
+    district: Optional[str] = Query(default=None, description="Filter by district"),
+    state: Optional[str] = Query(default=None, description="Filter by state"),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """List all cases with pagination."""
-    return case_service.list_cases(db, skip=skip, limit=limit)
+    """List cases with pagination and optional district/state filters."""
+    return case_service.list_cases(db, skip=skip, limit=limit, district=district, state=state)
 
 
 @router.get(
@@ -76,15 +75,12 @@ def get_case(
     """Fetch a specific case by its DB ID."""
     row = case_service.get_case(db, case_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Case with id {case_id} not found."
-        )
+        raise_not_found("Case", case_id)
     verify_case_access(row, user, db)
     return row
 
 
-@router.put(
+@router.patch(
     "/cases/{case_id}",
     response_model=CaseResponse,
     dependencies=[Depends(require_role("COUNSELLOR", "ADMIN"))],
@@ -95,15 +91,12 @@ def update_case(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Update fields on an existing case."""
+    """Partially update fields on an existing case (all fields optional)."""
     row = case_service.get_case(db, case_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Case with id {case_id} not found."
-        )
+        raise_not_found("Case", case_id)
     verify_case_access(row, user, db)
-    
+
     updated_row = case_service.update_case(db, case_id, payload)
     return updated_row
 
@@ -121,13 +114,10 @@ def delete_case(
     """Delete a case by its DB ID."""
     row = case_service.get_case(db, case_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Case with id {case_id} not found."
-        )
+        raise_not_found("Case", case_id)
     verify_case_access(row, user, db)
-    
-    deleted = case_service.delete_case(db, case_id)
+
+    case_service.delete_case(db, case_id)
 
 
 @router.get(
@@ -139,28 +129,21 @@ def get_case_timeline(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Fetch combined timeline for a case."""
-    # In a real app we'd query events, interactions, predictions, interventions,
-    # and combine them. For the integration scope tonight, we can stub it.
-    
-    # First, verify case exists:
+    """
+    Fetch real chronological timeline for a case.
+
+    Aggregates CaseEvent, Interaction, Prediction, Intervention, and Outcome
+    records — each tagged with a type and sorted by timestamp ascending.
+    """
     row = case_service.get_case(db, case_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Case with id {case_id} not found."
-        )
+        raise_not_found("Case", case_id)
     verify_case_access(row, user, db)
-        
-    # Return a basic structural skeleton
+
+    timeline = case_service.get_case_timeline(db, case_id)
     return {
         "case_id": case_id,
-        "timeline": [
-            {
-                "type": "event",
-                "date": row.created_at,
-                "detail": f"Case opened for {row.priority_use_case}"
-            }
-        ]
+        "case_string_id": row.case_id,
+        "count": len(timeline),
+        "timeline": timeline,
     }
-

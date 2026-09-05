@@ -98,25 +98,32 @@ class TestCaseEndpoints:
         assert response.status_code == 404
         assert "not found" in response.json()["error"]["message"]
 
+    @patch("backend.api.v1.cases.case_service.get_case")
     @patch("backend.api.v1.cases.case_service.update_case")
-    def test_update_case_success(self, mock_update):
-        """PUT /api/v1/cases/{id} should return 200 on success."""
+    def test_update_case_success(self, mock_update, mock_get):
+        """PATCH /api/v1/cases/{id} should return 200 on success."""
+        import types
+        # get_case must return an object that verify_case_access accepts (ADMIN always passes)
+        fake_case = types.SimpleNamespace(
+            id=1, case_id="EXT-1234", district="North District", state=None
+        )
+        mock_get.return_value = fake_case
         updated_response = VALID_CASE_RESPONSE.copy()
         updated_response["language"] = "fr"
         mock_update.return_value = updated_response
 
-        response = client.put("/api/v1/cases/1", json={"language": "fr"})
+        response = client.patch("/api/v1/cases/1", json={"language": "fr"})
 
         assert response.status_code == 200
         data = response.json()
         assert data["language"] == "fr"
 
-    @patch("backend.api.v1.cases.case_service.update_case")
-    def test_update_case_not_found(self, mock_update):
-        """PUT /api/v1/cases/{id} should return 404 if not found."""
-        mock_update.return_value = None
+    @patch("backend.api.v1.cases.case_service.get_case")
+    def test_update_case_not_found(self, mock_get):
+        """PATCH /api/v1/cases/{id} should return 404 if not found."""
+        mock_get.return_value = None
 
-        response = client.put("/api/v1/cases/999", json={"language": "fr"})
+        response = client.patch("/api/v1/cases/999", json={"language": "fr"})
 
         assert response.status_code == 404
 

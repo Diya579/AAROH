@@ -4,11 +4,12 @@ AAROH — Intervention API Endpoints
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role
+from backend.core.errors import raise_not_found, raise_unprocessable
 from backend.schemas.intervention import (
     InterventionCreate,
     InterventionUpdate,
@@ -43,10 +44,7 @@ def create_intervention(
     try:
         return intervention_service.create_intervention(db, payload)
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to create intervention."
-        )
+        raise_unprocessable("INTERVENTION_INVALID", "Failed to create intervention.")
 
 
 @router.get(
@@ -56,8 +54,8 @@ def create_intervention(
 )
 def get_interventions(
     case_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
@@ -77,7 +75,7 @@ def update_intervention(
 ):
     row = intervention_service.update_intervention(db, intervention_id, payload)
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found")
+        raise_not_found("Intervention", intervention_id)
     return row
 
 
@@ -95,10 +93,7 @@ def create_outcome(
     try:
         return intervention_service.create_outcome(db, payload)
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to create outcome."
-        )
+        raise_unprocessable("OUTCOME_INVALID", "Failed to create outcome.")
 
 
 @router.get(
@@ -108,8 +103,8 @@ def create_outcome(
 )
 def get_outcomes(
     case_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):

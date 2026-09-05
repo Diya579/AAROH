@@ -6,11 +6,12 @@ Endpoints for the case_events table.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role
+from backend.core.errors import raise_not_found
 from backend.schemas.event import EventCreate, EventResponse
 from backend.services import event_service
 
@@ -55,12 +56,12 @@ def create_event(
 )
 def list_events(
     case_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """List all events with pagination and optional case filtering."""
+    """List events with pagination and optional case filtering."""
     return event_service.list_events(db, case_id=case_id, skip=skip, limit=limit)
 
 
@@ -77,8 +78,5 @@ def get_event(
     """Fetch a specific event by its DB ID."""
     row = event_service.get_event(db, event_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Event with id {event_id} not found."
-        )
+        raise_not_found("Event", event_id)
     return row

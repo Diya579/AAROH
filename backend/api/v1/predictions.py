@@ -4,11 +4,12 @@ AAROH — Prediction API Endpoints
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role
+from backend.core.errors import raise_unprocessable
 from backend.schemas.prediction import PredictionCreate, PredictionResponse
 from backend.services import prediction_service
 
@@ -38,10 +39,7 @@ def create_prediction(
     try:
         return prediction_service.create_prediction(db, payload)
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to create prediction. Ensure case_id is valid."
-        )
+        raise_unprocessable("PREDICTION_INVALID", "Failed to create prediction. Ensure case_id is valid.")
 
 
 @router.get(
@@ -51,8 +49,8 @@ def create_prediction(
 )
 def get_predictions_for_case(
     case_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
