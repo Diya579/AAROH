@@ -1,10 +1,11 @@
 """AAROH Dataset Ingestion and Preprocessing package (Slice 3.2).
 
 Provides preprocessing pipelines for auxiliary training datasets:
-- EmoInHindi (multilingual emotion classification)
-- GoEmotions (multilabel fine-grained emotion classification)
+- GoEmotions Hindi Adaptation (translated fine-grained emotion classification)
+- GoEmotions (English fine-grained multilabel emotion classification)
 - Dreaddit (social media stress and psychological indicators)
 - RAVDESS (multimodal speech emotion audio)
+- Real EmoInHindi (official conversational dataset placeholder)
 """
 
 from backend.ml.training.preprocessing.common import (
@@ -35,6 +36,12 @@ from backend.ml.training.preprocessing.preprocess_goemotions import (
     preprocess_goemotions_split,
     process_goemotions,
 )
+from backend.ml.training.preprocessing.preprocess_goemotions_hindi_adaptation import (
+    GOEMOTIONS_HINDI_EMOTIONS,
+    detect_goemotions_hindi_adaptation_files,
+    preprocess_goemotions_hindi_adaptation_split,
+    process_goemotions_hindi_adaptation,
+)
 from backend.ml.training.preprocessing.preprocess_ravdess import (
     RAVDESS_EMOTIONS,
     RAVDESS_INTENSITIES,
@@ -43,6 +50,11 @@ from backend.ml.training.preprocessing.preprocess_ravdess import (
     parse_ravdess_filename,
     preprocess_ravdess_directory,
     process_ravdess,
+)
+from backend.ml.training.preprocessing.preprocess_real_emoinhindi import (
+    REAL_EMOINHINDI_EMOTIONS,
+    preprocess_real_emoinhindi_split,
+    process_real_emoinhindi,
 )
 from backend.ml.training.preprocessing.run_all import run_all_preprocessing
 
@@ -57,12 +69,21 @@ __all__ = [
     "deterministic_sort",
     "compute_dataset_stats",
     "save_json",
-    # EmoInHindi
+    # GoEmotions Hindi Adaptation
+    "GOEMOTIONS_HINDI_EMOTIONS",
+    "process_goemotions_hindi_adaptation",
+    "preprocess_goemotions_hindi_adaptation_split",
+    "detect_goemotions_hindi_adaptation_files",
+    # EmoInHindi (backward compatibility aliases)
     "process_emoinhindi",
     "preprocess_emoinhindi_split",
     "detect_emoinhindi_files",
     "EMOINHINDI_EMOTIONS",
-    # GoEmotions
+    # Real EmoInHindi (Official Conversational Placeholder)
+    "REAL_EMOINHINDI_EMOTIONS",
+    "process_real_emoinhindi",
+    "preprocess_real_emoinhindi_split",
+    # GoEmotions (English)
     "process_goemotions",
     "preprocess_goemotions_split",
     "detect_goemotions_files",

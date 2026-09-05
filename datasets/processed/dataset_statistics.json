@@ -1,11 +1,11 @@
 {
   "pipeline_version": "3.2.0",
   "datasets": {
-    "emoinhindi": {
-      "dataset": "emoinhindi",
+    "goemotions_hindi_adaptation": {
+      "dataset": "goemotions_hindi_adaptation",
       "splits": {
         "test": {
-          "dataset": "emoinhindi",
+          "dataset": "goemotions_hindi_adaptation",
           "sample_count": 5427,
           "language": "hi",
           "missing_values": {
@@ -54,7 +54,7 @@
           }
         },
         "valid": {
-          "dataset": "emoinhindi",
+          "dataset": "goemotions_hindi_adaptation",
           "sample_count": 5426,
           "language": "hi",
           "missing_values": {
@@ -103,7 +103,7 @@
           }
         },
         "train": {
-          "dataset": "emoinhindi",
+          "dataset": "goemotions_hindi_adaptation",
           "sample_count": 43410,
           "language": "hi",
           "missing_values": {
@@ -375,7 +375,7 @@
   "summary": {
     "total_samples": 110681,
     "datasets_processed": [
-      "emoinhindi",
+      "goemotions_hindi_adaptation",
       "goemotions",
       "dreaddit",
       "ravdess"

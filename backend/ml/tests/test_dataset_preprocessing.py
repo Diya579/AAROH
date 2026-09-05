@@ -7,7 +7,9 @@ Verifies:
 - Safe missing value preservation (no fabrication)
 - Deterministic sorting and JSONL serialization
 - Dataset statistics generation
-- EmoInHindi label parsing and split processing
+- GoEmotions Hindi Adaptation parsing, split processing, and backward compatibility
+- Real EmoInHindi placeholder (NotImplementedError)
+- Real EmoInHindi verification script (verify_real_emoinhindi.py)
 - GoEmotions multilabel parsing and taxonomy mapping
 - Dreaddit dynamic schema detection and privacy filtering
 - RAVDESS filename parsing and actor discovery
@@ -36,8 +38,7 @@ from backend.ml.training.preprocessing.preprocess_dreaddit import (
     process_dreaddit,
 )
 from backend.ml.training.preprocessing.preprocess_emoinhindi import (
-    map_labels_to_names,
-    parse_label_ids,
+    EMOINHINDI_EMOTIONS,
     preprocess_emoinhindi_split,
     process_emoinhindi,
 )
@@ -46,11 +47,24 @@ from backend.ml.training.preprocessing.preprocess_goemotions import (
     preprocess_goemotions_split,
     process_goemotions,
 )
+from backend.ml.training.preprocessing.preprocess_goemotions_hindi_adaptation import (
+    GOEMOTIONS_HINDI_EMOTIONS,
+    map_labels_to_names,
+    parse_label_ids,
+    preprocess_goemotions_hindi_adaptation_split,
+    process_goemotions_hindi_adaptation,
+)
 from backend.ml.training.preprocessing.preprocess_ravdess import (
     parse_ravdess_filename,
     preprocess_ravdess_directory,
     process_ravdess,
 )
+from backend.ml.training.preprocessing.preprocess_real_emoinhindi import (
+    REAL_EMOINHINDI_EMOTIONS,
+    preprocess_real_emoinhindi_split,
+    process_real_emoinhindi,
+)
+from verify_real_emoinhindi import verify_emoinhindi_dataset
 
 
 class TestDatasetPreprocessing(unittest.TestCase):
@@ -133,9 +147,9 @@ class TestDatasetPreprocessing(unittest.TestCase):
         self.assertEqual(stats["missing_values"]["text"], 1)
         self.assertEqual(stats["missing_values"]["label"], 0)
 
-    # --- EmoInHindi Tests ---
+    # --- GoEmotions Hindi Adaptation & Compatibility Tests ---
 
-    def test_emoinhindi_label_parsing(self) -> None:
+    def test_goemotions_hindi_label_parsing(self) -> None:
         """Verifies parsing of numpy-bracketed strings like '[27]', '[ 8 20]'."""
         self.assertEqual(parse_label_ids("[27]"), [27])
         self.assertEqual(parse_label_ids("[ 8 20]"), [8, 20])
@@ -145,8 +159,8 @@ class TestDatasetPreprocessing(unittest.TestCase):
         names = map_labels_to_names([14, 27])
         self.assertEqual(names, ["fear", "neutral"])
 
-    def test_emoinhindi_split_preprocessing(self) -> None:
-        """Verifies EmoInHindi split ingestion without inventing missing values."""
+    def test_goemotions_hindi_adaptation_split_preprocessing(self) -> None:
+        """Verifies GoEmotions Hindi Adaptation split ingestion."""
         sample_csv = self.test_dir / "emoHi-train.csv"
         sample_csv.write_text(
             ",id,labels,text\n"
@@ -154,10 +168,10 @@ class TestDatasetPreprocessing(unittest.TestCase):
             "1,ed7ypvh,[14],उसे खतरा महसूस कराने के लिए\n",
             encoding="utf-8",
         )
-        records = preprocess_emoinhindi_split(sample_csv, split_name="train")
+        records = preprocess_goemotions_hindi_adaptation_split(sample_csv, split_name="train")
         self.assertEqual(len(records), 2)
         self.assertEqual(records[0]["language"], "hi")
-        self.assertEqual(records[0]["dataset"], "emoinhindi")
+        self.assertEqual(records[0]["dataset"], "goemotions_hindi_adaptation")
         self.assertIsNone(records[0]["dialogue_id"])
         self.assertIsNone(records[0]["emotion_intensity"])
         self.assertEqual(records[0]["previous_turns"], [])
@@ -166,6 +180,49 @@ class TestDatasetPreprocessing(unittest.TestCase):
         fear_rec = next(r for r in records if r["utterance_id"] == "ed7ypvh")
         self.assertEqual(fear_rec["emotion"], "fear")
         self.assertEqual(fear_rec["label_ids"], [14])
+
+    def test_emoinhindi_backward_compatibility_layer(self) -> None:
+        """Verifies that legacy emoinhindi imports map cleanly to goemotions_hindi_adaptation."""
+        self.assertEqual(EMOINHINDI_EMOTIONS, GOEMOTIONS_HINDI_EMOTIONS)
+        sample_csv = self.test_dir / "emoHi-test.csv"
+        sample_csv.write_text(
+            ",id,labels,text\n"
+            "0,test_1,[27],नमस्ते\n",
+            encoding="utf-8",
+        )
+        records = preprocess_emoinhindi_split(sample_csv, split_name="test")
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["dataset"], "goemotions_hindi_adaptation")
+
+    # --- Real EmoInHindi Placeholder & Verification Tests ---
+
+    def test_real_emoinhindi_placeholder_raises_not_implemented(self) -> None:
+        """Verifies that placeholder real EmoInHindi module raises NotImplementedError."""
+        self.assertEqual(len(REAL_EMOINHINDI_EMOTIONS), 16)
+        with self.assertRaises(NotImplementedError):
+            preprocess_real_emoinhindi_split("some/path", "train")
+        with self.assertRaises(NotImplementedError):
+            process_real_emoinhindi("some/dir", "out/dir")
+
+    def test_verify_real_emoinhindi_missing_directory(self) -> None:
+        """Verifies verify_real_emoinhindi returns failure when directory does not exist."""
+        non_existent = self.test_dir / "does_not_exist"
+        is_valid, report = verify_emoinhindi_dataset(non_existent)
+        self.assertFalse(is_valid)
+        self.assertFalse(report["exists"])
+        self.assertTrue(any("does not exist" in err for err in report["errors"]))
+
+    def test_verify_real_emoinhindi_detects_misplaced_goemotions(self) -> None:
+        """Verifies verify_real_emoinhindi flags misplaced GoEmotions Hindi adaptation files."""
+        misplaced_dir = self.test_dir / "misplaced"
+        misplaced_dir.mkdir()
+        (misplaced_dir / "emoHi-train.csv").write_text(
+            ",id,labels,text\n0,1,[27],परीक्षण\n", encoding="utf-8"
+        )
+        is_valid, report = verify_emoinhindi_dataset(misplaced_dir)
+        self.assertFalse(is_valid)
+        self.assertTrue(report["is_goemotions_hindi_misplaced"])
+        self.assertTrue(any("GoEmotions Hindi adaptation" in err for err in report["errors"]))
 
     # --- GoEmotions Tests ---
 
