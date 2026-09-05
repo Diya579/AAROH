@@ -57,11 +57,12 @@ app.include_router(v1_router, prefix=settings.api_v1_prefix)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     # Preserve headers from the original exception (e.g. WWW-Authenticate for 401)
     headers = dict(exc.headers) if exc.headers else {}
+    code = getattr(exc, "code", "HTTP_EXCEPTION")
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": {
-                "code": "HTTP_EXCEPTION",
+                "code": code,
                 "message": str(exc.detail),
                 "request_id": getattr(request.state, "request_id", str(uuid.uuid4()))
             }

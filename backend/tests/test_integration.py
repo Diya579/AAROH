@@ -7,6 +7,8 @@ For tests that need a specific role, we use a context-scoped override helper.
 
 import os
 import tempfile
+import wave
+import io
 from contextlib import contextmanager
 
 import pytest
@@ -50,21 +52,33 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_cases_db] = override_get_db
-app.dependency_overrides[get_interactions_db] = override_get_db
-app.dependency_overrides[get_consents_db] = override_get_db
-app.dependency_overrides[get_predictions_db] = override_get_db
-app.dependency_overrides[get_interventions_db] = override_get_db
-app.dependency_overrides[get_events_db] = override_get_db
-
 client = TestClient(app)
 
 
 @pytest.fixture(autouse=True, scope="module")
 def setup_test_db():
     Base.metadata.create_all(bind=engine)
+    
+    app.dependency_overrides[get_cases_db] = override_get_db
+    app.dependency_overrides[get_interactions_db] = override_get_db
+    app.dependency_overrides[get_consents_db] = override_get_db
+    app.dependency_overrides[get_predictions_db] = override_get_db
+    app.dependency_overrides[get_interventions_db] = override_get_db
+    app.dependency_overrides[get_events_db] = override_get_db
+    
     yield
+    
+    app.dependency_overrides.pop(get_cases_db, None)
+    app.dependency_overrides.pop(get_interactions_db, None)
+    app.dependency_overrides.pop(get_consents_db, None)
+    app.dependency_overrides.pop(get_predictions_db, None)
+    app.dependency_overrides.pop(get_interventions_db, None)
+    app.dependency_overrides.pop(get_events_db, None)
+    
     Base.metadata.drop_all(bind=engine)
+
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -122,8 +136,13 @@ def test_voice_ingestion_flow():
     interaction_id = resp.json()["id"]
 
     # 4. Upload voice file
+    # Generate a valid WAV file (minimum 1 second duration required)
     temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    temp_audio.write(b"fake audio content")
+    with wave.open(temp_audio.name, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        wf.writeframes(b"\x00\x00" * 16000) # 1 second of silence
     temp_audio.close()
 
     try:

@@ -6,11 +6,12 @@ Endpoints for the interactions table.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role
+from backend.core.audio_validation import validate_audio, AudioValidationError
 from backend.schemas.interaction import InteractionCreate, InteractionResponse
 from backend.services import interaction_service, voice_service
 from backend.models import Interaction, Consent
@@ -36,19 +37,16 @@ def get_db():
 def create_interaction(
     payload: InteractionCreate,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     """Create a new interaction."""
-    # We might want to catch IntegrityError if case_id doesn't exist,
-    # but for now we'll let it bubble up as a 500 or we could handle it.
     try:
         return interaction_service.create_interaction(db, payload)
-    except Exception as e:
-        # Prevent leaking raw DB errors.
-        # In a real app we'd catch sqlalchemy.exc.IntegrityError specifically.
+    except Exception:
+        # Prevent leaking raw DB errors (e.g. FK violation on case_id)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to create interaction. Ensure case_id is valid."
+            detail="Failed to create interaction. Ensure case_id is valid.",
         )
 
 
@@ -59,12 +57,12 @@ def create_interaction(
 )
 def list_interactions(
     case_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
-    """List all interactions with pagination and optional case filtering."""
+    """List interactions with pagination and optional case filtering."""
     return interaction_service.list_interactions(db, case_id=case_id, skip=skip, limit=limit)
 
 
@@ -76,14 +74,14 @@ def list_interactions(
 def get_interaction(
     interaction_id: int,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     """Fetch a specific interaction by its DB ID."""
     row = interaction_service.get_interaction(db, interaction_id)
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Interaction with id {interaction_id} not found."
+            detail=f"Interaction with id {interaction_id} not found.",
         )
     return row
 
@@ -97,43 +95,69 @@ def upload_interaction_voice(
     interaction_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     """
-    Ingest voice for an interaction and pass it to the ML voice pipeline.
+    Ingest voice audio for an interaction.
+
+    Flow:
+        Authenticate → Authorise → Validate audio → Verify interaction
+        → Verify case access → Verify voice consent → Secure temp storage
+        → Delegate to voice pipeline → Return processing state
+
+    Returns HTTP 202 Accepted with processing state RECEIVED.
     """
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No filename provided"
-        )
-        
-    # Verify interaction exists
-    interaction = db.query(Interaction).filter(Interaction.id == interaction_id).first()
+    # ------------------------------------------------------------------
+    # 1. Validate audio BEFORE touching the database.
+    #    Raises AudioValidationError (HTTPException) on failure.
+    #    Returns raw bytes on success; file stream is consumed here.
+    # ------------------------------------------------------------------
+    audio_bytes = validate_audio(file)
+
+    # ------------------------------------------------------------------
+    # 2. Verify the interaction exists
+    # ------------------------------------------------------------------
+    interaction = (
+        db.query(Interaction)
+        .filter(Interaction.id == interaction_id)
+        .first()
+    )
     if not interaction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Interaction with id {interaction_id} not found."
+            detail=f"Interaction with id {interaction_id} not found.",
         )
-        
-    # Verify voice consent
-    consent = db.query(Consent).filter(Consent.case_id == interaction.case_id).first()
+
+    # ------------------------------------------------------------------
+    # 3. Verify voice_analysis_consent from the Consent table.
+    #    voice_opted_in on Case is NOT sufficient — the consent record
+    #    is the authoritative source.
+    # ------------------------------------------------------------------
+    consent = (
+        db.query(Consent)
+        .filter(Consent.case_id == interaction.case_id)
+        .first()
+    )
     if not consent or not consent.voice_analysis_consent:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Voice analysis consent is not granted for this case."
+            detail="Voice analysis consent has not been granted for this case.",
         )
-        
-    # Process the audio file (this writes to a temporary location and passes it downstream)
-    try:
-        processing_state = voice_service.delegate_voice_processing(interaction_id, file)
-        return {
-            "message": "Audio accepted for processing",
-            "interaction_id": interaction_id,
-            "status": processing_state
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process audio file"
-        )
+
+    # ------------------------------------------------------------------
+    # 4. Delegate to voice pipeline.
+    #    Temp file is created, used, and deleted inside delegate_voice_processing.
+    #    We never leave audio on disk after this call returns.
+    # ------------------------------------------------------------------
+    processing_state = voice_service.delegate_voice_processing(
+        interaction_id=interaction_id,
+        case_id=interaction.case_id,
+        language=interaction.language,
+        audio_bytes=audio_bytes,
+    )
+
+    return {
+        "message": "Audio accepted for processing.",
+        "interaction_id": interaction_id,
+        "status": processing_state,
+    }
