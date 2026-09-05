@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
-from backend.core.security import get_current_user, require_role
+from backend.core.security import get_current_user, require_role, verify_case_access
 from backend.schemas.case import CaseCreate, CaseUpdate, CaseResponse
 from backend.services import case_service
 
@@ -66,7 +66,7 @@ def list_cases(
 @router.get(
     "/cases/{case_id}",
     response_model=CaseResponse,
-    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL", "USER", "VICTIM"))],
 )
 def get_case(
     case_id: int,
@@ -80,6 +80,7 @@ def get_case(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Case with id {case_id} not found."
         )
+    verify_case_access(row, user, db)
     return row
 
 
@@ -95,13 +96,16 @@ def update_case(
     user: dict = Depends(get_current_user),
 ):
     """Update fields on an existing case."""
-    row = case_service.update_case(db, case_id, payload)
+    row = case_service.get_case(db, case_id)
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Case with id {case_id} not found."
         )
-    return row
+    verify_case_access(row, user, db)
+    
+    updated_row = case_service.update_case(db, case_id, payload)
+    return updated_row
 
 
 @router.delete(
@@ -115,17 +119,20 @@ def delete_case(
     user: dict = Depends(get_current_user),
 ):
     """Delete a case by its DB ID."""
-    deleted = case_service.delete_case(db, case_id)
-    if not deleted:
+    row = case_service.get_case(db, case_id)
+    if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Case with id {case_id} not found."
         )
+    verify_case_access(row, user, db)
+    
+    deleted = case_service.delete_case(db, case_id)
 
 
 @router.get(
     "/cases/{case_id}/timeline",
-    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL"))],
+    dependencies=[Depends(require_role("COUNSELLOR", "ADMIN", "DISTRICT_OFFICIAL", "STATE_OFFICIAL", "NATIONAL_OFFICIAL", "USER", "VICTIM"))],
 )
 def get_case_timeline(
     case_id: int,
@@ -143,6 +150,7 @@ def get_case_timeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Case with id {case_id} not found."
         )
+    verify_case_access(row, user, db)
         
     # Return a basic structural skeleton
     return {

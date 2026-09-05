@@ -81,3 +81,55 @@ def require_role(*roles: str):
             )
 
     return _check
+
+
+# ---------------------------------------------------------------------------
+# Row-level RBAC enforcement
+# ---------------------------------------------------------------------------
+
+def verify_case_access(case, user: AuthenticatedUser, db) -> None:
+    """
+    Enforces row-level access control for a specific Case.
+    Raises HTTP 403 if the user is not authorized to access this case.
+    """
+    if user.role == "ADMIN":
+        return
+        
+    if user.role in ("USER", "VICTIM"):
+        # Victim can only access their own case.
+        # Assuming user.id corresponds to case.case_id
+        if case.case_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access another person's case."
+            )
+            
+    elif user.role == "DISTRICT_OFFICIAL":
+        if case.district != user.district:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Not authorized to access cases outside district: {user.district}"
+            )
+            
+    elif user.role == "COUNSELLOR":
+        # Check if an intervention for this case is assigned to this counsellor
+        from backend.models import Intervention
+        assigned = db.query(Intervention).filter(
+            Intervention.case_id == case.id,
+            Intervention.assigned_to == user.id
+        ).first()
+        if not assigned:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized: you are not assigned to any interventions for this case."
+            )
+            
+    elif user.role in ("STATE_OFFICIAL", "NATIONAL_OFFICIAL", "SYSTEM_SERVICE"):
+        # Assumed full read access across all cases for these roles
+        return
+        
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role {user.role} is not mapped for case access."
+        )

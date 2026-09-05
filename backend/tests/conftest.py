@@ -32,13 +32,18 @@ from backend.core.auth_provider import AuthenticatedUser, FakeAuthProvider
 DEFAULT_TEST_USER = AuthenticatedUser(id="test-admin", role="ADMIN")
 
 
+def get_admin_provider():
+    """Returns the global ADMIN FakeAuthProvider. Exported for use by test_rbac.py."""
+    return FakeAuthProvider(DEFAULT_TEST_USER)
+
+
 @pytest.fixture(autouse=True, scope="session")
 def install_fake_auth():
     """
     Replace DevAuthProvider with FakeAuthProvider for the entire test session.
     Tests that need a different role use a nested override inside the test.
     """
-    app.dependency_overrides[get_auth_provider] = lambda: FakeAuthProvider(DEFAULT_TEST_USER)
+    app.dependency_overrides[get_auth_provider] = get_admin_provider
     yield
     # Clean up after session
     app.dependency_overrides.pop(get_auth_provider, None)
