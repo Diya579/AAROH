@@ -60,6 +60,7 @@ class InterventionReason:
     confidence: float
     factors: tuple[str, ...] = field(default_factory=tuple)
     abstention_reason: Optional[str] = None
+    consent_status: Optional[Dict[str, bool]] = None
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -71,6 +72,8 @@ class InterventionReason:
         }
         if self.abstention_reason:
             data["abstention_reason"] = self.abstention_reason
+        if self.consent_status:
+            data["consent_status"] = self.consent_status
         return data
 
 
@@ -124,13 +127,27 @@ class InterventionEngine:
         confidence: float = 1.0,
         factors: Optional[Sequence[str]] = None,
         monitoring_consent: bool = True,
+        text_analysis_consent: bool = True,
+        voice_analysis_consent: bool = True,
+        case_linkage_consent: bool = True,
         ml_status: str = "SUCCESS",
         active_interventions: Optional[Sequence[dict[str, Any]]] = None,
     ) -> InterventionDecision:
         """
         Main decision method evaluating ML outputs and operational constraints.
+        Enforces separate consent flags:
+        - monitoring_consent: gateway for all automated interventions
+        - text_analysis_consent: tracks whether text NLP was consented
+        - voice_analysis_consent: tracks whether acoustic extraction was consented
+        - case_linkage_consent: tracks cross-case linkage consent
         """
         factor_tuple = tuple(factors) if factors else ()
+        consent_map = {
+            "monitoring_consent": monitoring_consent,
+            "text_analysis_consent": text_analysis_consent,
+            "voice_analysis_consent": voice_analysis_consent,
+            "case_linkage_consent": case_linkage_consent,
+        }
 
         # 1. CONSENT CHECK
         # Monitoring consent is absolute. If missing, block automated intervention.
@@ -141,7 +158,8 @@ class InterventionEngine:
                 escalation_probability=escalation_probability,
                 confidence=confidence,
                 factors=factor_tuple,
-                abstention_reason="Monitoring consent is absent or revoked.",
+                abstention_reason="Monitoring consent is absent or revoked; automated intervention blocked.",
+                consent_status=consent_map,
             )
             return InterventionDecision(
                 case_id=case_id,
@@ -164,6 +182,7 @@ class InterventionEngine:
                 confidence=confidence,
                 factors=factor_tuple,
                 abstention_reason=f"Model confidence is insufficient ({ml_status}). Human review required.",
+                consent_status=consent_map,
             )
             decision = InterventionDecision(
                 case_id=case_id,
@@ -193,6 +212,7 @@ class InterventionEngine:
                 escalation_probability=escalation_probability,
                 confidence=confidence,
                 factors=factor_tuple,
+                consent_status=consent_map,
             )
             decision = InterventionDecision(
                 case_id=case_id,
@@ -219,6 +239,7 @@ class InterventionEngine:
                 escalation_probability=escalation_probability,
                 confidence=confidence,
                 factors=factor_tuple,
+                consent_status=consent_map,
             )
             decision = InterventionDecision(
                 case_id=case_id,
@@ -237,6 +258,7 @@ class InterventionEngine:
                 escalation_probability=escalation_probability,
                 confidence=confidence,
                 factors=factor_tuple,
+                consent_status=consent_map,
             )
             decision = InterventionDecision(
                 case_id=case_id,
@@ -254,6 +276,7 @@ class InterventionEngine:
             escalation_probability=escalation_probability,
             confidence=confidence,
             factors=factor_tuple,
+            consent_status=consent_map,
         )
         decision = InterventionDecision(
             case_id=case_id,

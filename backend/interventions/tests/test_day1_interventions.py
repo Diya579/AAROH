@@ -348,6 +348,44 @@ class TestOutcomesAndTransitions(unittest.TestCase):
         self.assertEqual(shift, "SUBSEQUENT_IMPROVEMENT")
         self.assertEqual(obs.observed_shift, "SUBSEQUENT_IMPROVEMENT")
 
+    def test_latest_outcome_selected_by_recorded_at_not_list_order(self):
+        # Outcomes list where the earlier outcome is placed first and latest outcome is placed second
+        t_early = datetime(2026, 9, 1, 10, 0, 0, tzinfo=timezone.utc)
+        t_late = datetime(2026, 9, 5, 14, 0, 0, tzinfo=timezone.utc)
+        outcomes_reversed = [
+            {"outcome_type": "CONTACTED", "recorded_at": t_early},
+            {"outcome_type": "RESOLVED", "recorded_at": t_late},
+        ]
+        metrics = CaseMetricsCalculator.calculate(
+            case_id="CASE-ORDER",
+            distress_score=0.4,
+            trajectory="STABLE",
+            escalation_prob=0.3,
+            risk_level="LOW",
+            confidence=0.9,
+            outcomes=outcomes_reversed,
+        )
+        # Even though CONTACTED is first in the list, RESOLVED has the newer timestamp
+        self.assertEqual(metrics.latest_outcome, "RESOLVED")
+
+    def test_separate_consent_fields_preservation(self):
+        engine = InterventionEngine()
+        # Voice consent denied, but monitoring consent granted
+        decision = engine.evaluate(
+            case_id="CASE-CONSENT",
+            risk_level="HIGH",
+            escalation_probability=0.80,
+            trajectory="RAPIDLY_WORSENING",
+            monitoring_consent=True,
+            text_analysis_consent=True,
+            voice_analysis_consent=False,
+            case_linkage_consent=True,
+        )
+        self.assertEqual(decision.intervention_type, InterventionType.PRIORITY_HUMAN_REVIEW)
+        self.assertIsNotNone(decision.reason.consent_status)
+        self.assertFalse(decision.reason.consent_status["voice_analysis_consent"])
+        self.assertTrue(decision.reason.consent_status["monitoring_consent"])
+
 
 class TestAnalytics(unittest.TestCase):
     def test_district_aggregation(self):

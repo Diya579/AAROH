@@ -4,13 +4,32 @@ Author: Preet
 
 Calculates individual case longitudinal profiles, active intervention states,
 and response performance metrics.
+Selects latest outcome strictly by recorded_at timestamp rather than list position.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+
+def _parse_recorded_at(out: Dict[str, Any]) -> datetime:
+    """Extracts or parses recorded_at datetime for sorting."""
+    rec = out.get("recorded_at")
+    if isinstance(rec, datetime):
+        if rec.tzinfo is None:
+            return rec.replace(tzinfo=timezone.utc)
+        return rec.astimezone(timezone.utc)
+    if isinstance(rec, str):
+        try:
+            dt = datetime.fromisoformat(rec)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except ValueError:
+            pass
+    return datetime.min.replace(tzinfo=timezone.utc)
 
 
 @dataclass
@@ -88,7 +107,11 @@ class CaseMetricsCalculator:
         ]
         avg_rt = round(sum(response_times) / len(response_times), 2) if response_times else None
 
-        latest_outcome = out_list[0].get("outcome_type") if out_list else None
+        # Rule 5: Fix latest-outcome selection so it uses recorded_at, not list ordering
+        latest_outcome = None
+        if out_list:
+            sorted_outcomes = sorted(out_list, key=_parse_recorded_at, reverse=True)
+            latest_outcome = sorted_outcomes[0].get("outcome_type")
 
         return CaseSummaryMetrics(
             case_id=case_id,
