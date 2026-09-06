@@ -399,3 +399,41 @@ class IdempotencyRecord(Base):
     
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     expires_at = Column(DateTime, nullable=True)         # TTL for expiration
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    __table_args__ = (
+        Index(
+            "ix_notifications_recipient_user_id_created_at",
+            "recipient_user_id",
+            "created_at",
+        ),
+        Index(
+            "ix_notifications_recipient_role_is_read",
+            "recipient_role",
+            "is_read",
+        ),
+    )
+
+    id                = Column(Integer, primary_key=True)
+
+    recipient_user_id = Column(String(100), nullable=False)
+    recipient_role    = Column(String(50),  nullable=False)
+
+    # Allowed values enforced at the Pydantic schema layer, not DB-level Enum,
+    # consistent with existing String columns (Case.current_stage, etc.)
+    notification_type = Column(String(50),  nullable=False)
+
+    title             = Column(String(255), nullable=False)
+    message           = Column(Text,        nullable=False)
+
+    # Nullable FK context links — no ON DELETE CASCADE, consistent with Outcome.intervention_id
+    case_id           = Column(Integer, ForeignKey("cases.id"),         nullable=True)
+    intervention_id   = Column(Integer, ForeignKey("interventions.id"), nullable=True)
+    outcome_id        = Column(Integer, ForeignKey("outcomes.id"),      nullable=True)
+
+    is_read           = Column(Boolean,  nullable=False, default=False)
+    created_at        = Column(DateTime, nullable=False, server_default=func.now())
+    read_at           = Column(DateTime, nullable=True)

@@ -24,9 +24,13 @@ def test_failed_transaction_rolls_back_cleanly():
     
     response = client.post("/api/v1/interactions", json=invalid_payload)
     
-    # The endpoint should catch the error, call db.rollback(), and return 422
-    assert response.status_code == 422
-    assert "Failed to create interaction" in response.json()["error"]["message"]
+    # verify_case_id_access now fires BEFORE the DB write, returning 404 for a
+    # non-existent case_id. This is more precise than the previous 422 from FK error.
+    # The session-cleanliness guarantee is unchanged: the auth check raises before
+    # any DB mutation, so no rollback is needed — and the session must still be usable.
+    assert response.status_code == 404
+    assert "not found" in response.json()["error"]["message"].lower()
+
     
     # 2. Check the DB directly to ensure the connection is clean and usable
     # If db.rollback() was missing, this would throw a PendingRollbackError
