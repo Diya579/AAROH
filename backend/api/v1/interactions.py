@@ -7,13 +7,14 @@ Endpoints for the interactions table.
 from typing import List, Optional
 
 from backend.schemas.error import common_responses
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Header, Response
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Header, Response, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role, verify_case_id_access
 from backend.core.idempotency import execute_idempotent
 from backend.core.audio_validation import validate_audio, AudioValidationError
+from backend.core.errors import raise_unprocessable, raise_not_found, raise_forbidden
 from backend.schemas.interaction import InteractionCreate, InteractionResponse
 from backend.services import interaction_service, voice_service
 from backend.models import Interaction, Consent
@@ -52,10 +53,7 @@ def create_interaction(
         except Exception:
             db.rollback()
             # Prevent leaking raw DB errors (e.g. FK violation on case_id)
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Failed to create interaction. Ensure case_id is valid.",
-            )
+            raise_unprocessable("DB_ERROR", "Failed to create interaction. Ensure case_id is valid.")
 
     return execute_idempotent(
         db=db,
@@ -98,10 +96,7 @@ def get_interaction(
     """Fetch a specific interaction by its DB ID."""
     row = interaction_service.get_interaction(db, interaction_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Interaction with id {interaction_id} not found.",
-        )
+        raise_not_found("Interaction", interaction_id)
 
     verify_case_id_access(row.case_id, user, db)
     return row
@@ -146,10 +141,7 @@ def upload_interaction_voice(
         .first()
     )
     if not interaction:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Interaction with id {interaction_id} not found.",
-        )
+        raise_not_found("Interaction", interaction_id)
 
     verify_case_id_access(interaction.case_id, user, db)
 
@@ -164,10 +156,7 @@ def upload_interaction_voice(
         .first()
     )
     if not consent or not consent.voice_analysis_consent:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Voice analysis consent has not been granted for this case.",
-        )
+        raise_forbidden("VOICE_CONSENT_DENIED", "Voice analysis consent has not been granted for this case.")
 
     def _upload():
         # ------------------------------------------------------------------

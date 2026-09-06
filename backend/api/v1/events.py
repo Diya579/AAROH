@@ -7,12 +7,12 @@ Endpoints for the case_events table.
 from typing import List, Optional
 
 from backend.schemas.error import common_responses
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role, verify_case_id_access
-from backend.core.errors import raise_not_found
+from backend.core.errors import raise_not_found, raise_unprocessable
 from backend.schemas.event import EventCreate, EventResponse
 from backend.services import event_service
 
@@ -46,10 +46,7 @@ def create_event(
     except Exception as e:
         db.rollback()
         # Prevent leaking raw DB errors.
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to create event. Ensure case_id is valid."
-        )
+        raise_unprocessable("DB_ERROR", "Failed to create event. Ensure case_id is valid.")
 
 
 @router.get(

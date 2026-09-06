@@ -4,14 +4,15 @@ AAROH — Consent API Endpoints
 Endpoints for the consents table (upsert pattern).
 """
 
-from backend.schemas.error import common_responses
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from backend.database import SessionLocal
 from backend.core.security import get_current_user, require_role, verify_case_id_access
 from backend.schemas.consent import ConsentUpsert, ConsentResponse
 from backend.services import consent_service
+from backend.schemas.error import common_responses
+from backend.core.errors import raise_unprocessable, raise_not_found
 
 router = APIRouter(tags=["Consents"])
 
@@ -36,18 +37,13 @@ def upsert_consent(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    verify_case_id_access(case_id, user, db)
     try:
-        verify_case_id_access(case_id, user, db)
         return consent_service.upsert_consent(db, case_id, payload)
-    except HTTPException:
-        raise
     except Exception as e:
         db.rollback()
-        # Prevent leaking raw DB errors.
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Failed to update consent. Ensure case_id is valid."
-        )
+        # Do not leak DB integrity errors to the client
+        raise_unprocessable("DB_ERROR", "Failed to upsert consent. Ensure case_id is valid.")
 
 
 @router.get(
@@ -64,8 +60,5 @@ def get_consent(
     verify_case_id_access(case_id, user, db)
     row = consent_service.get_consent(db, case_id)
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consent for case {case_id} not found."
-        )
+        raise_not_found("Consent record for case", case_id)
     return row
