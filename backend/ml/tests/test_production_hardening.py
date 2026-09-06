@@ -291,7 +291,7 @@ class TestProductionHardening(TestCase):
                 "pipe = MLInferencePipeline(); "
                 "pipe.load_models(); "
                 "pipe.run({'case_id': 'CHECK', 'raw_text': 'Hello world'}); "
-                "leaked = [m for m in sys.modules if 'backend.ml.training.train_' in m or 'backend.ml.training.evaluate_' in m]; "
+                "leaked = [m for m in sys.modules if 'backend.ml.training.train_' in m or 'backend.ml.training.evaluate_' in m or 'backend.ml.training.benchmark_' in m]; "
                 "assert len(leaked) == 0, f'Leaked training modules: {leaked}'; "
                 "print('NO_TRAINING_MODULES_LEAKED')"
             ),
@@ -460,7 +460,7 @@ class TestProductionHardening(TestCase):
         self.assertEqual(res.prediction.risk_level, RiskLevel.LOW)
 
     def test_scenario_crisis_keyword_emergency_override(self) -> None:
-        """Scenario G: Explicit crisis keyword triggers EMERGENCY risk override."""
+        """Scenario G: Explicit crisis keyword triggers EMERGENCY risk override while preserving ML prob/conf."""
         inp = {
             "case_id": "CRISIS-USER",
             "feature_values": [0.5] * 60,
@@ -469,7 +469,11 @@ class TestProductionHardening(TestCase):
         res = self.pipeline.run(inp)
         self.assertEqual(res.status, ProcessingStatus.SUCCESS)
         self.assertEqual(res.prediction.risk_level, RiskLevel.EMERGENCY)
-        self.assertGreaterEqual(res.prediction.escalation_probability, 0.99)
+        # Real ML model probability and confidence must be preserved (not overridden to 0.99)
+        self.assertTrue(0.0 <= res.prediction.escalation_probability <= 1.0)
+        self.assertTrue(0.0 <= res.prediction.confidence <= 1.0)
+        self.assertTrue(res.metadata.get("safety_override"))
+        self.assertEqual(res.metadata.get("safety_override_reason"), "CRISIS_KEYWORD")
         self.assertIn("Immediate crisis indicator detected requiring urgent escalation", res.explanation.factors)
 
     def test_scenario_missing_data_insufficient_data(self) -> None:

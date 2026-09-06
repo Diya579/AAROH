@@ -1,9 +1,9 @@
 {
   "model_type": "dynamic_distress_model",
   "validation_samples": 27,
-  "mae": 0.1198,
-  "rmse": 0.1361,
-  "pearson_correlation": -0.1157,
+  "mae": 0.1162,
+  "rmse": 0.1318,
+  "pearson_correlation": 0.2536,
   "threshold_accuracy": 0.2963,
   "distress_level_distribution": {
     "counts": {

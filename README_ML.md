@@ -947,7 +947,8 @@ Ready for FastAPI startup hooks:
 - **Health Check**: `pipeline.health_check()` returns `{ "ready": True, "overall_status": "HEALTHY", "escalation_loaded": True, "loaded_versions": {...} }`.
 - **Inference**: Single entry point `pipeline.run(input_record)` returns `MlInferenceResult`.
 - **Thread Safety**: Verified across concurrent threads with zero shared mutable state modifications.
-- **Zero Training Dependencies**: Production inference runtime requires no training libraries.
+- **Zero Heavy Runtime Dependencies**: Production inference runtime (`pipeline.load_models()` and `pipeline.run()`) operates entirely using the Python standard library (`math`, `json`, `hashlib`, `dataclasses`, `pathlib`, `struct`, `wave`) without loading `numpy`, `torch`, `scipy`, `sklearn`, or training modules into `sys.modules`.
+- **Offline Training Tooling**: Model training and synthetic data generation scripts (`train_*.py`, `benchmark_*.py`) utilize lightweight utilities and optional baseline libraries, isolated entirely from the production inference service.
 
 ### 15.7 Preet Intervention Layer Alignment
 Preet's intervention layer consumes `MlInferenceResult` directly:
@@ -967,4 +968,10 @@ Preet's intervention layer consumes `MlInferenceResult` directly:
 > Synthetic demonstration labels are used solely for engineering verification and architecture validation. They are NOT clinical ground truth.
 > The AAROH ML subsystem produces operational assessment signals only.
 > It MUST NEVER output psychiatric diagnoses (depression, anxiety, PTSD, suicide risk) or clinical treatment/therapy/medication recommendations.
+
+### 15.10 Comparative Model Benchmark Honesty & Model Selection
+- **Evaluation Purpose**: The benchmark in `backend/ml/training/benchmark_escalation_models.py` compares Model A (Calibrated Logistic Regression), Model B (Interaction LR), and Model C (Rule Ensemble).
+- **Synthetic Demonstration Only**: All benchmark metrics (e.g. ROC-AUC = 1.0 on 10 held-out synthetic cases) represent **synthetic engineering validation only**. They are **NOT** clinical validation, **NOT** real-world deployment accuracy, and **NOT** indicative of clinical performance in human populations.
+- **Model Selection Decision**: Model A (Calibrated Logistic Regression) was retained as the production engine because it achieved superior probability calibration (ECE `0.0455` vs `0.0784` for Model B and `0.2573` for Model C), maintains pure linear factor explainability ($w_i \cdot x_i$) essential for front-line community health workers, and avoids breaking disk schema migrations. Model B's higher accuracy on 10 synthetic demonstration samples does not provide a defensible reason to alter the production schema.
+
 

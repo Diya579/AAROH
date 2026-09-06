@@ -320,11 +320,11 @@ hard-coded inside training or scoring logic in this package.
 
 ## Scope & Limits
 
-- No trained artifacts
-- No PostgreSQL access
-- Existing `features/` and `risk/` behaviour is unchanged
-- If no estimates/estimator are supplied, `infer` returns `status: FAILED`
-- Text feature extraction prepares observable features; model training and inference scoring belong to subsequent slices
+- Trained artifacts for production models (Slices 3.5–3.9) are located in `models/` and orchestrated via `backend.ml.inference.MLInferencePipeline` (documented in detail in `README_ML.md`).
+- No PostgreSQL access from within the ML package.
+- Existing `features/` and `risk/` behaviour is preserved.
+- When using Slice 1 `infer()` legacy entry point without estimators, it returns `status: FAILED` or `INSUFFICIENT_DATA`.
+- For end-to-end multi-slice inference, callers should use `MLInferencePipeline.from_saved_models("models")`.
 
 ## How the application should call inference
 

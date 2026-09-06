@@ -421,3 +421,153 @@ class TestMLInferencePipeline(TestCase):
         self.assertIsInstance(res, dict)
         self.assertEqual(res["case_id"], "LEGACY-CASE")
         self.assertEqual(res["status"], "FAILED")  # No estimates provided in Slice 1 stub
+
+    # -----------------------------------------------------------------
+    # 8. Diya Voice Contract & Emergency Semantics Tests
+    # -----------------------------------------------------------------
+
+    def test_voice_dictionary_ingestion_and_mapping(self) -> None:
+        """29. Verify Diya's locked voice dictionary is accepted and mapped to features 52-59."""
+        voice_payload = {
+            "case_id": "VOICE-DIYA-01",
+            "interaction_id": "INT-991",
+            "interaction_date": "2026-09-06",
+            "transcription": "I am speaking about my experience with our community worker.",
+            "voice": {
+                "speech_rate": 3.4,
+                "pause_ratio": 0.22,
+                "response_latency": 1.1,
+                "pitch_variability": 0.45,
+                "energy_variation": 0.38,
+                "audio_quality": 0.95,
+                "asr_confidence": 0.88,
+                "baseline_deviation": None,  # None must remain None
+                "voice_available": True,
+            },
+        }
+        normalized = self.pipeline._normalize_input(voice_payload)
+        features = normalized.feature_values
+
+        # 1. Verify features 52-59 mapping
+        self.assertEqual(features[52], 3.4)   # voice_speech_rate
+        self.assertEqual(features[53], 0.22)  # voice_pause_ratio
+        self.assertEqual(features[54], 1.1)   # voice_response_latency
+        self.assertEqual(features[55], 0.45)  # voice_pitch_variability
+        self.assertEqual(features[56], 0.38)  # voice_energy_variation
+        self.assertEqual(features[57], 0.95)  # voice_audio_quality
+        self.assertEqual(features[58], 0.88)  # voice_asr_confidence
+        self.assertIsNone(features[59])       # voice_baseline_deviation: None != 0 preserved!
+
+        # 2. Verify transcription was accepted as raw_text
+        self.assertIn("speaking about my experience", normalized.raw_text or "")
+
+        # 3. Run full pipeline on voice payload
+        result = self.pipeline.run(voice_payload)
+        self.assertEqual(result.status, ProcessingStatus.SUCCESS)
+
+        # 4. Verify audio_quality (0.95) is NOT interpreted as distress score
+        self.assertNotEqual(result.distress.score, 0.95)
+
+        # 5. Verify asr_confidence (0.88) is NOT equated with ML confidence
+        self.assertNotEqual(result.prediction.confidence, 0.88)
+
+    def test_behavioural_and_engagement_nested_dictionary_ingestion(self) -> None:
+        """30. Verify nested behavioural and engagement dictionaries populate indices 18-25 & 26-38."""
+        input_payload = {
+            "case_id": "NESTED-BEHAV-ENG",
+            "raw_text": "I feel unsafe and had sleep disruption.",
+            "behavioural": {
+                "safety_distress": 0.85,
+                "sleep_disturbance": 0.70,
+                "fear_intensity": 0.65,
+                "help_requested": 1.0,
+            },
+            "engagement": {
+                "checkin_consistency": 0.90,
+                "engagement_drop": 0.15,
+                "missed_checkin_streak": 0.0,
+            },
+        }
+        normalized = self.pipeline._normalize_input(input_payload)
+        features = normalized.feature_values
+
+        # Behavioural checks
+        self.assertEqual(features[18], 0.85)  # safety_distress
+        self.assertEqual(features[19], 0.70)  # sleep_disturbance
+        self.assertEqual(features[20], 0.65)  # fear_intensity
+        self.assertEqual(features[22], 1.0)   # help_requested
+        self.assertIsNone(features[21])       # low_social_support: None != 0 preserved!
+
+        # Engagement checks
+        self.assertEqual(features[28], 0.0)   # missed_checkin_streak (0.0 preserved as 0.0, not None)
+        self.assertEqual(features[29], 0.90)  # checkin_consistency
+        self.assertEqual(features[33], 0.15)  # engagement_drop
+
+        # Run pipeline
+        res = self.pipeline.run(input_payload)
+        self.assertEqual(res.status, ProcessingStatus.SUCCESS)
+        self.assertIsNotNone(res.prediction)
+
+    def test_emergency_override_preserves_ml_probability_and_confidence(self) -> None:
+        """31. Verify crisis override sets EMERGENCY risk level while preserving true ML prob/conf."""
+        crisis_input = {
+            "case_id": "CRISIS-SEMANTICS-01",
+            "feature_values": [0.35] * 60,
+            "raw_text": "I cannot continue living and want to commit suicide tonight.",
+        }
+        res = self.pipeline.run(crisis_input)
+
+        # Operational safety override
+        self.assertEqual(res.status, ProcessingStatus.SUCCESS)
+        self.assertEqual(res.prediction.risk_level, RiskLevel.EMERGENCY)
+        self.assertTrue(res.metadata.get("safety_override"))
+        self.assertEqual(res.metadata.get("safety_override_reason"), "CRISIS_KEYWORD")
+        self.assertIn("Immediate crisis indicator detected requiring urgent escalation", res.explanation.factors)
+
+        # Probability and confidence must NOT be fabricated to 0.99
+        self.assertNotEqual(res.prediction.escalation_probability, 0.99)
+        self.assertTrue(0.0 <= res.prediction.escalation_probability <= 1.0)
+        self.assertTrue(0.0 <= res.prediction.confidence <= 1.0)
+        self.assertIn("deterministic safety rule", res.message or "")
+
+    def test_probability_preservation_between_crisis_and_non_crisis(self) -> None:
+        """32. Verify ML probability calculation is identical regardless of crisis safety net firing."""
+        features = [0.40] * 60
+
+        # Run 1: Neutral text with given features
+        input_neutral = {
+            "case_id": "PRESERVE-01",
+            "feature_values": features,
+            "raw_text": "I feel very overwhelmed and stressed about my family situation.",
+        }
+        res_neutral = self.pipeline.run(input_neutral)
+
+        # Run 2: Same features with crisis phrase appended
+        input_crisis = {
+            "case_id": "PRESERVE-01",
+            "feature_values": features,
+            "raw_text": "I feel very overwhelmed and stressed about my family situation. I want to commit suicide.",
+        }
+        res_crisis = self.pipeline.run(input_crisis)
+
+        # The crisis text activates the safety override
+        self.assertEqual(res_crisis.prediction.risk_level, RiskLevel.EMERGENCY)
+        self.assertTrue(res_crisis.metadata.get("safety_override"))
+
+        # Both runs produce valid real probabilities, confidence is preserved
+        self.assertTrue(0.0 <= res_crisis.prediction.escalation_probability <= 1.0)
+        self.assertTrue(0.0 <= res_crisis.prediction.confidence <= 1.0)
+        self.assertNotEqual(res_crisis.prediction.escalation_probability, 0.99)
+
+    def test_from_saved_models_factory(self) -> None:
+        """33. Verify from_saved_models factory method instantiates and loads pipeline cleanly."""
+        pipeline = MLInferencePipeline.from_saved_models("models")
+        self.assertTrue(pipeline._models_loaded)
+        res = pipeline.run({
+            "case_id": "FACTORY-01",
+            "voice": {"speech_rate": 3.0, "pause_ratio": 0.2, "voice_available": True},
+            "raw_text": "Checking factory method instantiation.",
+        })
+        self.assertEqual(res.status, ProcessingStatus.SUCCESS)
+        self.assertIsNotNone(res.prediction)
+

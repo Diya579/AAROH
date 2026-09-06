@@ -29,8 +29,8 @@ workspace_root = Path(__file__).resolve().parent
 if str(workspace_root) not in sys.path:
     sys.path.insert(0, str(workspace_root))
 
-# STRICT ARCHITECTURAL INVARIANT: Must NOT import training execution or evaluation scripts
-FORBIDDEN_MODULE_SUBSTRINGS = ["train_", "evaluate_"]
+# STRICT ARCHITECTURAL INVARIANT: Must NOT import training execution, evaluation, or benchmark scripts
+FORBIDDEN_MODULE_SUBSTRINGS = ["train_", "evaluate_", "benchmark_"]
 
 # Import ONLY production contract and inference layer
 from backend.ml.contract import (

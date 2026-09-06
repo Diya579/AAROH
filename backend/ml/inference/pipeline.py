@@ -113,6 +113,17 @@ class MLInferencePipeline:
         self.trajectory_model: Optional[LongitudinalTrajectoryModel] = None
         self.escalation_model: Optional[EscalationAssessmentModel] = None
 
+    @classmethod
+    def from_saved_models(
+        cls,
+        base_dir: Optional[Union[str, Path]] = None,
+        config: Optional[PipelineConfig] = None,
+    ) -> MLInferencePipeline:
+        """Convenience factory: instantiates pipeline, points to base_dir, and loads all models."""
+        pipeline = cls(config=config, base_dir=base_dir)
+        pipeline.load_models()
+        return pipeline
+
     def _set_seed(self, seed: Optional[int] = None) -> None:
         """Enforces deterministic execution across all stages."""
         s = seed if seed is not None else self.config.seed
@@ -458,7 +469,10 @@ class MLInferencePipeline:
         tabular_vals = current_input.feature_values
         valid_feature_count = sum(1 for v in tabular_vals if v is not None)
         has_text = bool(current_input.raw_text and current_input.raw_text.strip())
-        has_audio = bool(current_input.raw_audio and len(current_input.raw_audio) > 0)
+        has_audio = bool(
+            (current_input.raw_audio and len(current_input.raw_audio) > 0)
+            or bool(current_input.metadata.get("voice_available"))
+        )
 
         # Insufficient data check: if no features and no text/audio, fail closed
         if valid_feature_count == 0 and not has_text and not has_audio:
@@ -702,13 +716,20 @@ class MLInferencePipeline:
                 trend=explanation.trend,
                 baseline_deviation=explanation.baseline_deviation,
             )
-            prob = max(float(esc_out.get("escalation_probability") or 0.0), 0.99)
+            # CRITICAL ARCHITECTURAL REQUIREMENT:
+            # Preserve the ML model's true probabilistic output and confidence.
+            # Do NOT fabricate 0.99 probability or 0.99 confidence.
+            # EMERGENCY is an operational safety state applied downstream.
+            prob = float(esc_out.get("escalation_probability") or 0.0)
+            conf = float(esc_out.get("confidence") or 0.0)
             prediction_output = PredictionOutput(
                 escalation_probability=prob,
                 target_horizon_days=int(esc_out.get("target_horizon_days", self.config.target_horizon_days)),
-                confidence=0.99,
+                confidence=conf,
                 risk_level=RiskLevel.EMERGENCY,
             )
+            pipeline_metadata["safety_override"] = True
+            pipeline_metadata["safety_override_reason"] = "CRISIS_KEYWORD"
             result = MlInferenceResult(
                 case_id=case_id,
                 prediction_date=pred_date,
@@ -718,7 +739,7 @@ class MLInferencePipeline:
                 prediction=prediction_output,
                 explanation=explanation,
                 model=model_output,
-                message="Emergency crisis safety net triggered.",
+                message="Emergency crisis safety override triggered (deterministic safety rule).",
                 metadata=pipeline_metadata,
             )
         elif status == ProcessingStatus.INSUFFICIENT_DATA:
@@ -805,8 +826,124 @@ class MLInferencePipeline:
             if len(feature_vals) < 60:
                 feature_vals.extend([None] * (60 - len(feature_vals)))
 
-        raw_text = item.get("raw_text") or item.get("text_response")
+        def _to_float(v: Any) -> Optional[float]:
+            if v is None:
+                return None
+            try:
+                return float(v)
+            except (ValueError, TypeError):
+                return None
+
+        # 1. Voice features ingestion (Diya's locked contract, indices 52-59)
+        voice_dict = item.get("voice") or item.get("voice_features")
+        if isinstance(voice_dict, Mapping):
+            if voice_dict.get("voice_available", True):
+                if "speech_rate" in voice_dict and feature_vals[52] is None:
+                    feature_vals[52] = _to_float(voice_dict.get("speech_rate"))
+                if "pause_ratio" in voice_dict and feature_vals[53] is None:
+                    feature_vals[53] = _to_float(voice_dict.get("pause_ratio"))
+                if "response_latency" in voice_dict and feature_vals[54] is None:
+                    feature_vals[54] = _to_float(voice_dict.get("response_latency"))
+                if "pitch_variability" in voice_dict and feature_vals[55] is None:
+                    feature_vals[55] = _to_float(voice_dict.get("pitch_variability"))
+                if "energy_variation" in voice_dict and feature_vals[56] is None:
+                    feature_vals[56] = _to_float(voice_dict.get("energy_variation"))
+                if "audio_quality" in voice_dict and feature_vals[57] is None:
+                    feature_vals[57] = _to_float(voice_dict.get("audio_quality"))
+                if "asr_confidence" in voice_dict and feature_vals[58] is None:
+                    feature_vals[58] = _to_float(voice_dict.get("asr_confidence"))
+                if "baseline_deviation" in voice_dict and feature_vals[59] is None:
+                    feature_vals[59] = _to_float(voice_dict.get("baseline_deviation"))
+
+        # 2. Behavioural features ingestion (indices 18-25)
+        behav_dict = item.get("behavioural") or item.get("behavioural_features")
+        if isinstance(behav_dict, Mapping):
+            if "safety_distress" in behav_dict and feature_vals[18] is None:
+                feature_vals[18] = _to_float(behav_dict.get("safety_distress"))
+            if "sleep_disturbance" in behav_dict and feature_vals[19] is None:
+                feature_vals[19] = _to_float(behav_dict.get("sleep_disturbance"))
+            if "fear_intensity" in behav_dict and feature_vals[20] is None:
+                feature_vals[20] = _to_float(behav_dict.get("fear_intensity"))
+            if "low_social_support" in behav_dict and feature_vals[21] is None:
+                feature_vals[21] = _to_float(behav_dict.get("low_social_support"))
+            if "help_requested" in behav_dict and feature_vals[22] is None:
+                feature_vals[22] = _to_float(behav_dict.get("help_requested"))
+            if "composite_distress" in behav_dict and feature_vals[23] is None:
+                feature_vals[23] = _to_float(behav_dict.get("composite_distress"))
+            if "change_from_previous" in behav_dict and feature_vals[24] is None:
+                feature_vals[24] = _to_float(behav_dict.get("change_from_previous"))
+            if "change_from_baseline" in behav_dict and feature_vals[25] is None:
+                feature_vals[25] = _to_float(behav_dict.get("change_from_baseline"))
+
+        # 3. Engagement features ingestion (indices 26-38)
+        eng_dict = item.get("engagement") or item.get("engagement_features")
+        if isinstance(eng_dict, Mapping):
+            if "completed_checkin" in eng_dict and feature_vals[26] is None:
+                feature_vals[26] = _to_float(eng_dict.get("completed_checkin"))
+            if "missed_checkin" in eng_dict and feature_vals[27] is None:
+                feature_vals[27] = _to_float(eng_dict.get("missed_checkin"))
+            if "missed_checkin_streak" in eng_dict and feature_vals[28] is None:
+                feature_vals[28] = _to_float(eng_dict.get("missed_checkin_streak"))
+            if "checkin_consistency" in eng_dict and feature_vals[29] is None:
+                feature_vals[29] = _to_float(eng_dict.get("checkin_consistency"))
+            if "response_delay" in eng_dict and feature_vals[30] is None:
+                feature_vals[30] = _to_float(eng_dict.get("response_delay"))
+            if "average_response_delay" in eng_dict and feature_vals[31] is None:
+                feature_vals[31] = _to_float(eng_dict.get("average_response_delay"))
+            if "response_frequency" in eng_dict and feature_vals[32] is None:
+                feature_vals[32] = _to_float(eng_dict.get("response_frequency"))
+            if "engagement_drop" in eng_dict and feature_vals[33] is None:
+                feature_vals[33] = _to_float(eng_dict.get("engagement_drop"))
+            if "recent_activity_count" in eng_dict and feature_vals[34] is None:
+                feature_vals[34] = _to_float(eng_dict.get("recent_activity_count"))
+            if "inactivity_duration" in eng_dict and feature_vals[35] is None:
+                feature_vals[35] = _to_float(eng_dict.get("inactivity_duration"))
+            if ("score" in eng_dict or "engagement_score" in eng_dict) and feature_vals[36] is None:
+                feature_vals[36] = _to_float(eng_dict.get("score", eng_dict.get("engagement_score")))
+            if "change_from_previous" in eng_dict and feature_vals[37] is None:
+                feature_vals[37] = _to_float(eng_dict.get("change_from_previous"))
+            if "change_from_baseline" in eng_dict and feature_vals[38] is None:
+                feature_vals[38] = _to_float(eng_dict.get("change_from_baseline"))
+
+        # 4. Longitudinal features ingestion (indices 39-51)
+        long_dict = item.get("longitudinal") or item.get("longitudinal_features")
+        if isinstance(long_dict, Mapping):
+            if "observation_count" in long_dict and feature_vals[39] is None:
+                feature_vals[39] = _to_float(long_dict.get("observation_count"))
+            if "history_span_days" in long_dict and feature_vals[40] is None:
+                feature_vals[40] = _to_float(long_dict.get("history_span_days"))
+            if "current_distress" in long_dict and feature_vals[41] is None:
+                feature_vals[41] = _to_float(long_dict.get("current_distress"))
+            if "baseline_distress" in long_dict and feature_vals[42] is None:
+                feature_vals[42] = _to_float(long_dict.get("baseline_distress"))
+            if "previous_distress" in long_dict and feature_vals[43] is None:
+                feature_vals[43] = _to_float(long_dict.get("previous_distress"))
+            if "delta_from_baseline" in long_dict and feature_vals[44] is None:
+                feature_vals[44] = _to_float(long_dict.get("delta_from_baseline"))
+            if "delta_from_previous" in long_dict and feature_vals[45] is None:
+                feature_vals[45] = _to_float(long_dict.get("delta_from_previous"))
+            if "distress_velocity" in long_dict and feature_vals[46] is None:
+                feature_vals[46] = _to_float(long_dict.get("distress_velocity"))
+            if "distress_acceleration" in long_dict and feature_vals[47] is None:
+                feature_vals[47] = _to_float(long_dict.get("distress_acceleration"))
+            if "distress_volatility" in long_dict and feature_vals[48] is None:
+                feature_vals[48] = _to_float(long_dict.get("distress_volatility"))
+            if "peak_distress" in long_dict and feature_vals[49] is None:
+                feature_vals[49] = _to_float(long_dict.get("peak_distress"))
+            if "trough_distress" in long_dict and feature_vals[50] is None:
+                feature_vals[50] = _to_float(long_dict.get("trough_distress"))
+            if "sustained_distress_count" in long_dict and feature_vals[51] is None:
+                feature_vals[51] = _to_float(long_dict.get("sustained_distress_count"))
+
+        raw_text = item.get("raw_text") or item.get("text_response") or item.get("transcription")
         raw_audio = item.get("raw_audio") or item.get("audio_waveform")
+
+        meta = dict(item.get("metadata", {}))
+        if isinstance(voice_dict, Mapping) and voice_dict.get("voice_available", True):
+            meta["voice_available"] = True
+        for extra_key in ("interaction_id", "language", "asr_confidence", "audio_quality"):
+            if extra_key in item and extra_key not in meta:
+                meta[extra_key] = item[extra_key]
 
         return InferenceInput(
             case_id=case_id,
@@ -814,7 +951,7 @@ class MLInferencePipeline:
             feature_values=tuple(feature_vals),
             raw_text=str(raw_text) if raw_text is not None else None,
             raw_audio=tuple(raw_audio) if raw_audio is not None else None,
-            metadata=dict(item.get("metadata", {})),
+            metadata=meta,
         )
 
 
