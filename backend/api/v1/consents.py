@@ -36,9 +36,11 @@ def upsert_consent(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """Create or update consent for a specific case."""
     try:
+        verify_case_id_access(case_id, user, db)
         return consent_service.upsert_consent(db, case_id, payload)
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         # Prevent leaking raw DB errors.

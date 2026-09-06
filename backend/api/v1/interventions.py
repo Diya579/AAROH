@@ -47,6 +47,7 @@ def create_intervention(
 ):
     """Create a new intervention."""
     def _create():
+        verify_case_id_access(payload.case_id, user, db)
         try:
             return intervention_service.create_intervention(db, payload)
         except Exception:
@@ -130,6 +131,7 @@ def create_outcome(
 ):
     """Record an outcome for an intervention."""
     def _create():
+        verify_case_id_access(payload.case_id, user, db)
         try:
             return intervention_service.create_outcome(db, payload)
         except Exception:

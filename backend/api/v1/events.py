@@ -40,6 +40,7 @@ def create_event(
     user: dict = Depends(get_current_user),
 ):
     """Create a new case event."""
+    verify_case_id_access(payload.case_id, user, db)
     try:
         return event_service.create_event(db, payload)
     except Exception as e:

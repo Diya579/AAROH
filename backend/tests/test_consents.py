@@ -43,6 +43,17 @@ class TestConsentEndpoints:
         assert data["safe_channel"] == "sms"
         assert data["case_id"] == 1
 
+    @patch("backend.api.v1.consents.verify_case_id_access")
+    def test_upsert_consent_unauthorized(self, mock_verify):
+        """PUT /api/v1/consents/{case_id} should return 403 if user lacks access."""
+        from fastapi import HTTPException
+        mock_verify.side_effect = HTTPException(status_code=403, detail="Not authorised")
+
+        response = client.put("/api/v1/consents/1", json=VALID_CONSENT_PAYLOAD)
+
+        assert response.status_code == 403
+        assert mock_verify.called
+
     @patch("backend.api.v1.consents.consent_service.upsert_consent")
     def test_upsert_consent_db_error(self, mock_upsert):
         """PUT /api/v1/consents/{case_id} should return 422 on DB error."""

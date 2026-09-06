@@ -46,6 +46,7 @@ def create_interaction(
     """Create a new interaction."""
     
     def _create():
+        verify_case_id_access(payload.case_id, user, db)
         try:
             return interaction_service.create_interaction(db, payload)
         except Exception:
