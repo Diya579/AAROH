@@ -32,6 +32,10 @@ from backend.models import Case, Intervention
 from backend.core.auth_provider import FakeAuthProvider, AuthenticatedUser
 from backend.core.security import get_auth_provider
 from backend.api.v1.cases import get_db
+from backend.api.v1.consents import get_db as consents_get_db
+from backend.api.v1.events import get_db as events_get_db
+from backend.api.v1.interactions import get_db as interactions_get_db
+from backend.api.v1.interventions import get_db as interventions_get_db
 
 # ---------------------------------------------------------------------------
 # Isolated in-memory DB for this module
@@ -59,9 +63,14 @@ client = TestClient(app)
 @pytest.fixture(autouse=True, scope="module")
 def setup_rbac_db():
     Base.metadata.create_all(bind=engine)
-    app.dependency_overrides[get_db] = override_get_db
+    # Wire the shared in-memory DB into every router that is tested here
+    for _get_db in (get_db, consents_get_db, events_get_db,
+                    interactions_get_db, interventions_get_db):
+        app.dependency_overrides[_get_db] = override_get_db
     yield
-    app.dependency_overrides.pop(get_db, None)
+    for _get_db in (get_db, consents_get_db, events_get_db,
+                    interactions_get_db, interventions_get_db):
+        app.dependency_overrides.pop(_get_db, None)
     Base.metadata.drop_all(bind=engine)
 
 
@@ -362,3 +371,101 @@ class TestAdminOnlyBoundary:
         _restore_admin()
         assert r.status_code == 403, r.text
         assert "Insufficient permissions" in r.json()["error"]["message"]
+
+
+# ---------------------------------------------------------------------------
+# End-to-end cross-scope mutation 403 tests
+# Proves that verify_case_id_access blocks actual unauthorized writes
+# with real role/case data — NO mocking of verify_case_id_access.
+# ---------------------------------------------------------------------------
+
+class TestMutationCrossScope:
+    """
+    Each test below:
+      - Seeds two real cases in two different states (Maharashtra / Gujarat).
+      - Authenticates as a role that legitimately OWNS case 1 (Maharashtra).
+      - Attempts to WRITE to case 2 (Gujarat) through its integer PK.
+      - Asserts a hard 403, proving the whole auth chain fires,
+        not just the exception-handling shim.
+    """
+
+    CONSENT_PAYLOAD = {
+        "monitoring_consent": True,
+        "text_analysis_consent": True,
+        "voice_analysis_consent": False,
+        "case_linkage_consent": True,
+        "safe_channel": "sms",
+        "safe_time": "evening",
+    }
+
+    def test_victim_cannot_write_consent_to_another_case(self, seeded_cases):
+        """VICTIM owning case 1 attempts PUT /consents/{case_2_id} — must get 403."""
+        _as_role("VICTIM", user_id=seeded_cases["c1_case_id"])
+        r = client.put(
+            f"/api/v1/consents/{seeded_cases['c2_db_id']}",
+            json=self.CONSENT_PAYLOAD,
+        )
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"VICTIM for case 1 should not be able to write consent for case 2. "
+            f"Got {r.status_code}: {r.text}"
+        )
+
+    def test_district_official_cannot_write_consent_to_out_of_district_case(self, seeded_cases):
+        """DISTRICT_OFFICIAL from Pune attempts PUT /consents/{case_2_id} (Mumbai) — must get 403."""
+        _as_role("DISTRICT_OFFICIAL", district=seeded_cases["c1_district"])
+        r = client.put(
+            f"/api/v1/consents/{seeded_cases['c2_db_id']}",
+            json=self.CONSENT_PAYLOAD,
+        )
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"DISTRICT_OFFICIAL for Pune should not write consent for a Mumbai case. "
+            f"Got {r.status_code}: {r.text}"
+        )
+
+    def test_victim_cannot_create_event_on_another_case(self, seeded_cases):
+        """VICTIM owning case 1 attempts POST /events for case 2 — must get 403."""
+        from datetime import datetime
+        _as_role("VICTIM", user_id=seeded_cases["c1_case_id"])
+        r = client.post("/api/v1/events", json={
+            "case_id": seeded_cases["c2_db_id"],
+            "event_type": "ESCALATION",
+            "event_date": datetime.utcnow().isoformat(),
+            "description": "cross-scope injection attempt",
+        })
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"VICTIM for case 1 must not create events on case 2. "
+            f"Got {r.status_code}: {r.text}"
+        )
+
+    def test_counsellor_cannot_create_interaction_on_unassigned_case(self, seeded_cases):
+        """COUNSELLOR assigned to case 1 attempts POST /interactions for case 2 — must get 403."""
+        from datetime import datetime
+        _as_role("COUNSELLOR", user_id="Couns-1")
+        r = client.post("/api/v1/interactions", json={
+            "case_id": seeded_cases["c2_db_id"],
+            "interaction_date": datetime.utcnow().isoformat(),
+            "channel": "voice",
+            "language": "en",
+        })
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"COUNSELLOR assigned only to case 1 must not create interactions for case 2. "
+            f"Got {r.status_code}: {r.text}"
+        )
+
+    def test_district_official_cannot_create_intervention_for_out_of_district_case(self, seeded_cases):
+        """DISTRICT_OFFICIAL from Pune attempts POST /interventions for Mumbai case 2 — must get 403."""
+        _as_role("DISTRICT_OFFICIAL", district=seeded_cases["c1_district"])
+        r = client.post("/api/v1/interventions", json={
+            "case_id": seeded_cases["c2_db_id"],
+            "intervention_type": "ROUTINE_MONITORING",
+            "status": "PENDING",
+        })
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"DISTRICT_OFFICIAL for Pune must not create interventions on a Mumbai case. "
+            f"Got {r.status_code}: {r.text}"
+        )
