@@ -4,12 +4,15 @@ Author: Preet
 
 Provides nationwide macro visibility into atrocity monitoring, system workloads,
 and response effectiveness with strict privacy enforcement.
+Enforces Rule 11: Aggregates state numerators and denominators first,
+never averaging percentages.
+Preserves broad national totals without blind suppression.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from .state_metrics import StateSummaryMetrics
 
 
@@ -23,7 +26,8 @@ class NationalSummaryMetrics:
     national_pending_interventions: int
     national_overdue_interventions: int
     national_completed_interventions: int
-    overall_sla_compliance_rate: float
+    overall_sla_compliance_rate: Optional[float]
+    avg_response_time_hours: Optional[float]
     state_breakdown: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -40,7 +44,10 @@ class NationalSummaryMetrics:
                 "overdue": self.national_overdue_interventions,
                 "completed": self.national_completed_interventions,
             },
-            "overall_sla_compliance_rate": round(self.overall_sla_compliance_rate, 2),
+            "performance": {
+                "overall_sla_compliance_rate": self.overall_sla_compliance_rate,
+                "avg_response_time_hours": self.avg_response_time_hours,
+            },
             "state_breakdown": self.state_breakdown,
         }
 
@@ -48,7 +55,7 @@ class NationalSummaryMetrics:
 class NationalMetricsCalculator:
     """
     Rolls up state summaries into national aggregates.
-    Enforces privacy rules: eliminates individual narratives and applies small-cell suppression.
+    Enforces mathematically sound aggregation by summing numerators and denominators first.
     """
 
     @staticmethod
@@ -63,7 +70,8 @@ class NationalMetricsCalculator:
                 national_pending_interventions=0,
                 national_overdue_interventions=0,
                 national_completed_interventions=0,
-                overall_sla_compliance_rate=100.0,
+                overall_sla_compliance_rate=None,
+                avg_response_time_hours=None,
                 state_breakdown=[],
             )
 
@@ -76,7 +84,14 @@ class NationalMetricsCalculator:
         overdue = sum(s.total_overdue_interventions for s in states)
         completed = sum(s.total_completed_interventions for s in states)
 
-        avg_sla = sum(s.overall_sla_compliance_rate for s in states) / len(states)
+        # Rule 11: Aggregate numerators and denominators first across states
+        met_sla = sum(s.total_met_sla_interventions for s in states)
+        eval_sla = sum(s.total_evaluated_sla_interventions for s in states)
+        overall_sla = round((met_sla / eval_sla) * 100.0, 2) if eval_sla > 0 else None
+
+        rt_sum = sum(s.total_response_time_sum_hours for s in states)
+        rt_count = sum(s.total_responded_interventions for s in states)
+        avg_rt = round(rt_sum / rt_count, 2) if rt_count > 0 else None
 
         breakdown = [s.to_dict() for s in states]
 
@@ -89,6 +104,7 @@ class NationalMetricsCalculator:
             national_pending_interventions=pending,
             national_overdue_interventions=overdue,
             national_completed_interventions=completed,
-            overall_sla_compliance_rate=avg_sla,
+            overall_sla_compliance_rate=overall_sla,
+            avg_response_time_hours=avg_rt,
             state_breakdown=breakdown,
         )

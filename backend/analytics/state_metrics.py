@@ -4,12 +4,14 @@ Author: Preet
 
 Aggregates district summaries across an entire state to support regional
 resource allocation and high-level atrocity monitoring.
+Enforces Rule 11: Aggregates numerators and denominators first,
+never averaging district percentages.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from .district_metrics import DistrictSummaryMetrics
 
 
@@ -24,7 +26,12 @@ class StateSummaryMetrics:
     total_pending_interventions: int
     total_overdue_interventions: int
     total_completed_interventions: int
-    overall_sla_compliance_rate: float
+    total_met_sla_interventions: int
+    total_evaluated_sla_interventions: int
+    total_response_time_sum_hours: float
+    total_responded_interventions: int
+    overall_sla_compliance_rate: Optional[float]
+    avg_response_time_hours: Optional[float]
     district_summaries: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -42,7 +49,10 @@ class StateSummaryMetrics:
                 "overdue": self.total_overdue_interventions,
                 "completed": self.total_completed_interventions,
             },
-            "overall_sla_compliance_rate": round(self.overall_sla_compliance_rate, 2),
+            "performance": {
+                "overall_sla_compliance_rate": self.overall_sla_compliance_rate,
+                "avg_response_time_hours": self.avg_response_time_hours,
+            },
             "district_comparison": self.district_summaries,
         }
 
@@ -50,6 +60,7 @@ class StateSummaryMetrics:
 class StateMetricsCalculator:
     """
     Rolls up district summaries into state-level metrics.
+    Aggregates numerators and denominators across districts before computing percentages.
     """
 
     @staticmethod
@@ -68,7 +79,12 @@ class StateMetricsCalculator:
                 total_pending_interventions=0,
                 total_overdue_interventions=0,
                 total_completed_interventions=0,
-                overall_sla_compliance_rate=100.0,
+                total_met_sla_interventions=0,
+                total_evaluated_sla_interventions=0,
+                total_response_time_sum_hours=0.0,
+                total_responded_interventions=0,
+                overall_sla_compliance_rate=None,
+                avg_response_time_hours=None,
                 district_summaries=[],
             )
 
@@ -81,9 +97,16 @@ class StateMetricsCalculator:
         overdue = sum(d.overdue_interventions for d in districts)
         completed = sum(d.completed_interventions for d in districts)
 
-        avg_sla = sum(d.sla_compliance_rate for d in districts) / len(districts)
+        # Rule 11: Aggregate numerators and denominators first
+        met_sla = sum(d.met_sla_interventions for d in districts)
+        eval_sla = sum(d.evaluated_sla_interventions for d in districts)
+        overall_sla = round((met_sla / eval_sla) * 100.0, 2) if eval_sla > 0 else None
 
-        summaries = [d.to_dict() for d in districts]
+        rt_sum = sum(d.total_response_time_sum_hours for d in districts)
+        rt_count = sum(d.total_responded_interventions for d in districts)
+        avg_rt = round(rt_sum / rt_count, 2) if rt_count > 0 else None
+
+        summaries = [d.to_dict(suppress_small_cells=True) for d in districts]
 
         return StateSummaryMetrics(
             state=state,
@@ -95,6 +118,11 @@ class StateMetricsCalculator:
             total_pending_interventions=pending,
             total_overdue_interventions=overdue,
             total_completed_interventions=completed,
-            overall_sla_compliance_rate=avg_sla,
+            total_met_sla_interventions=met_sla,
+            total_evaluated_sla_interventions=eval_sla,
+            total_response_time_sum_hours=rt_sum,
+            total_responded_interventions=rt_count,
+            overall_sla_compliance_rate=overall_sla,
+            avg_response_time_hours=avg_rt,
             district_summaries=summaries,
         )

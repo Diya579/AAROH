@@ -428,6 +428,74 @@ class TestAnalytics(unittest.TestCase):
         self.assertEqual(nat_metrics.total_states, 1)
         self.assertEqual(nat_metrics.total_monitored_cases, 2)
 
+    def test_small_cell_suppression_masks_sensitive_counts(self):
+        cases = [
+            {"case_id": "C1", "risk_level": "HIGH", "trajectory": "RAPIDLY_WORSENING"},
+            {"case_id": "C2", "risk_level": "HIGH", "trajectory": "STABLE"},
+            {"case_id": "C3", "risk_level": "LOW", "trajectory": "STABLE"},
+        ]
+        outcomes = [{"outcome_type": "REFERRED"}]
+        metrics = DistrictMetricsCalculator.calculate("Patna", cases, [], outcomes)
+
+        # Masked output
+        masked = metrics.to_dict(suppress_small_cells=True)
+        # high_risk is 2, low_risk is 1 -> both are <3 and must be masked
+        self.assertEqual(masked["risk_distribution"]["HIGH"], "<3")
+        self.assertEqual(masked["risk_distribution"]["LOW"], "<3")
+        self.assertEqual(masked["risk_distribution"]["MODERATE"], 0)  # 0 is not masked
+        self.assertEqual(masked["outcome_distribution"]["REFERRED"], "<3")
+        # Broad total is not masked
+        self.assertEqual(masked["total_monitored_cases"], 3)
+        self.assertTrue(masked["small_cell_suppression_applied"])
+        self.assertIn("risk_distribution.HIGH", masked["suppressed_fields"])
+
+        # Unmasked raw output
+        unmasked = metrics.to_dict(suppress_small_cells=False)
+        self.assertEqual(unmasked["risk_distribution"]["HIGH"], 2)
+        self.assertEqual(unmasked["risk_distribution"]["LOW"], 1)
+        self.assertFalse(unmasked["small_cell_suppression_applied"])
+
+    def test_state_and_national_rollup_does_not_average_percentages(self):
+        # District 1: 1 intervention, 1 met SLA -> 100% SLA rate
+        d1 = DistrictMetricsCalculator.calculate(
+            "District1",
+            [{"case_id": "D1-C1"}],
+            [{"status": "COMPLETED", "is_overdue": False, "response_time_hours": 1.0}],
+            [],
+        )
+        self.assertEqual(d1.sla_compliance_rate, 100.0)
+
+        # District 2: 9 interventions, 0 met SLA -> 0% SLA rate
+        d2_interventions = [
+            {"status": "COMPLETED", "is_overdue": True, "response_time_hours": 5.0}
+            for _ in range(9)
+        ]
+        d2 = DistrictMetricsCalculator.calculate(
+            "District2",
+            [{"case_id": f"D2-C{i}"} for i in range(9)],
+            d2_interventions,
+            [],
+        )
+        self.assertEqual(d2.sla_compliance_rate, 0.0)
+
+        # Averaging percentages would wrongly give: (100 + 0) / 2 = 50.0%
+        # Correct aggregate: 1 met out of 10 evaluated = 10.0%
+        state = StateMetricsCalculator.calculate("StateX", [d1, d2])
+        self.assertEqual(state.overall_sla_compliance_rate, 10.0)
+
+        national = NationalMetricsCalculator.calculate([state])
+        self.assertEqual(national.overall_sla_compliance_rate, 10.0)
+
+    def test_missing_data_distinguishable_from_zero(self):
+        # When no interventions exist, SLA compliance and response time must be None, not 0.0
+        metrics = DistrictMetricsCalculator.calculate("EmptyDistrict", [], [], [])
+        self.assertIsNone(metrics.avg_response_time_hours)
+        self.assertIsNone(metrics.sla_compliance_rate)
+
+        state = StateMetricsCalculator.calculate("EmptyState", [metrics])
+        self.assertIsNone(state.avg_response_time_hours)
+        self.assertIsNone(state.overall_sla_compliance_rate)
+
 
 if __name__ == "__main__":
     unittest.main()
