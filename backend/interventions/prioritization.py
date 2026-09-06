@@ -93,3 +93,6 @@ def rank_cases_by_priority(cases: List[dict[str, Any]]) -> List[dict[str, Any]]:
     Returns case list sorted in descending order of operational urgency.
     """
     return sorted(cases, key=compute_case_urgency_score, reverse=True)
+
+
+rank_intervention_queue = rank_cases_by_priority

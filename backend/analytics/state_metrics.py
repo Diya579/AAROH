@@ -53,6 +53,10 @@ class StateSummaryMetrics:
                 "overall_sla_compliance_rate": self.overall_sla_compliance_rate,
                 "avg_response_time_hours": self.avg_response_time_hours,
             },
+            "total_met_sla_interventions": self.total_met_sla_interventions,
+            "total_evaluated_sla_interventions": self.total_evaluated_sla_interventions,
+            "total_response_time_sum_hours": self.total_response_time_sum_hours,
+            "total_responded_interventions": self.total_responded_interventions,
             "district_comparison": self.district_summaries,
         }
 

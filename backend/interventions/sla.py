@@ -184,3 +184,6 @@ class SLAManager:
             due_at=due,
             assigned_at=ensure_utc(assigned_at) if assigned_at else start,
         )
+
+
+SLACalculator = SLAManager

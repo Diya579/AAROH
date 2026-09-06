@@ -27,7 +27,8 @@ class AssigneeRole(str, Enum):
 class RoutingStatus(str, Enum):
     ASSIGNED = "ASSIGNED"
     ROUTING_UNAVAILABLE = "ROUTING_UNAVAILABLE"
-    INVALID_JURISDICTION = "INVALID_JURISDICTION"
+    MISSING_JURISDICTION = "MISSING_JURISDICTION"
+    INVALID_JURISDICTION = "MISSING_JURISDICTION"  # Backwards-compatible alias
 
 
 @dataclass
@@ -51,6 +52,7 @@ class RoutingResult:
     status: RoutingStatus = RoutingStatus.ASSIGNED
     assigned_at: Optional[datetime] = field(default_factory=lambda: datetime.now(timezone.utc))
     notes: Optional[str] = None
+    capacity_flag: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -62,6 +64,7 @@ class RoutingResult:
             "status": self.status.value,
             "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
             "notes": self.notes,
+            "capacity_flag": self.capacity_flag,
         }
 
 
@@ -140,9 +143,10 @@ class AssignmentRouter:
                 primary_assignee=None,
                 backup_assignee=None,
                 district=None,
-                status=RoutingStatus.INVALID_JURISDICTION,
+                status=RoutingStatus.MISSING_JURISDICTION,
                 assigned_at=None,
                 notes="Missing or invalid district jurisdiction; cannot route without authoritative case district.",
+                capacity_flag=False,
             )
 
         clean_district = district.strip()
@@ -157,7 +161,7 @@ class AssignmentRouter:
             and o.active_caseload < o.max_capacity
         ]
 
-        # 3. If no eligible officer in district, return ROUTING_UNAVAILABLE. Never cross-route.
+        # 3. If no eligible officer in district, leave unassigned and flag capacity. Never cross-route.
         if not candidates:
             return RoutingResult(
                 case_id=case_id,
@@ -168,6 +172,7 @@ class AssignmentRouter:
                 status=RoutingStatus.ROUTING_UNAVAILABLE,
                 assigned_at=None,
                 notes=f"ROUTING_UNAVAILABLE: No eligible local {target_role.value} with available capacity found in {clean_district}.",
+                capacity_flag=True,
             )
 
         # 4. Deterministic tie-breaking:
