@@ -12,7 +12,7 @@ from .engine import (
     PriorityLevel,
 )
 from .prioritization import calculate_priority
-from .routing import AssignmentRouter, AssigneeRole, RoutingResult
+from .routing import AssignmentRouter, AssigneeRole, RoutingResult, RoutingStatus
 from .sla import SLAManager, SLAStatus, SLARule
 from .outcomes import OutcomeManager, OutcomeType, OutcomeRecord
 
@@ -27,6 +27,7 @@ __all__ = [
     "AssignmentRouter",
     "AssigneeRole",
     "RoutingResult",
+    "RoutingStatus",
     "SLAManager",
     "SLAStatus",
     "SLARule",

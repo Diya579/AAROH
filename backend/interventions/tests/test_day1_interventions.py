@@ -35,6 +35,7 @@ from backend.interventions.routing import (
     AssignmentRouter,
     AssigneeRole,
     SyntheticOfficer,
+    RoutingStatus,
 )
 from backend.interventions.sla import (
     SLAManager,
@@ -194,6 +195,66 @@ class TestRouting(unittest.TestCase):
         )
         self.assertEqual(result.assigned_role, AssigneeRole.COUNSELLOR)
         self.assertEqual(result.primary_assignee, "SYNTH-COUNS-03")
+        self.assertEqual(result.status, RoutingStatus.ASSIGNED)
+
+    def test_routing_refuses_cross_district_fallback(self):
+        # District with no registered officers
+        router = AssignmentRouter()
+        result = router.route(
+            case_id="CASE-03",
+            district="Varanasi",
+            intervention_type=InterventionType.PRIORITY_HUMAN_REVIEW,
+            priority=PriorityLevel.URGENT,
+        )
+        self.assertEqual(result.status, RoutingStatus.ROUTING_UNAVAILABLE)
+        self.assertIsNone(result.primary_assignee)
+        self.assertIsNone(result.backup_assignee)
+        self.assertIn("ROUTING_UNAVAILABLE", result.notes)
+
+    def test_routing_rejects_missing_or_empty_district(self):
+        router = AssignmentRouter()
+        result = router.route(
+            case_id="CASE-04",
+            district="",
+            intervention_type=InterventionType.HUMAN_FOLLOW_UP,
+            priority=PriorityLevel.HIGH,
+        )
+        self.assertEqual(result.status, RoutingStatus.INVALID_JURISDICTION)
+        self.assertIsNone(result.primary_assignee)
+        self.assertIsNone(result.assigned_at)
+
+    def test_routing_deterministic_tie_breaking(self):
+        # Two officers with exact same caseload in same district
+        officers = [
+            SyntheticOfficer("SYNTH-B", "Officer B", AssigneeRole.COUNSELLOR, "Patna", active_caseload=2),
+            SyntheticOfficer("SYNTH-A", "Officer A", AssigneeRole.COUNSELLOR, "Patna", active_caseload=2),
+        ]
+        router = AssignmentRouter(officers=officers)
+        result = router.route(
+            case_id="CASE-05",
+            district="Patna",
+            intervention_type=InterventionType.HUMAN_FOLLOW_UP,
+            priority=PriorityLevel.HIGH,
+        )
+        # SYNTH-A must win alphabetically when caseloads tie
+        self.assertEqual(result.primary_assignee, "SYNTH-A")
+        self.assertEqual(result.backup_assignee, "SYNTH-B")
+
+    def test_routing_respects_capacity_and_availability(self):
+        officers = [
+            SyntheticOfficer("SYNTH-FULL", "Full Officer", AssigneeRole.COUNSELLOR, "Patna", active_caseload=10, max_capacity=10),
+            SyntheticOfficer("SYNTH-UNAVAIL", "Unavail Officer", AssigneeRole.COUNSELLOR, "Patna", active_caseload=0, is_available=False),
+            SyntheticOfficer("SYNTH-OK", "Available Officer", AssigneeRole.COUNSELLOR, "Patna", active_caseload=4, max_capacity=10),
+        ]
+        router = AssignmentRouter(officers=officers)
+        result = router.route(
+            case_id="CASE-06",
+            district="Patna",
+            intervention_type=InterventionType.HUMAN_FOLLOW_UP,
+            priority=PriorityLevel.HIGH,
+        )
+        self.assertEqual(result.primary_assignee, "SYNTH-OK")
+        self.assertIsNone(result.backup_assignee)  # No other eligible in district
 
 
 class TestSLA(unittest.TestCase):

@@ -2,8 +2,9 @@
 AAROH — Operational Assignment & Routing Engine
 Author: Preet
 
-Implements district-aware, role-based, capacity-informed routing with
+Implements strictly district-aware, role-based, capacity-informed routing with
 primary and backup assignee failover logic.
+Cross-district routing is strictly prohibited to preserve case jurisdiction.
 Uses clearly marked synthetic officials for prototype demonstrations.
 """
 
@@ -23,6 +24,12 @@ class AssigneeRole(str, Enum):
     DISTRICT_AUTHORITY = "DISTRICT_AUTHORITY"
 
 
+class RoutingStatus(str, Enum):
+    ASSIGNED = "ASSIGNED"
+    ROUTING_UNAVAILABLE = "ROUTING_UNAVAILABLE"
+    INVALID_JURISDICTION = "INVALID_JURISDICTION"
+
+
 @dataclass
 class SyntheticOfficer:
     official_id: str
@@ -30,27 +37,30 @@ class SyntheticOfficer:
     role: AssigneeRole
     district: str
     active_caseload: int = 0
+    max_capacity: int = 10
     is_available: bool = True
 
 
 @dataclass
 class RoutingResult:
     case_id: str
-    assigned_role: AssigneeRole
-    primary_assignee: str
+    assigned_role: Optional[AssigneeRole]
+    primary_assignee: Optional[str]
     backup_assignee: Optional[str]
-    district: str
-    assigned_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    district: Optional[str]
+    status: RoutingStatus = RoutingStatus.ASSIGNED
+    assigned_at: Optional[datetime] = field(default_factory=lambda: datetime.now(timezone.utc))
     notes: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "case_id": self.case_id,
-            "assigned_role": self.assigned_role.value,
+            "assigned_role": self.assigned_role.value if self.assigned_role else None,
             "primary_assignee": self.primary_assignee,
             "backup_assignee": self.backup_assignee,
             "district": self.district,
-            "assigned_at": self.assigned_at.isoformat(),
+            "status": self.status.value,
+            "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
             "notes": self.notes,
         }
 
@@ -73,10 +83,22 @@ DEMO_OFFICER_REGISTRY: List[SyntheticOfficer] = [
 class AssignmentRouter:
     """
     Allocates an intervention to an appropriate role, district officer, and backup.
+    Strictly preserves district boundaries. Never cross-routes cases across jurisdictions.
     """
 
     def __init__(self, officers: Optional[List[SyntheticOfficer]] = None) -> None:
-        self.officers = officers if officers is not None else list(DEMO_OFFICER_REGISTRY)
+        self.officers = officers if officers is not None else [
+            SyntheticOfficer(
+                official_id=o.official_id,
+                name=o.name,
+                role=o.role,
+                district=o.district,
+                active_caseload=o.active_caseload,
+                max_capacity=o.max_capacity,
+                is_available=o.is_available,
+            )
+            for o in DEMO_OFFICER_REGISTRY
+        ]
 
     def determine_target_role(
         self,
@@ -102,70 +124,83 @@ class AssignmentRouter:
     def route(
         self,
         case_id: str,
-        district: str,
+        district: Optional[str],
         intervention_type: InterventionType,
         priority: PriorityLevel,
     ) -> RoutingResult:
         """
-        Performs capacity-informed district assignment.
+        Performs strictly district-aware, capacity-informed assignment.
+        Never cross-routes across districts.
         """
+        # 1. Authoritative jurisdiction check: missing district must be handled explicitly
+        if not district or not isinstance(district, str) or not district.strip():
+            return RoutingResult(
+                case_id=case_id,
+                assigned_role=None,
+                primary_assignee=None,
+                backup_assignee=None,
+                district=None,
+                status=RoutingStatus.INVALID_JURISDICTION,
+                assigned_at=None,
+                notes="Missing or invalid district jurisdiction; cannot route without authoritative case district.",
+            )
+
+        clean_district = district.strip()
         target_role = self.determine_target_role(intervention_type, priority)
 
-        # 1. Match available officers in the target district with matching role
+        # 2. Strict district filtering: match officers ONLY within the same district
         candidates = [
             o for o in self.officers
-            if o.district.lower() == district.lower()
+            if o.district.strip().lower() == clean_district.lower()
             and o.role == target_role
             and o.is_available
+            and o.active_caseload < o.max_capacity
         ]
 
-        # 2. If no exact match in district, fall back to any available officer of that role
+        # 3. If no eligible officer in district, return ROUTING_UNAVAILABLE. Never cross-route.
         if not candidates:
-            candidates = [
-                o for o in self.officers
-                if o.role == target_role and o.is_available
-            ]
-
-        # 3. If still no candidates, fall back to District Authority desk
-        if not candidates:
-            primary = f"[SIMULATED] Regional Escalation Authority ({district})"
-            backup = None
-            notes = "No available officers found; routed directly to regional authority."
             return RoutingResult(
                 case_id=case_id,
                 assigned_role=target_role,
-                primary_assignee=primary,
-                backup_assignee=backup,
-                district=district,
-                notes=notes,
+                primary_assignee=None,
+                backup_assignee=None,
+                district=clean_district,
+                status=RoutingStatus.ROUTING_UNAVAILABLE,
+                assigned_at=None,
+                notes=f"ROUTING_UNAVAILABLE: No eligible local {target_role.value} with available capacity found in {clean_district}.",
             )
 
-        # 4. Capacity-aware sort: assign to officer with lowest current caseload
-        sorted_candidates = sorted(candidates, key=lambda c: c.active_caseload)
+        # 4. Deterministic tie-breaking:
+        # Sort by: (1) lowest active caseload, (2) stable alphabetical official_id
+        sorted_candidates = sorted(candidates, key=lambda c: (c.active_caseload, c.official_id))
         primary_officer = sorted_candidates[0]
 
-        # 5. Select backup assignee (especially critical for URGENT / HIGH priority)
-        backup_officer = None
+        # 5. Backup assignee selection strictly within the same district
+        backup_officer_id: Optional[str] = None
         if len(sorted_candidates) > 1:
-            backup_officer = sorted_candidates[1].official_id
+            backup_officer_id = sorted_candidates[1].official_id
         else:
-            # Fall back to supervisory role in district
+            # Fallback to local supervisory authority in the SAME district
             supervisors = [
                 o for o in self.officers
-                if o.district.lower() == district.lower()
+                if o.district.strip().lower() == clean_district.lower()
                 and o.role == AssigneeRole.DISTRICT_AUTHORITY
+                and o.is_available
+                and o.active_caseload < o.max_capacity
             ]
             if supervisors:
-                backup_officer = supervisors[0].official_id
+                sorted_supervisors = sorted(supervisors, key=lambda c: (c.active_caseload, c.official_id))
+                backup_officer_id = sorted_supervisors[0].official_id
 
-        # Update local simulated load
+        # Update caseload for primary
         primary_officer.active_caseload += 1
 
         return RoutingResult(
             case_id=case_id,
             assigned_role=target_role,
             primary_assignee=primary_officer.official_id,
-            backup_assignee=backup_officer,
-            district=district,
-            notes=f"Routed to {primary_officer.name} (caseload: {primary_officer.active_caseload})",
+            backup_assignee=backup_officer_id,
+            district=clean_district,
+            status=RoutingStatus.ASSIGNED,
+            notes=f"Assigned to {primary_officer.name} (caseload: {primary_officer.active_caseload}) in {clean_district}.",
         )
