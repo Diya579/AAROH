@@ -469,3 +469,27 @@ class TestMutationCrossScope:
             f"DISTRICT_OFFICIAL for Pune must not create interventions on a Mumbai case. "
             f"Got {r.status_code}: {r.text}"
         )
+
+    def test_counsellor_cannot_read_prediction_for_unassigned_case(self, seeded_cases):
+        """COUNSELLOR assigned to case 1 attempts GET /predictions/{case_id} for case 2 — must get 403."""
+        _as_role("COUNSELLOR", user_id="Couns-1")
+        r = client.get(f"/api/v1/predictions/{seeded_cases['c2_db_id']}")
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"COUNSELLOR for case 1 must not read predictions for case 2. "
+            f"Got {r.status_code}: {r.text}"
+        )
+
+    def test_victim_cannot_create_outcome_on_another_case(self, seeded_cases):
+        """VICTIM owning case 1 attempts POST /outcomes for case 2 — must get 403."""
+        _as_role("VICTIM", user_id=seeded_cases["c1_case_id"])
+        r = client.post("/api/v1/outcomes", json={
+            "case_id": seeded_cases["c2_db_id"],
+            "outcome_type": "RESOLVED",
+            "completed": True
+        })
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"VICTIM for case 1 must not create outcomes for case 2. "
+            f"Got {r.status_code}: {r.text}"
+        )

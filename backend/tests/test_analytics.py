@@ -199,6 +199,13 @@ class TestAnalyticsDistrict:
         assert r.status_code == 200
         assert r.json()["total_cases"] == 0
 
+    def test_district_official_rejected_from_other_district_analytics(self, seeded_analytics):
+        _as_role("DISTRICT_OFFICIAL", district="Pune")
+        # District official from Pune tries to access Mumbai's analytics
+        r = client.get("/api/v1/analytics/district/Mumbai")
+        _restore_admin()
+        assert r.status_code == 403
+
 
 class TestAnalyticsState:
 
