@@ -17,7 +17,7 @@ Verifies:
 import os
 import sys
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from backend.interventions.engine import (
     InterventionEngine,
@@ -262,7 +262,7 @@ class TestSLA(unittest.TestCase):
         self.manager = SLAManager()
 
     def test_sla_due_time_calculation(self):
-        base_time = datetime(2026, 9, 5, 10, 0, 0)
+        base_time = datetime(2026, 9, 5, 10, 0, 0, tzinfo=timezone.utc)
         due_urgent = self.manager.compute_due_time(PriorityLevel.URGENT, base_time)
         self.assertEqual(due_urgent, base_time + timedelta(hours=4))
 
@@ -270,16 +270,51 @@ class TestSLA(unittest.TestCase):
         self.assertEqual(due_high, base_time + timedelta(hours=24))
 
     def test_overdue_detection(self):
-        created = datetime(2026, 9, 5, 10, 0, 0)
+        created = datetime(2026, 9, 5, 10, 0, 0, tzinfo=timezone.utc)
         due = created + timedelta(hours=4)
         record = SLARecord(1, PriorityLevel.URGENT, created, due)
 
         # Before deadline
         self.assertEqual(record.evaluate_status(created + timedelta(hours=1)), SLAStatus.PENDING)
+        self.assertFalse(record.is_overdue(created + timedelta(hours=1)))
+
         # Due soon (85% elapsed)
         self.assertEqual(record.evaluate_status(created + timedelta(hours=3, minutes=30)), SLAStatus.DUE_SOON)
+        self.assertFalse(record.is_overdue(created + timedelta(hours=3, minutes=30)))
+
         # Overdue (past 4h)
         self.assertEqual(record.evaluate_status(created + timedelta(hours=5)), SLAStatus.OVERDUE)
+        self.assertTrue(record.is_overdue(created + timedelta(hours=5)))
+
+    def test_completed_intervention_is_never_overdue_status(self):
+        created = datetime(2026, 9, 5, 10, 0, 0, tzinfo=timezone.utc)
+        due = created + timedelta(hours=4)
+        # Completed late (at 6 hours)
+        record = SLARecord(1, PriorityLevel.URGENT, created, due, completed_at=created + timedelta(hours=6))
+
+        # is_overdue must be False because it is completed
+        self.assertFalse(record.is_overdue(created + timedelta(hours=7)))
+        # SLAStatus is BREACHED, not active OVERDUE
+        self.assertEqual(record.evaluate_status(created + timedelta(hours=7)), SLAStatus.BREACHED)
+
+    def test_completed_before_deadline_is_met(self):
+        created = datetime(2026, 9, 5, 10, 0, 0, tzinfo=timezone.utc)
+        due = created + timedelta(hours=4)
+        # Completed on time (at 2 hours)
+        record = SLARecord(1, PriorityLevel.URGENT, created, due, completed_at=created + timedelta(hours=2))
+
+        self.assertFalse(record.is_overdue(created + timedelta(hours=5)))
+        self.assertEqual(record.evaluate_status(created + timedelta(hours=5)), SLAStatus.MET)
+
+    def test_sla_safe_with_naive_and_aware_datetimes(self):
+        created_naive = datetime(2026, 9, 5, 10, 0, 0)
+        due_naive = created_naive + timedelta(hours=4)
+        record = SLARecord(2, PriorityLevel.URGENT, created_naive, due_naive)
+
+        # Querying with timezone-aware datetime should not throw TypeError
+        now_aware = datetime(2026, 9, 5, 15, 0, 0, tzinfo=timezone.utc)
+        self.assertTrue(record.is_overdue(now_aware))
+        self.assertEqual(record.evaluate_status(now_aware), SLAStatus.OVERDUE)
 
 
 class TestOutcomesAndTransitions(unittest.TestCase):
