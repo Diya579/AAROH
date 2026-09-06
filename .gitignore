@@ -9,5 +9,6 @@ __pycache__/
 .coverage
 *.log
 .DS_Store
+*.db
 .zip.zip
 /.zip
