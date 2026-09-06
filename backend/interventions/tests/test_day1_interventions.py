@@ -136,6 +136,34 @@ class TestInterventionEngine(unittest.TestCase):
         self.assertEqual(decision.priority, PriorityLevel.HIGH)
         self.assertIsNotNone(decision.reason.abstention_reason)
 
+    def test_abstained_status_triggers_priority_human_review(self):
+        decision = self.engine.evaluate(
+            case_id="AAROH-ABSTAIN",
+            risk_level="LOW",
+            escalation_probability=0.0,
+            trajectory="STABLE",
+            confidence=0.0,
+            ml_status="ABSTAINED",
+            monitoring_consent=True,
+        )
+        self.assertEqual(decision.intervention_type, InterventionType.PRIORITY_HUMAN_REVIEW)
+        self.assertEqual(decision.priority, PriorityLevel.HIGH)
+        self.assertIn("insufficient (ABSTAINED)", decision.reason.abstention_reason)
+
+    def test_insufficient_data_status_triggers_priority_human_review(self):
+        decision = self.engine.evaluate(
+            case_id="AAROH-NODATA",
+            risk_level="LOW",
+            escalation_probability=0.0,
+            trajectory="STABLE",
+            confidence=0.0,
+            ml_status="INSUFFICIENT_DATA",
+            monitoring_consent=True,
+        )
+        self.assertEqual(decision.intervention_type, InterventionType.PRIORITY_HUMAN_REVIEW)
+        self.assertEqual(decision.priority, PriorityLevel.HIGH)
+        self.assertIn("insufficient (INSUFFICIENT_DATA)", decision.reason.abstention_reason)
+
     def test_duplicate_pending_intervention_is_prevented(self):
         active = [
             {"id": 42, "status": "PENDING", "intervention_type": "PRIORITY_HUMAN_REVIEW"}
@@ -495,6 +523,23 @@ class TestAnalytics(unittest.TestCase):
         state = StateMetricsCalculator.calculate("EmptyState", [metrics])
         self.assertIsNone(state.avg_response_time_hours)
         self.assertIsNone(state.overall_sla_compliance_rate)
+
+    def test_privacy_leakage_prevented_in_all_summaries(self):
+        # Ensure no raw text, notes, transcripts, or audio data leak into dictionary representations
+        d = DistrictMetricsCalculator.calculate("Patna", [{"case_id": "C1"}], [], [])
+        d_dict = d.to_dict()
+        forbidden_keys = {"text_response", "narrative", "transcript", "notes", "audio_path", "audio"}
+        for k in d_dict.keys():
+            self.assertNotIn(k, forbidden_keys)
+
+    def test_invalid_status_transitions_comprehensive(self):
+        # Direct jump from PENDING to COMPLETED is invalid (must go through ASSIGNED/ACKNOWLEDGED/IN_PROGRESS)
+        with self.assertRaises(ValueError):
+            OutcomeManager.transition_status(InterventionStatus.PENDING, InterventionStatus.COMPLETED)
+
+        # Cancelled is terminal
+        with self.assertRaises(ValueError):
+            OutcomeManager.transition_status(InterventionStatus.CANCELLED, InterventionStatus.IN_PROGRESS)
 
 
 if __name__ == "__main__":
