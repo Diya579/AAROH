@@ -14,10 +14,13 @@ from backend.schemas.event import EventCreate
 
 
 def create_event(db: Session, payload: EventCreate) -> CaseEvent:
-    """Insert a new case event row."""
+    """
+    Insert a new timeline event for a case.
+    Does NOT commit the transaction — caller must commit.
+    """
     row = CaseEvent(**payload.model_dump())
     db.add(row)
-    db.commit()
+    db.flush()
     db.refresh(row)
     return row
 

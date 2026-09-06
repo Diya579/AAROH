@@ -17,7 +17,7 @@ def create_interaction(db: Session, payload: InteractionCreate) -> Interaction:
     """Insert a new interaction row."""
     row = Interaction(**payload.model_dump())
     db.add(row)
-    db.commit()
+    db.flush()
     db.refresh(row)
     return row
 

@@ -9,7 +9,7 @@ from backend.schemas.intervention import InterventionCreate, InterventionUpdate,
 def create_intervention(db: Session, payload: InterventionCreate) -> Intervention:
     db_obj = Intervention(**payload.model_dump())
     db.add(db_obj)
-    db.commit()
+    db.flush()
     db.refresh(db_obj)
     return db_obj
 
@@ -40,7 +40,7 @@ def update_intervention(db: Session, intervention_id: int, payload: Intervention
 def create_outcome(db: Session, payload: OutcomeCreate) -> Outcome:
     db_obj = Outcome(**payload.model_dump())
     db.add(db_obj)
-    db.commit()
+    db.flush()
     db.refresh(db_obj)
     return db_obj
 

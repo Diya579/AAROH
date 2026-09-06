@@ -58,7 +58,10 @@ def execute_idempotent(
     If no key is provided, simply executes the function.
     """
     if not idempotency_key:
-        return executor()
+        result = executor()
+        # Since executor only flushes, we MUST commit here if no idempotency logic runs
+        db.commit()
+        return result
 
     req_hash = generate_request_hash(payload)
 
@@ -87,10 +90,12 @@ def execute_idempotent(
     # 2. Execute the operation
     try:
         result = executor()
+        # Flush the domain record to the session. Any DB-level exceptions (like FK 
+        # constraints) will be raised here and caught by the endpoint's try/except 
+        # block (which wraps `execute_idempotent`).
+        db.flush()
     except HTTPException as e:
-        # We do not cache client errors or validation errors usually, but for strict 
-        # idempotency, some systems do. Diya's spec didn't specify caching errors.
-        # We'll let exceptions bubble up without caching.
+        # We do not cache client errors or validation errors usually
         raise
     except Exception as e:
         # Unexpected errors bubble up
@@ -113,9 +118,12 @@ def execute_idempotent(
     
     try:
         db.add(record)
+        # This commits BOTH the domain record (from executor) AND the idempotency record atomically.
         db.commit()
     except IntegrityError:
-        # Another request with the same key might have completed simultaneously
+        # If the commit fails due to a unique constraint violation on the idempotency key,
+        # it means another request with the same key completed simultaneously.
+        # The rollback discards BOTH our domain write and our idempotency record cleanly!
         db.rollback()
         # Fetch the one that just got committed
         simultaneous_record = (
