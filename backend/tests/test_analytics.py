@@ -122,6 +122,21 @@ class TestAnalyticsCasesSummary:
         for key, val in totals.items():
             assert val >= 0, f"Negative total for {key}"
 
+    def test_state_official_only_sees_own_state_in_cases_summary(self, seeded_analytics):
+        # c1 and c2 are in Maharashtra
+        # A Gujarat official should see empty/zero results
+        _as_role("STATE_OFFICIAL", state="Gujarat")
+        r = client.get("/api/v1/analytics/cases")
+        _restore_admin()
+        
+        assert r.status_code == 200
+        body = r.json()
+        assert body["totals"]["total_cases"] == 0
+        
+        # Verify Maharashtra doesn't show up in their breakdown
+        for state_data in body["by_state"]:
+            assert state_data["state"] != "Maharashtra"
+
 
 class TestAnalyticsCaseDetail:
 
@@ -146,6 +161,20 @@ class TestAnalyticsCaseDetail:
         r = client.get(f"/api/v1/analytics/cases/{seeded_analytics['c1_id']}")
         _restore_admin()
         assert r.status_code == 200
+
+    def test_unauthorized_role_rejected_from_case_detail(self, seeded_analytics):
+        # c1 is in Pune, Maharashtra. 
+        # A district official from Nagpur should get 403.
+        _as_role("DISTRICT_OFFICIAL", district="Nagpur")
+        r = client.get(f"/api/v1/analytics/cases/{seeded_analytics['c1_id']}")
+        _restore_admin()
+        assert r.status_code == 403
+        
+        # A state official from Gujarat should also get 403.
+        _as_role("STATE_OFFICIAL", state="Gujarat")
+        r = client.get(f"/api/v1/analytics/cases/{seeded_analytics['c1_id']}")
+        _restore_admin()
+        assert r.status_code == 403
 
 
 class TestAnalyticsDistrict:

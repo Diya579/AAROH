@@ -37,19 +37,28 @@ def get_db():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _case_counts(db: Session) -> dict:
+def _case_counts(db: Session, user=None) -> dict:
     """Base count queries shared across several aggregate endpoints."""
-    total_cases = db.query(func.count(Case.id)).scalar() or 0
-    total_interactions = db.query(func.count(Interaction.id)).scalar() or 0
-    total_predictions = db.query(func.count(Prediction.id)).scalar() or 0
-    total_interventions = db.query(func.count(Intervention.id)).scalar() or 0
-    total_outcomes = db.query(func.count(Outcome.id)).scalar() or 0
+    q_cases = db.query(func.count(Case.id))
+    q_interactions = db.query(func.count(Interaction.id))
+    q_predictions = db.query(func.count(Prediction.id))
+    q_interventions = db.query(func.count(Intervention.id))
+    q_outcomes = db.query(func.count(Outcome.id))
+
+    if user:
+        from backend.core.security import apply_scope_filter
+        q_cases = apply_scope_filter(q_cases, Case, user)
+        q_interactions = apply_scope_filter(q_interactions, Interaction, user)
+        q_predictions = apply_scope_filter(q_predictions, Prediction, user)
+        q_interventions = apply_scope_filter(q_interventions, Intervention, user)
+        q_outcomes = apply_scope_filter(q_outcomes, Outcome, user)
+
     return {
-        "total_cases": total_cases,
-        "total_interactions": total_interactions,
-        "total_predictions": total_predictions,
-        "total_interventions": total_interventions,
-        "total_outcomes": total_outcomes,
+        "total_cases": q_cases.scalar() or 0,
+        "total_interactions": q_interactions.scalar() or 0,
+        "total_predictions": q_predictions.scalar() or 0,
+        "total_interventions": q_interventions.scalar() or 0,
+        "total_outcomes": q_outcomes.scalar() or 0,
     }
 
 
@@ -69,20 +78,20 @@ def analytics_cases_summary(
     Aggregate case counts grouped by district and state.
     Accessible by ADMIN, STATE_OFFICIAL, NATIONAL_OFFICIAL.
     """
+    from backend.core.security import apply_scope_filter
+
     # Group by district
-    by_district = (
-        db.query(Case.district, func.count(Case.id).label("count"))
-        .group_by(Case.district)
-        .all()
-    )
+    query_district = db.query(Case.district, func.count(Case.id).label("count"))
+    query_district = apply_scope_filter(query_district, Case, user)
+    by_district = query_district.group_by(Case.district).all()
+
     # Group by state
-    by_state = (
-        db.query(Case.state, func.count(Case.id).label("count"))
-        .group_by(Case.state)
-        .all()
-    )
+    query_state = db.query(Case.state, func.count(Case.id).label("count"))
+    query_state = apply_scope_filter(query_state, Case, user)
+    by_state = query_state.group_by(Case.state).all()
+
     return {
-        "totals": _case_counts(db),
+        "totals": _case_counts(db, user),
         "by_district": [{"district": r.district, "count": r.count} for r in by_district],
         "by_state": [{"state": r.state, "count": r.count} for r in by_state],
     }
@@ -105,6 +114,9 @@ def analytics_case_detail(
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise_not_found("Case", case_id)
+        
+    from backend.core.security import verify_case_access
+    verify_case_access(case, user, db)
 
     return {
         "case_id": case_id,
@@ -210,5 +222,5 @@ def analytics_national(
     """National aggregate: total counts across all states."""
     return {
         "scope": "national",
-        "totals": _case_counts(db),
+        "totals": _case_counts(db, user),
     }
