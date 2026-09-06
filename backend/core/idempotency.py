@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
 from backend.models import IdempotencyRecord
+from backend.core.errors import raise_conflict
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +75,9 @@ def execute_idempotent(
 
     if existing:
         if existing.request_hash != req_hash:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Idempotency key '{idempotency_key}' was previously used with a different payload."
+            raise_conflict(
+                "IDEMPOTENCY_CONFLICT",
+                f"Idempotency key '{idempotency_key}' was previously used with a different payload."
             )
         # Explicitly set the response status from the cached record
         if response_obj is not None:
@@ -128,18 +129,18 @@ def execute_idempotent(
         )
         if simultaneous_record:
             if simultaneous_record.request_hash != req_hash:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Idempotency key '{idempotency_key}' was previously used with a different payload."
+                raise_conflict(
+                    "IDEMPOTENCY_CONFLICT",
+                    f"Idempotency key '{idempotency_key}' was previously used with a different payload."
                 )
             if response_obj is not None:
                 response_obj.status_code = simultaneous_record.response_status
             return cast(T, simultaneous_record.response_body)
         else:
             # Should not happen, but safe fallback
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Idempotency record conflict could not be resolved."
+            raise_conflict(
+                "IDEMPOTENCY_RESOLVE_FAILED",
+                "Idempotency record conflict could not be resolved."
             )
 
     # Since result could be a raw dict now (or the original model), 

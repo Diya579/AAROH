@@ -130,7 +130,9 @@ class TestIdempotency:
         }
         r2 = client.post("/api/v1/interactions", json=payload2, headers=headers)
         assert r2.status_code == 409
-        assert "previously used with a different payload" in r2.text
+        body = r2.json()
+        assert body["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+        assert "previously used with a different payload" in body["error"]["message"]
 
     def test_intervention_idempotency(self, target_case):
         headers = get_auth_headers()
@@ -173,7 +175,9 @@ class TestIdempotency:
         }
         r2 = client.post("/api/v1/interventions", json=payload2, headers=headers)
         assert r2.status_code == 409
-        assert "previously used with a different payload" in r2.text
+        body = r2.json()
+        assert body["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+        assert "previously used with a different payload" in body["error"]["message"]
 
     def test_outcome_idempotency(self, target_case):
         headers = get_auth_headers()
