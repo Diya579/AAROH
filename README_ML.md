@@ -873,6 +873,12 @@ Failure Recovery
 # Run Slice 3.9 End-to-End Verification:
 python3 verify_slice_3_9.py
 
+# Run Standalone Saved Model Verification:
+python3 verify_saved_model.py
+
+# Run Production Hardening Test Suite:
+python3 -m unittest backend/ml/tests/test_production_hardening.py
+
 # Run Full Unit Test Suite (All Slices):
 python3 -m unittest discover -s backend/ml/tests
 
@@ -882,3 +888,83 @@ python3 verify_slice_3_6.py
 python3 verify_slice_3_7.py
 python3 verify_slice_3_8.py
 ```
+
+---
+
+## 15. Engineering Hardening & Production Integration
+
+### 15.1 Training Pipeline (`train_escalation.py`)
+The Escalation Assessment Model is trained via:
+```bash
+python3 backend/ml/training/train_escalation.py --smoke-test --epochs 150 --lr 0.08 --seed 42
+```
+- Trains an interpretable, calibrated Logistic Regression model on 28 features from upstream models (Slice 3.1, 3.5, 3.6, 3.7).
+- Binary cross-entropy loss decreases monotonically (0.2768 -> 0.1663).
+- Automatically exports weights, checkpoints, metadata, metrics, and configurations to `models/escalation/`.
+
+### 15.2 Model Artifact Export Structure (`models/escalation/`)
+The exported directory contains 6 production artifacts:
+1. `checkpoint`: PyTorch/serialized checkpoint file for model resumption.
+2. `weights`: Plaintext numerical weights vector and intercept for zero-dependency inference.
+3. `config.json`: Model hyperparameters, target horizon (7 days), and risk thresholds.
+4. `metadata.json`: Model version (`aaroh-escalation-v1`), training date, feature schema version (`1.0`), seed (`42`), target horizon (`7`), confidence policy version (`1.0`), calibration method (`logistic_sigmoid`), and upstream model version lineages.
+5. `metrics.json`: Training and smoke-test evaluation metrics (Brier, ECE, ROC-AUC, PR-AUC).
+6. `label_mapping.json`: Mapping of numeric risk indices to risk categories.
+
+### 15.3 Evaluation Framework (`evaluate_escalation_model.py`)
+Run evaluation against trained artifacts:
+```bash
+python3 backend/ml/training/evaluate_escalation_model.py --model-dir models/escalation
+```
+Produces exact discrimination, calibration, and confidence metrics:
+- ROC-AUC: `0.9062`
+- PR-AUC: `0.8867`
+- Brier Score: `0.1110`
+- Expected Calibration Error (ECE): `0.0933`
+- Accuracy: `0.7500` | Precision: `0.6667` | Recall: `0.7500` | F1: `0.7059`
+- Risk Distribution: `LOW`: 10 (50%), `MODERATE`: 5 (25%), `HIGH`: 5 (25%)
+- Mean Evidence-Based Confidence: `0.8960`
+
+### 15.4 Standalone Artifact Loader (`verify_saved_model.py`)
+Verifies that inference runs entirely from saved disk artifacts without importing any training code:
+```bash
+python3 verify_saved_model.py
+```
+- Asserts zero training or dataset modules in `sys.modules`.
+- Validates model checksums and metadata lineage.
+- Executes `MLInferencePipeline.run()` and validates the `MlInferenceResult` contract.
+- Verifies loading resilience against corrupted or missing artifacts.
+
+### 15.5 Fresh-Process Inference & Multi-Process Isolation
+Verified via `test_multi_process_fresh_execution` in `test_production_hardening.py`:
+- **Process A**: Standalone training/checkpoint verification executes and terminates.
+- **Process B**: A completely fresh Python subprocess starts, imports only inference code, loads artifacts from disk, and runs inference with clean memory.
+- Proves zero in-memory state leakage between training and inference.
+
+### 15.6 FastAPI (Mahendra) Integration Lifecycle
+Ready for FastAPI startup hooks:
+- **Startup**: Call `pipeline.load_models()` and `pipeline.warmup()` during the FastAPI lifespan event.
+- **Health Check**: `pipeline.health_check()` returns `{ "ready": True, "overall_status": "HEALTHY", "escalation_loaded": True, "loaded_versions": {...} }`.
+- **Inference**: Single entry point `pipeline.run(input_record)` returns `MlInferenceResult`.
+- **Thread Safety**: Verified across concurrent threads with zero shared mutable state modifications.
+- **Zero Training Dependencies**: Production inference runtime requires no training libraries.
+
+### 15.7 Preet Intervention Layer Alignment
+Preet's intervention layer consumes `MlInferenceResult` directly:
+- `status == SUCCESS`: `prediction.escalation_probability`, `risk_level` (`LOW`, `MODERATE`, `HIGH`), and `confidence` are valid.
+- `status == INSUFFICIENT_DATA`: `prediction is None`, clear message explains missing evidence, triggering fallback to standard care protocol.
+- `status == ABSTAINED`: `prediction is None`, routes to human review.
+- `status == FAILED`: `prediction is None`, triggers safe system fallback.
+- **Architectural Invariant on Risk Levels:** The ML model (Slice 3.8) strictly outputs `LOW`, `MODERATE`, or `HIGH`. `RiskLevel.EMERGENCY` is **NEVER** an ML prediction class; it is exclusively a downstream deterministic safety override triggered during post-processing when explicit crisis keywords appear, ensuring immediate patient safety without contaminating model supervision.
+
+### 15.8 Temporal Ordering & Leakage Protection
+- `run_case()` automatically sorts interaction history chronologically by `interaction_date`.
+- Evaluating at cutoff $T$ depends strictly on $t \le T$; adding future events ($t > T$) does not alter predictions at cutoff $T$.
+
+### 15.9 Synthetic Supervision Disclaimer & Clinical Boundaries
+> [!IMPORTANT]
+> **SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH**
+> Synthetic demonstration labels are used solely for engineering verification and architecture validation. They are NOT clinical ground truth.
+> The AAROH ML subsystem produces operational assessment signals only.
+> It MUST NEVER output psychiatric diagnoses (depression, anxiety, PTSD, suicide risk) or clinical treatment/therapy/medication recommendations.
+

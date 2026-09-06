@@ -25,6 +25,11 @@ class PipelineConfig:
     feature_schema_version: str = "1.0"
     contract_version: str = "1.0"
 
+    @property
+    def target_horizon_days(self) -> int:
+        """Alias for default_target_horizon_days."""
+        return self.default_target_horizon_days
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize configuration to standard dictionary."""
         return asdict(self)

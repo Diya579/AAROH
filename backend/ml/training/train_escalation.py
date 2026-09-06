@@ -24,6 +24,11 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Ensure workspace root is in sys.path
+_workspace_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(_workspace_root) not in sys.path:
+    sys.path.insert(0, str(_workspace_root))
+
 from backend.ml.training.models.common import (
     enforce_escalation_boundary,
     get_device,
@@ -145,6 +150,7 @@ def train_escalation_model(args: argparse.Namespace) -> Dict[str, Any]:
         and sample_inf["risk_level"] in ("LOW", "MODERATE", "HIGH")
     )
 
+    reloaded_model.seed = args.seed
     # 7. Export Production Artifacts
     export_paths = reloaded_model.export(
         output_dir=args.output_dir,

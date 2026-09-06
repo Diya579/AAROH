@@ -338,6 +338,7 @@ class MLInferencePipeline:
             "artifacts_valid": artifacts_ok,
             "versions_valid": bool(self._loaded_versions),
             "loaded_versions": dict(self._loaded_versions),
+            "model_versions": dict(self._loaded_versions),
             "cache_stats": self.cache.stats,
         }
 
@@ -379,6 +380,9 @@ class MLInferencePipeline:
                     message=f"Invalid input record at index {idx}: {exc}",
                     metadata={"pipeline_run_id": run_id},
                 )
+
+        # Ensure chronological ordering across history
+        parsed_history.sort(key=lambda x: str(x.interaction_date or ""))
 
         # Truncate to history window
         active_history = parsed_history[-self.config.max_history_window :]
@@ -671,7 +675,53 @@ class MLInferencePipeline:
             "pipeline_config": self.config.to_dict(),
         }
 
-        if status == ProcessingStatus.INSUFFICIENT_DATA:
+        # ---------------------------------------------------------------------
+        # Downstream Deterministic Safety Override (POST-ML INFERENCE)
+        # ---------------------------------------------------------------------
+        # ARCHITECTURAL INVARIANT: The ML Escalation Model (Slice 3.8) strictly
+        # outputs LOW, MODERATE, or HIGH. RiskLevel.EMERGENCY is NEVER an ML
+        # prediction class; it is exclusively a downstream deterministic safety
+        # override triggered by explicit crisis keywords to prevent patient harm.
+        crisis_terms = (
+            "suicide", "kill myself", "end my life", "emergency", "dying", 
+            "ambulance", "call police", "jaan ka khatra", "आपातकाल", "जान का खतरा"
+        )
+        is_crisis = False
+        if has_text and current_input.raw_text:
+            text_lower = current_input.raw_text.lower()
+            if any(term in text_lower for term in crisis_terms):
+                is_crisis = True
+
+        if is_crisis:
+            factors_list = list(explanation.factors)
+            crisis_factor = "Immediate crisis indicator detected requiring urgent escalation"
+            if crisis_factor not in factors_list:
+                factors_list.insert(0, crisis_factor)
+            explanation = ExplanationOutput(
+                factors=tuple(factors_list),
+                trend=explanation.trend,
+                baseline_deviation=explanation.baseline_deviation,
+            )
+            prob = max(float(esc_out.get("escalation_probability") or 0.0), 0.99)
+            prediction_output = PredictionOutput(
+                escalation_probability=prob,
+                target_horizon_days=int(esc_out.get("target_horizon_days", self.config.target_horizon_days)),
+                confidence=0.99,
+                risk_level=RiskLevel.EMERGENCY,
+            )
+            result = MlInferenceResult(
+                case_id=case_id,
+                prediction_date=pred_date,
+                status=ProcessingStatus.SUCCESS,
+                source=ResultSource.ML,
+                distress=distress_output,
+                prediction=prediction_output,
+                explanation=explanation,
+                model=model_output,
+                message="Emergency crisis safety net triggered.",
+                metadata=pipeline_metadata,
+            )
+        elif status == ProcessingStatus.INSUFFICIENT_DATA:
             result = insufficient_data_result(
                 case_id=case_id,
                 prediction_date=pred_date,

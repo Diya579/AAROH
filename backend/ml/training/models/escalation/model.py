@@ -530,6 +530,10 @@ class EscalationAssessmentModel:
         with open(weights_file, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
 
+        # 1b. Checkpoint (compatible with load_checkpoint)
+        checkpoint_file = out_dir / "checkpoint"
+        self.save_checkpoint(checkpoint_file, metrics=metrics)
+
         # 2. Config
         config_file = out_dir / "config.json"
         config_data = {
@@ -559,7 +563,9 @@ class EscalationAssessmentModel:
             "dataset_version": "3.8.0",
             "feature_schema_version": "1.0",
             "training_date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "training_seed": self.seed,
             "target_horizon_days": self.config.target_horizon_days,
+            "confidence_policy_version": self.confidence_policy.version,
             "calibration": {
                 "method": "logistic_sigmoid",
                 "version": "1.0",
@@ -572,6 +578,11 @@ class EscalationAssessmentModel:
                 "high": f">= {self.config.threshold_moderate_high}",
             },
             "upstream_models": {
+                "fusion": "aaroh-fusion-v1",
+                "distress": "aaroh-distress-v1",
+                "trajectory": "aaroh-trajectory-v1",
+            },
+            "upstream_model_versions": {
                 "fusion": "aaroh-fusion-v1",
                 "distress": "aaroh-distress-v1",
                 "trajectory": "aaroh-trajectory-v1",
@@ -604,6 +615,7 @@ class EscalationAssessmentModel:
             json.dump(label_data, f, indent=2)
 
         return {
+            "checkpoint": str(checkpoint_file),
             "weights": str(weights_file),
             "config": str(config_file),
             "metadata": str(meta_file),

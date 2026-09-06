@@ -3,8 +3,10 @@
   "model_version": "aaroh-escalation-v1",
   "dataset_version": "3.8.0",
   "feature_schema_version": "1.0",
-  "training_date": "2026-09-05T21:27:23.518646+00:00",
+  "training_date": "2026-09-06T09:49:25.805382+00:00",
+  "training_seed": 42,
   "target_horizon_days": 7,
+  "confidence_policy_version": "1.0",
   "calibration": {
     "method": "logistic_sigmoid",
     "version": "1.0"
@@ -27,6 +29,11 @@
     "high": ">= 0.75"
   },
   "upstream_models": {
+    "fusion": "aaroh-fusion-v1",
+    "distress": "aaroh-distress-v1",
+    "trajectory": "aaroh-trajectory-v1"
+  },
+  "upstream_model_versions": {
     "fusion": "aaroh-fusion-v1",
     "distress": "aaroh-distress-v1",
     "trajectory": "aaroh-trajectory-v1"

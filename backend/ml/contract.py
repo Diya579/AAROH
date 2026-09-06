@@ -24,9 +24,18 @@ class Trajectory(str, Enum):
 
 
 class RiskLevel(str, Enum):
+    """Risk levels for escalation assessment.
+
+    The ML model outputs exclusively: LOW, MODERATE, HIGH.
+    EMERGENCY is reserved strictly for deterministic downstream post-inference
+    safety overrides (e.g. immediate crisis keyword detection) and is NEVER
+    predicted by the ML model itself.
+    """
+
     LOW = "LOW"
     MODERATE = "MODERATE"
     HIGH = "HIGH"
+    EMERGENCY = "EMERGENCY"  # Deterministic post-ML safety override only — NOT an ML prediction class
 
 
 class ProcessingStatus(str, Enum):

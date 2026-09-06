@@ -23,6 +23,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+# Ensure workspace root is in sys.path
+_workspace_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(_workspace_root) not in sys.path:
+    sys.path.insert(0, str(_workspace_root))
+
 from backend.ml.training.models.common import enforce_escalation_boundary, set_seed
 from backend.ml.training.models.escalation.dataset import (
     DEFAULT_TARGET_HORIZON_DAYS,
