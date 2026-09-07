@@ -1,0 +1,9 @@
+{
+  "accuracy": 0.7,
+  "precision": 0.6,
+  "recall": 0.6,
+  "f1": 0.6,
+  "roc_auc": 0.5333,
+  "val_samples_evaluated": 20,
+  "clinical_boundary_verified": "stress_probability != distress_score"
+}

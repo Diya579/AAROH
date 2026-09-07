@@ -1,0 +1,91 @@
+{
+  "model_type": "longitudinal_trajectory_model",
+  "sample_count": 16,
+  "history_window": 10,
+  "accuracy": 0.375,
+  "macro_precision": 0.1875,
+  "macro_recall": 0.3571,
+  "macro_f1": 0.2364,
+  "weighted_f1": 0.2773,
+  "per_class_metrics": {
+    "STABLE": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "accuracy": 0.0,
+      "support": 1
+    },
+    "IMPROVING": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "accuracy": 0.0,
+      "support": 5
+    },
+    "WORSENING": {
+      "precision": 0.375,
+      "recall": 1.0,
+      "f1": 0.5455,
+      "accuracy": 1.0,
+      "support": 3
+    },
+    "RAPIDLY_WORSENING": {
+      "precision": 0.375,
+      "recall": 0.4286,
+      "f1": 0.4,
+      "accuracy": 0.4286,
+      "support": 7
+    }
+  },
+  "confusion_matrix": {
+    "STABLE": {
+      "STABLE": 0,
+      "IMPROVING": 0,
+      "WORSENING": 0,
+      "RAPIDLY_WORSENING": 1
+    },
+    "IMPROVING": {
+      "STABLE": 0,
+      "IMPROVING": 0,
+      "WORSENING": 1,
+      "RAPIDLY_WORSENING": 4
+    },
+    "WORSENING": {
+      "STABLE": 0,
+      "IMPROVING": 0,
+      "WORSENING": 3,
+      "RAPIDLY_WORSENING": 0
+    },
+    "RAPIDLY_WORSENING": {
+      "STABLE": 0,
+      "IMPROVING": 0,
+      "WORSENING": 4,
+      "RAPIDLY_WORSENING": 3
+    }
+  },
+  "predicted_label_distribution": {
+    "counts": {
+      "STABLE": 0,
+      "IMPROVING": 0,
+      "WORSENING": 8,
+      "RAPIDLY_WORSENING": 8
+    },
+    "percentages": {
+      "STABLE": 0.0,
+      "IMPROVING": 0.0,
+      "WORSENING": 50.0,
+      "RAPIDLY_WORSENING": 50.0
+    }
+  },
+  "ground_truth_distribution": {
+    "STABLE": 1,
+    "IMPROVING": 5,
+    "WORSENING": 3,
+    "RAPIDLY_WORSENING": 7
+  },
+  "mean_trajectory_embedding_norm": 1.0,
+  "embedding_norm_invariant_satisfied": true,
+  "clinical_boundaries_enforced": true,
+  "label_disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH. Supervised solely for engineering verification and architectural integrity.",
+  "smoke_test_disclaimer": "Smoke-test metrics are intended only to verify that the training, checkpointing, inference, and evaluation pipelines function correctly. They are NOT indicators of real-world model performance."
+}

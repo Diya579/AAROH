@@ -1,0 +1,97 @@
+{
+  "pipeline_version": "aaroh-pipeline-v1",
+  "pipeline_build": "2026.09.06",
+  "creation_timestamp": "2026-09-06T18:27:59.662408+00:00",
+  "execution_order": [
+    "MLInput / Case History",
+    "Behavioural & Engagement Feature Extraction",
+    "Text Representation (TextEmotionModel)",
+    "Audio Representation (AudioEmotionModel)",
+    "Multimodal Feature Fusion (MultimodalFusionModel)",
+    "Dynamic Distress Model (DynamicDistressModel)",
+    "Longitudinal Trajectory Model (LongitudinalTrajectoryModel)",
+    "Escalation Assessment Model (EscalationAssessmentModel)",
+    "Grounded Explanation Forwarding",
+    "MlInferenceResult Contract Assembly"
+  ],
+  "loaded_model_versions": {
+    "text": "1.0.0",
+    "audio": "1.0.0",
+    "fusion": "1.0.0",
+    "distress": "aaroh-distress-v1",
+    "trajectory": "aaroh-trajectory-v1",
+    "escalation": "aaroh-escalation-v1"
+  },
+  "feature_schema_version": "1.0",
+  "contract_version": "1.0",
+  "execution_mode": "FALLBACK",
+  "pipeline_config": {
+    "pipeline_version": "aaroh-pipeline-v1",
+    "pipeline_build": "2026.09.06",
+    "default_execution_mode": "FALLBACK",
+    "seed": 42,
+    "warmup_on_load": true,
+    "warmup_dummy_samples": 1,
+    "enable_cache": true,
+    "max_history_window": 10,
+    "default_target_horizon_days": 7,
+    "strict_stage_validation": true,
+    "export_manifest": true,
+    "manifest_path": "models/pipeline_manifest.json",
+    "feature_schema_version": "1.0",
+    "contract_version": "1.0"
+  },
+  "artifact_checksums": {
+    "text": {
+      "config.json": "8327e1b45c32e17036a40484869a085475a9142ffe257e11166d9ea9ca65b0fa",
+      "metadata.json": "467f704315e17357e5e7b13c8411b6c0c33ef3d71846b0fd69cfd714898d954b",
+      "pytorch_model.bin": "656498143669f6ecf2ff5521d81032088bfa662a589f97113b0055441b9c6a8f",
+      "label_mapping.json": "6ab47300aadaf278c7b9e3b07d2f59c9ce5b96ab85ebece4df7cd7bb07571e3e"
+    },
+    "audio": {
+      "config.json": "d776b8c79da9c468140ac499be2b8b52cd49f7b910b724182cc0b78fdd1e4a11",
+      "metadata.json": "9f36447903bad461fd16c5ddd4bcf08e952487d70f2cf5850614f01fad7b1bdd",
+      "pytorch_model.bin": "d261d2ec0264f876811e3c0801f21607cfd24e0082f6852ddb048a53b23f6738",
+      "label_mapping.json": "6139fc20d221e801c9bccc7d97f5916c7d5cfea6d552e310709c8aa8c7f1c280"
+    },
+    "fusion": {
+      "config.json": "21f6e3fb755c60ddf70d935999bfede3cfe82a0450581e19da0c2032783e2593",
+      "metadata.json": "18f3e89642ae48766fa5836110d4f2b1831291cda76793aaf792bb0d5f1d2510",
+      "weights": "f7e9b264f9d4c24c9925e73ddb2864683778d53b246f0df043623425902a307f",
+      "modality_schema.json": "049dbdaa1abdf6fb1630ced2038bbc453ff7223a713255ae72e9cc707a32e48a"
+    },
+    "distress": {
+      "config.json": "172834ec32b871389610e5a3f458b8ad8d2ffe4d9bc4d9fc677d9d54a3592a68",
+      "metadata.json": "cac2d443905106458789169b320c6395f16e504969695f63551b22c576bf9c16",
+      "weights": "e1601b03d8b1d2a7e9b8dcb73addac9d9a138c2d222d8d359aee5238da7c7f0c",
+      "label_mapping.json": "0fafd730fea58fc734b973653674735bd183041aabc9a23a0ac48d32ba1a6357"
+    },
+    "trajectory": {
+      "config.json": "32ca03b1ce86be8f5352f4db001de951ae29997829c620af6ce85ae34f7dd56f",
+      "metadata.json": "0cb3f53089df0c9a8b2afaa4143941aa51d57ea7f631f892fd2114216c304181",
+      "weights": "82a16b8dc349eb339015474938ed5f131c4362451f27d0280a7fa72346432293",
+      "label_mapping.json": "b877b24a0132bde05217c7fa48597700816d32281a1fb7aef2db180a91d4f490"
+    },
+    "escalation": {
+      "config.json": "cf105cc7bfcc185ab671a4e92ac4a57824432a815a932ea472f5c546a61f4fcb",
+      "metadata.json": "b6907ea32337bb2f6c68ccb7e565ce2107a9fa73366622f6cee8f59db53edf0c",
+      "weights": "ad3eda872f55109ea0eccae35822ac46b5e2f3e2ea8c0361918dcf34bb8e787e",
+      "label_mapping.json": "87bee84878560a7c5dbe14b1187255d17232e8815b51392de7cdd08b872955cb"
+    }
+  },
+  "compatibility_information": {
+    "python_runtime": ">=3.9",
+    "framework_independent": true,
+    "fallback_mode_supported": true,
+    "upstream_slices_compatible": [
+      "3.1",
+      "3.2",
+      "3.3",
+      "3.4",
+      "3.5",
+      "3.6",
+      "3.7",
+      "3.8"
+    ]
+  }
+}

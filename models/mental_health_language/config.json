@@ -1,0 +1,13 @@
+{
+  "model_type": "mental_health_language",
+  "backbone": "distilbert-base-uncased",
+  "embedding_dim": 768,
+  "max_length": 128,
+  "dropout_rate": 0.1,
+  "output_target": "mental_health_embedding",
+  "clinical_boundaries": [
+    "Does NOT predict PHQ scores",
+    "Does NOT predict GAD scores",
+    "Does NOT perform clinical diagnosis"
+  ]
+}

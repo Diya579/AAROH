@@ -1,0 +1,22 @@
+{
+  "task": "dynamic_distress_estimation",
+  "model_version": "aaroh-distress-v1",
+  "levels": [
+    "LOW",
+    "MODERATE",
+    "HIGH",
+    "CRITICAL"
+  ],
+  "thresholds": {
+    "low": 0.25,
+    "moderate": 0.55,
+    "high": 0.8
+  },
+  "disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH",
+  "rules": {
+    "LOW": "[0.0, 0.25)",
+    "MODERATE": "[0.25, 0.55)",
+    "HIGH": "[0.55, 0.8)",
+    "CRITICAL": "[0.8, 1.0]"
+  }
+}

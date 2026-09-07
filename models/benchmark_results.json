@@ -1,0 +1,86 @@
+{
+  "benchmark_notice": {
+    "evaluation_type": "ENGINEERING_VALIDATION_ONLY",
+    "clinical_ground_truth": false,
+    "disclaimer": "ENGINEERING VALIDATION AND SYNTHETIC DEMONSTRATION EVALUATION ONLY. NOT CLINICAL VALIDATION. The reported metrics (e.g. ROC-AUC = 1.0 on 10 held-out synthetic cases) verify algorithmic determinism, gradient optimization, interface compliance, and numerical stability on simulated data. They are NOT representative of real-world clinical performance, human psychiatric risk assessment, or diagnostic efficacy."
+  },
+  "dataset_summary": {
+    "total_samples": 40,
+    "train_samples": 30,
+    "val_samples": 10,
+    "val_positive_count": 4,
+    "val_negative_count": 6,
+    "val_positive_rate": 0.4
+  },
+  "model_a_baseline": {
+    "name": "Model A: Standard Calibrated Logistic Regression",
+    "features_count": 28,
+    "fit_time_seconds": 0.0064,
+    "infer_latency_ms": 0.012,
+    "metrics": {
+      "roc_auc": 1.0,
+      "pr_auc": 1.0,
+      "brier_score": 0.0509,
+      "ece": 0.0455,
+      "accuracy": 0.9,
+      "precision": 0.8,
+      "recall": 1.0,
+      "f1": 0.8889,
+      "confusion_matrix": {
+        "tp": 4,
+        "tn": 5,
+        "fp": 1,
+        "fn": 0
+      }
+    },
+    "weights_count": 28,
+    "interpretability": "High (Direct linear feature attribution w_i * x_i)"
+  },
+  "model_b_interaction": {
+    "name": "Model B: Interaction-Augmented Logistic Regression",
+    "features_count": 31,
+    "fit_time_seconds": 0.0066,
+    "infer_latency_ms": 0.011,
+    "metrics": {
+      "roc_auc": 1.0,
+      "pr_auc": 1.0,
+      "brier_score": 0.044,
+      "ece": 0.0784,
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "confusion_matrix": {
+        "tp": 4,
+        "tn": 6,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "weights_count": 31,
+    "interpretability": "High (Linear + 3 explicit clinical interaction terms)"
+  },
+  "model_c_rule_ensemble": {
+    "name": "Model C: Calibrated Rule-Enhanced Ensemble",
+    "features_count": 5,
+    "fit_time_seconds": 0.0,
+    "infer_latency_ms": 0.0,
+    "metrics": {
+      "roc_auc": 1.0,
+      "pr_auc": 1.0,
+      "brier_score": 0.1244,
+      "ece": 0.2573,
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "confusion_matrix": {
+        "tp": 4,
+        "tn": 6,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "interpretability": "Moderate (Piecewise heuristic threshold weighting)"
+  }
+}

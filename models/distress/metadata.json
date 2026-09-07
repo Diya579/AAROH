@@ -1,0 +1,32 @@
+{
+  "model_name": "aaroh-dynamic-distress",
+  "model_version": "aaroh-distress-v1",
+  "dataset_name": "aaroh-synthetic-distress-demonstration",
+  "dataset_version": "3.6.0",
+  "label_disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH",
+  "execution_mode": "FALLBACK",
+  "parameter_counts": {
+    "trainable_parameters": 80001,
+    "trainable_head_parameters": 80001,
+    "backbone_parameters": 229774080,
+    "total_parameters_if_instantiated": 229854081,
+    "actually_instantiated_parameters": 80001,
+    "frozen_backbone_parameters": 229774080
+  },
+  "hyperparameters": {
+    "input_dim": 301,
+    "distress_embedding_dim": 128,
+    "thresholds": {
+      "low": 0.25,
+      "moderate": 0.55,
+      "high": 0.8
+    },
+    "seed": 42
+  },
+  "backbones": {
+    "text": "distilbert-base-multilingual-cased",
+    "audio": "facebook/wav2vec2-base",
+    "status": "FROZEN"
+  },
+  "instantiation_note": "In FALLBACK mode, pretrained transformer backbones are referenced in configuration only and are NOT instantiated in memory. Only the 80,001 distress model parameters were instantiated."
+}

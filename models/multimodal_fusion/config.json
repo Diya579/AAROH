@@ -1,0 +1,19 @@
+{
+  "model_type": "multimodal_feature_fusion",
+  "fusion_dim": 256,
+  "tabular_input_dim": 120,
+  "tabular_hidden_dim": 128,
+  "text_input_dim": 797,
+  "text_hidden_dim": 128,
+  "audio_input_dim": 776,
+  "audio_hidden_dim": 128,
+  "gating_input_dim": 384,
+  "gating_output_dim": 3,
+  "reconstruction_dim": 60,
+  "execution_mode": "FALLBACK",
+  "trainable_head_parameters": 332223,
+  "backbone_parameters": 229774080,
+  "total_parameters_if_instantiated": 230106303,
+  "actually_instantiated_parameters": 332223,
+  "instantiation_note": "In FALLBACK mode, pretrained transformer backbones are referenced in configuration only and are NOT instantiated in memory. Only the 332,223 head parameters were instantiated."
+}

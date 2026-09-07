@@ -1,0 +1,5 @@
+{
+  "backbone": "distilbert-base-multilingual-cased",
+  "max_length": 128,
+  "tokenizer_type": "AutoTokenizer"
+}

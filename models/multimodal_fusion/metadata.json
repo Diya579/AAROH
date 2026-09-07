@@ -1,0 +1,32 @@
+{
+  "model_name": "aaroh-multimodal-fusion",
+  "model_version": "1.0.0",
+  "task_type": "multimodal_feature_fusion",
+  "feature_version": "3.1.0",
+  "dataset_version": "aaroh-multimodal-v1",
+  "execution_mode": "FALLBACK",
+  "hyperparameters": {
+    "fusion_dim": 256,
+    "learning_rate": 0.001,
+    "seed": 42
+  },
+  "clinical_boundary_assertions": [
+    "Multimodal Feature Fusion produces representations, modality weights, and fused embeddings only.",
+    "Does NOT predict clinical distress score (emotion/stress/audio != distress).",
+    "Does NOT predict escalation probability or clinical risk level.",
+    "Does NOT perform clinical or psychiatric diagnosis."
+  ],
+  "parameter_counts": {
+    "trainable_head_parameters": 332223,
+    "backbone_parameters": 229774080,
+    "total_parameters_if_instantiated": 230106303,
+    "actually_instantiated_parameters": 332223,
+    "frozen_backbone_parameters": 0,
+    "total_trainable_parameters": 332223
+  },
+  "backbones": {
+    "text": "distilbert-base-multilingual-cased",
+    "audio": "facebook/wav2vec2-base"
+  },
+  "instantiation_note": "In FALLBACK mode, pretrained transformer backbones are referenced in configuration only and are NOT instantiated in memory. Only the 332,223 head parameters were instantiated."
+}

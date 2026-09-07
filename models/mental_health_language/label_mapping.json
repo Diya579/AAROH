@@ -1,0 +1,5 @@
+{
+  "output_target": "mental_health_embedding",
+  "representation_dim": 768,
+  "is_classifier": false
+}

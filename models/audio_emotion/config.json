@@ -1,0 +1,21 @@
+{
+  "model_type": "audio_emotion",
+  "backbone": "facebook/wav2vec2-base",
+  "num_classes": 8,
+  "embedding_dim": 768,
+  "frozen_backbone": true,
+  "dropout_rate": 0.1,
+  "taxonomy": [
+    "neutral",
+    "calm",
+    "happy",
+    "sad",
+    "angry",
+    "fearful",
+    "disgust",
+    "surprised"
+  ],
+  "sample_rate": 16000,
+  "audio_duration_seconds": 5.0,
+  "clinical_boundary": "Audio Emotion != Clinical Distress"
+}

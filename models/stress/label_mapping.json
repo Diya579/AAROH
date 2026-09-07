@@ -1,0 +1,11 @@
+{
+  "label_to_id": {
+    "no_stress": 0,
+    "stress": 1
+  },
+  "id_to_label": {
+    "0": "no_stress",
+    "1": "stress"
+  },
+  "num_classes": 2
+}

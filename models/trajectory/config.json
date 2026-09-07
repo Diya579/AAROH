@@ -1,0 +1,23 @@
+{
+  "model_type": "longitudinal_trajectory_model",
+  "model_version": "aaroh-trajectory-v1",
+  "input_dim": 432,
+  "projection_dim": 128,
+  "gru_hidden_dim": 128,
+  "trajectory_embedding_dim": 128,
+  "head_hidden_dim": 64,
+  "num_classes": 4,
+  "history_window": 10,
+  "execution_mode": "FALLBACK",
+  "labels": [
+    "STABLE",
+    "IMPROVING",
+    "WORSENING",
+    "RAPIDLY_WORSENING"
+  ],
+  "trainable_parameters": 113348,
+  "backbone_parameters": 229774080,
+  "total_parameters_if_instantiated": 229887428,
+  "actually_instantiated_parameters": 113348,
+  "disclaimer": "SYNTHETIC DEMONSTRATION LABELS - NOT CLINICAL GROUND TRUTH. Supervised solely for engineering verification and architectural integrity."
+}
