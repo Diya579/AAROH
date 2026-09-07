@@ -1,293 +1,65 @@
-from typing import Any, cast
+"""
+AAROH — Legacy Intervention Engine Adapter
+Author: Preet
 
-from database import SessionLocal
-from models import (
-    Case,
-    Prediction,
-    Consent,
-    Intervention,
-    DistressState
-)
+Adapts existing callers to the frozen operational subsystem
+(backend.interventions.engine and backend.interventions.db_service).
+Preserves consent, confidence, and district-aware routing without recalculating ML probabilities.
+"""
+
+from typing import Any, Optional, cast
+from backend.database import SessionLocal
+from backend.interventions.engine import InterventionEngine, InterventionType, PriorityLevel
+from backend.interventions.db_service import db_operational_service
 
 
 def determine_intervention(
     risk_level: str,
     escalation_probability: float,
     trajectory: str,
-    monitoring_consent: bool = True
+    monitoring_consent: bool = True,
+    confidence: float = 1.0,
+    ml_status: str = "SUCCESS",
 ) -> dict[str, Any]:
     """
-    Determine the appropriate AAROH response
-    from the current risk state.
-
-    This is an operational decision layer,
-    not a clinical diagnosis.
+    Determines recommended operational intervention by delegating to InterventionEngine.
+    Enforces consent gating and uncertainty safety (LOW_CONFIDENCE/ABSTAINED -> PRIORITY_HUMAN_REVIEW).
     """
-
-    if not monitoring_consent:
-        return {
-            "intervention_type": "NO_AUTOMATED_INTERVENTION",
-            "priority": "NONE",
-            "reason": "Monitoring consent is not available."
-        }
-
-    # -----------------------------------------
-    # HIGH ESCALATION
-    # -----------------------------------------
-
-    if (
-        risk_level == "HIGH"
-        or escalation_probability >= 0.75
-        or trajectory == "RAPIDLY_WORSENING"
-    ):
-        return {
-            "intervention_type": "PRIORITY_HUMAN_REVIEW",
-            "priority": "URGENT",
-            "reason": (
-                "High-risk or rapidly worsening indicators "
-                "require priority human review."
-            )
-        }
-
-    # -----------------------------------------
-    # MODERATE ESCALATION
-    # -----------------------------------------
-
-    if (
-        risk_level == "MODERATE"
-        or escalation_probability >= 0.40
-        or trajectory == "WORSENING"
-    ):
-        return {
-            "intervention_type": "HUMAN_FOLLOW_UP",
-            "priority": "HIGH",
-            "reason": (
-                "Elevated distress or worsening trajectory "
-                "requires human follow-up."
-            )
-        }
-
-    # -----------------------------------------
-    # IMPROVING
-    # -----------------------------------------
-
-    if trajectory in (
-        "IMPROVING",
-        "RAPIDLY_IMPROVING"
-    ):
-        return {
-            "intervention_type": "CONTINUE_MONITORING",
-            "priority": "LOW",
-            "reason": (
-                "Distress trajectory is improving; "
-                "continue monitoring."
-            )
-        }
-
-    # -----------------------------------------
-    # LOW / STABLE
-    # -----------------------------------------
-
+    engine = InterventionEngine()
+    decision = engine.evaluate(
+        case_id="TEMP-CASE",
+        risk_level=risk_level,
+        escalation_probability=escalation_probability,
+        trajectory=trajectory,
+        confidence=confidence,
+        monitoring_consent=monitoring_consent,
+        ml_status=ml_status,
+    )
     return {
-        "intervention_type": "ROUTINE_MONITORING",
-        "priority": "ROUTINE",
+        "intervention_type": decision.intervention_type.value,
+        "priority": decision.priority.value,
         "reason": (
-            "No significant escalation signal detected; "
-            "continue routine monitoring."
-        )
+            decision.reason.abstention_reason
+            if decision.reason.abstention_reason
+            else f"Risk Level: {risk_level}, Trajectory: {trajectory}, Escalation Probability: {escalation_probability:.2f}"
+        ),
+        "suggested_categories": [c.value for c in decision.suggested_categories],
     }
 
 
-def create_intervention(case_id):
+def create_intervention(case_id: int | str) -> dict[str, Any]:
     """
-    Generate and persist the recommended intervention
-    for a case using its latest prediction and distress state.
+    Generates and persists the recommended intervention in PostgreSQL
+    using the full operational workflow.
     """
-
     db = SessionLocal()
-
     try:
-
-        # -----------------------------------------
-        # GET CASE
-        # -----------------------------------------
-
-        case = (
-            db.query(Case)
-            .filter(Case.id == case_id)
-            .first()
-        )
-
-        if not case:
-            raise ValueError(
-                f"Case {case_id} not found."
-            )
-
-        # -----------------------------------------
-        # GET LATEST PREDICTION
-        # -----------------------------------------
-
-        prediction = (
-            db.query(Prediction)
-            .filter(
-                Prediction.case_id == case_id
-            )
-            .order_by(
-                Prediction.prediction_date.desc()
-            )
-            .first()
-        )
-
-        if not prediction:
-            raise ValueError(
-                f"No prediction available for case {case_id}."
-            )
-
-        # -----------------------------------------
-        # GET LATEST CONSENT
-        # -----------------------------------------
-
-        consent = (
-            db.query(Consent)
-            .filter(
-                Consent.case_id == case_id
-            )
-            .order_by(
-                Consent.id.desc()
-            )
-            .first()
-        )
-
-        monitoring_consent = cast(
-            bool,
-            case.monitoring_consent
-            if consent is None
-            else consent.monitoring_consent
-        )
-
-        # -----------------------------------------
-        # GET CURRENT TRAJECTORY
-        # -----------------------------------------
-
-        distress_state = (
-            db.query(DistressState)
-            .filter(
-                DistressState.case_id == case_id
-            )
-            .order_by(
-                DistressState.observation_date.desc()
-            )
-            .first()
-        )
-
-        trajectory = cast(
-            str,
-            distress_state.trajectory
-            if distress_state
-            else "STABLE"
-        )
-
-        # -----------------------------------------
-        # DETERMINE RISK LEVEL
-        # -----------------------------------------
-
-        probability = cast(
-            float,
-            prediction.escalation_probability
-            if prediction.escalation_probability is not None
-            else 0.0
-        )
-
-        if probability >= 0.75:
-            risk_level = "HIGH"
-
-        elif probability >= 0.40:
-            risk_level = "MODERATE"
-
-        else:
-            risk_level = "LOW"
-
-        # -----------------------------------------
-        # DETERMINE INTERVENTION
-        # -----------------------------------------
-
-        decision = determine_intervention(
-            risk_level=risk_level,
-            escalation_probability=probability,
-            trajectory=trajectory,
-            monitoring_consent=monitoring_consent
-        )
-
-        # -----------------------------------------
-        # PREVENT DUPLICATE PENDING INTERVENTIONS
-        # -----------------------------------------
-
-        existing_intervention = (
-            db.query(Intervention)
-            .filter(
-                Intervention.case_id == case_id,
-                Intervention.status == "PENDING",
-                Intervention.intervention_type
-                == decision["intervention_type"]
-            )
-            .order_by(
-                Intervention.id.desc()
-            )
-            .first()
-        )
-
-        if existing_intervention:
-
-            return {
-                "intervention_id": existing_intervention.id,
-                "case_id": case_id,
-                "intervention_type": (
-                    existing_intervention.intervention_type
-                ),
-                "priority": decision["priority"],
-                "status": existing_intervention.status,
-                "reason": decision["reason"],
-                "trajectory": trajectory,
-                "escalation_probability": probability,
-                "existing": True
-            }
-
-        # -----------------------------------------
-        # CREATE NEW INTERVENTION
-        # -----------------------------------------
-
-        intervention = Intervention(
-            case_id=case_id,
-            intervention_type=decision[
-                "intervention_type"
-            ],
-            status="PENDING",
-            assigned_to=None
-        )
-
-        db.add(intervention)
-        db.commit()
-        db.refresh(intervention)
-
-        return {
-            "intervention_id": intervention.id,
-            "case_id": case_id,
-            "intervention_type": (
-                decision["intervention_type"]
-            ),
-            "priority": decision["priority"],
-            "status": intervention.status,
-            "reason": decision["reason"],
-            "trajectory": trajectory,
-            "escalation_probability": probability,
-            "existing": False
-        }
-
+        res = db_operational_service.process_case_intervention(db, case_id)
+        # Adapt keys for backward compatibility with legacy scripts
+        res["existing"] = res.get("is_duplicate", False)
+        return res
     except Exception:
-
         db.rollback()
         raise
-
     finally:
-
         db.close()

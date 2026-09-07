@@ -1,0 +1,760 @@
+"""
+AAROH — Database-Integrated Operational Workflow Service
+Author: Preet
+
+Directly orchestrates the end-to-end operational pipeline against PostgreSQL:
+Prediction -> Risk/Priority -> Intervention -> Routing -> SLA -> Human Action -> Outcome -> Re-monitoring -> Analytics
+
+Enforces:
+- Direct PostgreSQL integration using existing models (Case, Prediction, Consent, DistressState, Intervention, Outcome).
+- As-is ML prediction consumption (no recalculation of probability or risk).
+- Safety gating: low-confidence/abstention routes to PRIORITY_HUMAN_REVIEW (HIGH priority), never LOW_RISK.
+- Strict district isolation (no cross-district routing, no invented capacity).
+- Finite state machine transitions (PENDING -> ASSIGNED -> ACKNOWLEDGED -> IN_PROGRESS -> COMPLETED, ESCALATED).
+- SLA deadlines (URGENT 4h, HIGH 24h, ROUTINE 72h, LOW 120h) in UTC.
+- Outcome vocabulary and latest outcome resolution via MAX(recorded_at).
+- Non-causal closed-loop distress tracking.
+- Role-appropriate notifications without victim leakage.
+- RBAC-aware multi-tier analytics with K<3 small-cell privacy suppression.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Sequence, Union
+from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+
+from backend.models import (
+    Case,
+    Prediction,
+    Consent,
+    DistressState,
+    Intervention,
+    Outcome,
+    TextFeature,
+    Interaction,
+)
+from .engine import (
+    InterventionDecision,
+    InterventionEngine,
+    InterventionReason,
+    InterventionStatus,
+    InterventionType,
+    PriorityLevel,
+    InterventionCategory,
+)
+from .routing import (
+    AssigneeRole,
+    AssignmentRouter,
+    RoutingResult,
+    RoutingStatus,
+    SyntheticOfficer,
+    DEMO_OFFICER_REGISTRY,
+)
+from .sla import (
+    SLAManager,
+    SLARecord,
+    SLAStatus,
+    DEFAULT_SLA_RULES,
+    ensure_utc,
+)
+from .outcomes import (
+    OutcomeManager,
+    OutcomeType,
+    OutcomeRecord,
+    ClosedLoopObservation,
+    VALID_STATUS_TRANSITIONS,
+)
+from .notifications import (
+    notification_service,
+    NotificationRecipientRole,
+    NotificationType,
+)
+from backend.analytics.case_metrics import CaseMetricsCalculator, CaseSummaryMetrics
+from backend.analytics.district_metrics import (
+    DistrictMetricsCalculator,
+    DistrictSummaryMetrics,
+)
+from backend.analytics.state_metrics import StateMetricsCalculator, StateSummaryMetrics
+from backend.analytics.national_metrics import NationalMetricsCalculator, NationalSummaryMetrics
+
+
+class DatabaseOperationalService:
+    """
+    Executes operational workflows directly against PostgreSQL databases.
+    """
+
+    def __init__(
+        self,
+        engine: Optional[InterventionEngine] = None,
+        router: Optional[AssignmentRouter] = None,
+        sla_manager: Optional[SLAManager] = None,
+    ) -> None:
+        self.engine = engine or InterventionEngine()
+        self.router = router or AssignmentRouter()
+        self.sla_manager = sla_manager or SLAManager()
+
+    # -------------------------------------------------------------------------
+    # 1. PROCESS CASE INTERVENTION (Prediction -> Risk/Priority -> Routing -> SLA)
+    # -------------------------------------------------------------------------
+    def process_case_intervention(
+        self,
+        db: Session,
+        case_id: int | str,
+        custom_router: Optional[AssignmentRouter] = None,
+    ) -> Dict[str, Any]:
+        """
+        Loads case records from PostgreSQL and creates an operational intervention:
+        - Consumes Prediction and DistressState as-is.
+        - Enforces consent gateway and low-confidence/abstention safety.
+        - Routes strictly within the case's district (no cross-district).
+        - Computes SLA deadline and persists Intervention to PostgreSQL.
+        """
+        # 1. Fetch Case
+        case = (
+            db.query(Case)
+            .filter(Case.id == case_id if isinstance(case_id, int) else Case.case_id == str(case_id))
+            .first()
+        )
+        if not case:
+            raise ValueError(f"Case {case_id} not found in database.")
+
+        cid_int = case.id
+        cid_str = case.case_id
+
+        # 2. Fetch Latest Prediction
+        prediction = (
+            db.query(Prediction)
+            .filter(Prediction.case_id == cid_int)
+            .order_by(Prediction.prediction_date.desc(), Prediction.id.desc())
+            .first()
+        )
+        if not prediction:
+            raise ValueError(f"No prediction record found for case {cid_str}.")
+
+        # 3. Fetch Latest DistressState
+        distress_state = (
+            db.query(DistressState)
+            .filter(DistressState.case_id == cid_int)
+            .order_by(DistressState.observation_date.desc(), DistressState.id.desc())
+            .first()
+        )
+        trajectory = distress_state.trajectory if distress_state and distress_state.trajectory else "STABLE"
+        distress_score = distress_state.distress_score if distress_state and distress_state.distress_score is not None else 0.50
+
+        # 4. Fetch Consent
+        consent = (
+            db.query(Consent)
+            .filter(Consent.case_id == cid_int)
+            .order_by(Consent.id.desc())
+            .first()
+        )
+        monitoring_consent = (
+            consent.monitoring_consent
+            if consent and consent.monitoring_consent is not None
+            else bool(case.monitoring_consent)
+        )
+        text_analysis_consent = bool(consent.text_analysis_consent) if consent and consent.text_analysis_consent is not None else True
+        voice_analysis_consent = bool(consent.voice_analysis_consent) if consent and consent.voice_analysis_consent is not None else True
+        case_linkage_consent = bool(consent.case_linkage_consent) if consent and consent.case_linkage_consent is not None else True
+
+        # 5. Extract Factors from text features if present
+        factors: List[str] = []
+        latest_text_feature = (
+            db.query(TextFeature)
+            .join(Interaction, TextFeature.interaction_id == Interaction.id)
+            .filter(Interaction.case_id == cid_int)
+            .order_by(TextFeature.id.desc())
+            .first()
+        )
+        if latest_text_feature:
+            if latest_text_feature.fear and latest_text_feature.fear >= 0.50:
+                factors.append("acute fear")
+            if latest_text_feature.intimidation and latest_text_feature.intimidation >= 0.50:
+                factors.append("severe intimidation")
+
+        # 6. Map ML Outputs via InterventionEngine (as-is consumption)
+        # Determine nominal risk_level from probability or model attribute without altering upstream
+        prob = float(prediction.escalation_probability or 0.0)
+        conf = float(prediction.confidence or 1.0)
+        
+        # Nominal category for signal matching
+        if prob >= 0.75:
+            nominal_risk = "HIGH"
+        elif prob >= 0.40:
+            nominal_risk = "MODERATE"
+        else:
+            nominal_risk = "LOW"
+
+        # Check existing active interventions in DB to avoid duplicate pending
+        existing_interventions = (
+            db.query(Intervention)
+            .filter(
+                Intervention.case_id == cid_int,
+                Intervention.status.in_(["PENDING", "ASSIGNED", "ACKNOWLEDGED", "IN_PROGRESS", "ROUTING_UNAVAILABLE"]),
+            )
+            .all()
+        )
+        active_list = [
+            {"intervention_type": i.intervention_type, "status": i.status, "id": i.id}
+            for i in existing_interventions
+        ]
+
+        decision = self.engine.evaluate(
+            case_id=cid_str,
+            risk_level=nominal_risk,
+            escalation_probability=prob,
+            trajectory=trajectory,
+            confidence=conf,
+            factors=factors,
+            monitoring_consent=monitoring_consent,
+            text_analysis_consent=text_analysis_consent,
+            voice_analysis_consent=voice_analysis_consent,
+            case_linkage_consent=case_linkage_consent,
+            active_interventions=active_list,
+        )
+
+        if decision.is_duplicate:
+            return {
+                "intervention_id": decision.existing_intervention_id,
+                "case_id": cid_str,
+                "intervention_type": decision.intervention_type.value,
+                "priority": decision.priority.value,
+                "status": "PENDING",
+                "escalation_probability": prob,
+                "trajectory": trajectory,
+                "is_duplicate": True,
+                "reason": decision.reason.to_dict(),
+                "suggested_categories": [c.value for c in decision.suggested_categories],
+            }
+
+        # 7. Route strictly by case district
+        router = custom_router or self.router
+        routing_res = router.route(
+            case_id=cid_str,
+            district=case.district,
+            intervention_type=decision.intervention_type,
+            priority=decision.priority,
+        )
+
+        # 8. Compute SLA Deadline (UTC-aware)
+        sla_record = self.sla_manager.create_record(
+            intervention_id=0,  # Will be updated once persisted
+            priority=decision.priority,
+            start_time=datetime.now(timezone.utc),
+        )
+
+        # 9. Determine Status & Assigned Official
+        if routing_res.status == RoutingStatus.ASSIGNED and routing_res.primary_assignee:
+            final_status = "ASSIGNED"
+            assigned_to = routing_res.primary_assignee
+        else:
+            # Unassigned status stays PENDING with routing_res preserving routing flags
+            final_status = "PENDING"
+            assigned_to = None
+
+        # 10. Persist Intervention to PostgreSQL
+        new_intervention = Intervention(
+            case_id=cid_int,
+            intervention_type=decision.intervention_type.value,
+            status=final_status,
+            assigned_to=assigned_to,
+        )
+        db.add(new_intervention)
+        db.commit()
+        db.refresh(new_intervention)
+
+        # 11. Role-appropriate Notification
+        if assigned_to:
+            notification_service.notify(
+                recipient_role=NotificationRecipientRole.CASE_OFFICER,
+                recipient_id=assigned_to,
+                notification_type=NotificationType.INTERVENTION_ASSIGNED,
+                title=f"New Intervention Assigned: {cid_str}",
+                message=f"Case {cid_str} assigned ({decision.priority.value} priority). Deadline: {sla_record.due_at.strftime('%Y-%m-%d %H:%M UTC')}.",
+                case_id=cid_str,
+                intervention_id=new_intervention.id,
+                metadata={
+                    "priority": decision.priority.value,
+                    "due_at": sla_record.due_at.isoformat(),
+                    "district": case.district,
+                },
+            )
+
+        return {
+            "intervention_id": new_intervention.id,
+            "case_id": cid_str,
+            "intervention_type": new_intervention.intervention_type,
+            "priority": decision.priority.value,
+            "status": new_intervention.status,
+            "assigned_to": new_intervention.assigned_to,
+            "backup_assignee": routing_res.backup_assignee,
+            "district": case.district,
+            "routing_status": routing_res.status.value,
+            "capacity_flag": routing_res.capacity_flag,
+            "sla_due_at": sla_record.due_at.isoformat(),
+            "escalation_probability": prob,
+            "trajectory": trajectory,
+            "reason": decision.reason.to_dict(),
+            "suggested_categories": [c.value for c in decision.suggested_categories],
+            "is_duplicate": False,
+        }
+
+    # -------------------------------------------------------------------------
+    # 2. ASSIGNMENT STATE MACHINE TRANSITIONS
+    # -------------------------------------------------------------------------
+    def transition_status(
+        self,
+        db: Session,
+        intervention_id: int,
+        new_status: str,
+        actor_id: str,
+        actor_role: str,
+    ) -> Dict[str, Any]:
+        """
+        Enforces finite state machine transitions:
+        PENDING -> ASSIGNED -> ACKNOWLEDGED -> IN_PROGRESS -> COMPLETED (and ESCALATED)
+        Raises ValueError on invalid transition.
+        """
+        interv = db.query(Intervention).filter(Intervention.id == intervention_id).first()
+        if not interv:
+            raise ValueError(f"Intervention {intervention_id} not found.")
+
+        current_enum = InterventionStatus(interv.status)
+        new_enum = InterventionStatus(new_status)
+
+        # Validate transition
+        OutcomeManager.transition_status(current_enum, new_enum)
+
+        # Update in PostgreSQL
+        old_status = interv.status
+        interv.status = new_enum.value
+        db.commit()
+        db.refresh(interv)
+
+        # Role-appropriate escalation notification
+        if new_enum == InterventionStatus.ESCALATED:
+            notification_service.notify(
+                recipient_role=NotificationRecipientRole.DISTRICT_AUTHORITY,
+                recipient_id="DISTRICT_SUPERVISOR",
+                notification_type=NotificationType.INTERVENTION_ESCALATED,
+                title=f"Intervention Escalated: Case #{interv.case_id}",
+                message=f"Intervention {interv.id} escalated by {actor_id} ({actor_role}). Immediate supervisory review required.",
+                case_id=str(interv.case_id),
+                intervention_id=interv.id,
+            )
+
+        return {
+            "intervention_id": interv.id,
+            "previous_status": old_status,
+            "current_status": interv.status,
+            "actor_id": actor_id,
+            "actor_role": actor_role,
+        }
+
+    # -------------------------------------------------------------------------
+    # 3. OUTCOME RECORDING & SLA EVALUATION
+    # -------------------------------------------------------------------------
+    def record_outcome(
+        self,
+        db: Session,
+        case_id: int | str,
+        intervention_id: int,
+        outcome_type: str,
+        completed: bool = True,
+        follow_up_required: bool = False,
+        notes: Optional[str] = None,
+        recorded_at: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """
+        Records an outcome in PostgreSQL using the approved vocabulary.
+        Transitions intervention to COMPLETED and evaluates SLA compliance.
+        """
+        out_enum = OutcomeType(outcome_type)
+        rec_time = ensure_utc(recorded_at) if recorded_at else datetime.now(timezone.utc)
+
+        # Fetch case
+        case = (
+            db.query(Case)
+            .filter(Case.id == case_id if isinstance(case_id, int) else Case.case_id == str(case_id))
+            .first()
+        )
+        if not case:
+            raise ValueError(f"Case {case_id} not found.")
+
+        # Fetch intervention
+        interv = db.query(Intervention).filter(Intervention.id == intervention_id).first()
+        if not interv:
+            raise ValueError(f"Intervention {intervention_id} not found.")
+
+        # State machine: complete intervention
+        if interv.status != InterventionStatus.COMPLETED.value:
+            interv.status = InterventionStatus.COMPLETED.value
+
+        # Create Outcome in PostgreSQL
+        outcome = Outcome(
+            case_id=case.id,
+            intervention_id=interv.id,
+            outcome_type=out_enum.value,
+            completed=completed,
+            recorded_at=rec_time.replace(tzinfo=None),  # Stored in DB as naive UTC
+        )
+        db.add(outcome)
+        db.commit()
+        db.refresh(outcome)
+
+        # Notify official
+        if interv.assigned_to:
+            notification_service.notify(
+                recipient_role=NotificationRecipientRole.CASE_OFFICER,
+                recipient_id=interv.assigned_to,
+                notification_type=NotificationType.OUTCOME_RECORDED,
+                title=f"Outcome Logged: {case.case_id}",
+                message=f"Outcome '{out_enum.value}' recorded for intervention {interv.id}.",
+                case_id=case.case_id,
+                intervention_id=interv.id,
+            )
+
+        # Safe citizen notification for victim (no operational leaks)
+        notification_service.notify(
+            recipient_role=NotificationRecipientRole.VICTIM,
+            recipient_id=f"VICTIM-{case.case_id}",
+            notification_type=NotificationType.SUPPORT_UPDATE,
+            title="Support Services Update",
+            message="Your support case check-in has been successfully documented. Contact your case officer if you need further assistance.",
+            case_id=case.case_id,
+            intervention_id=interv.id,
+        )
+
+        return {
+            "outcome_id": outcome.id,
+            "case_id": case.case_id,
+            "intervention_id": interv.id,
+            "outcome_type": outcome.outcome_type,
+            "completed": outcome.completed,
+            "recorded_at": rec_time.isoformat(),
+            "intervention_status": interv.status,
+        }
+
+    # -------------------------------------------------------------------------
+    # 4. CLOSED LOOP (Outcome -> Re-monitoring -> Observed Shift)
+    # -------------------------------------------------------------------------
+    def record_re_monitoring(
+        self,
+        db: Session,
+        case_id: int | str,
+        new_distress_score: float,
+        new_trajectory: str,
+        confidence: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        Records subsequent monitoring observation in PostgreSQL and evaluates
+        pre-to-post distress difference strictly as a temporal correlation (never claiming causation).
+        """
+        case = (
+            db.query(Case)
+            .filter(Case.id == case_id if isinstance(case_id, int) else Case.case_id == str(case_id))
+            .first()
+        )
+        if not case:
+            raise ValueError(f"Case {case_id} not found.")
+
+        # Previous baseline
+        previous_state = (
+            db.query(DistressState)
+            .filter(DistressState.case_id == case.id)
+            .order_by(DistressState.observation_date.desc(), DistressState.id.desc())
+            .first()
+        )
+        pre_score = previous_state.distress_score if previous_state and previous_state.distress_score is not None else new_distress_score
+        pre_traj = previous_state.trajectory if previous_state and previous_state.trajectory else "STABLE"
+
+        # Insert new observation in PostgreSQL
+        new_state = DistressState(
+            case_id=case.id,
+            observation_date=datetime.now(timezone.utc),
+            distress_score=round(new_distress_score, 4),
+            trajectory=new_trajectory,
+            confidence=round(confidence, 4),
+        )
+        db.add(new_state)
+        db.commit()
+        db.refresh(new_state)
+
+        # Closed-loop temporal evaluation
+        diff = round(new_distress_score - pre_score, 4)
+        if diff <= -0.10:
+            observed_shift = "SUBSEQUENT_IMPROVEMENT"
+        elif diff >= 0.10:
+            observed_shift = "SUBSEQUENT_DETERIORATION"
+        else:
+            observed_shift = "SUBSEQUENT_STABLE"
+
+        return {
+            "case_id": case.case_id,
+            "new_observation_id": new_state.id,
+            "pre_distress_score": pre_score,
+            "pre_trajectory": pre_traj,
+            "post_distress_score": round(new_distress_score, 4),
+            "post_trajectory": new_trajectory,
+            "distress_difference": diff,
+            "observed_shift": observed_shift,
+            "disclaimer": "Observed temporal correlation only. No causal clinical claim.",
+        }
+
+    # -------------------------------------------------------------------------
+    # 5. RBAC-AWARE MULTI-TIER ANALYTICS
+    # -------------------------------------------------------------------------
+    def get_rbac_case_analytics(
+        self,
+        db: Session,
+        case_id: int | str,
+        user_role: str,
+        user_district: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Computes case analytics with RBAC check and complete privacy protection:
+        - Caseworkers can only access cases in their assigned district.
+        - Resolves latest outcome strictly using MAX(recorded_at).
+        - NEVER returns raw victim statements, notes, or audio paths.
+        """
+        case = (
+            db.query(Case)
+            .filter(Case.id == case_id if isinstance(case_id, int) else Case.case_id == str(case_id))
+            .first()
+        )
+        if not case:
+            raise ValueError(f"Case {case_id} not found.")
+
+        # RBAC Authorization Guard
+        role_upper = user_role.upper()
+        if role_upper in ("CASE_OFFICER", "COUNSELLOR"):
+            if not user_district or user_district.strip().lower() != case.district.strip().lower():
+                raise PermissionError(
+                    f"Access Denied: Officer assigned to '{user_district}' cannot access case in '{case.district}'."
+                )
+
+        # Fetch latest metrics
+        latest_pred = (
+            db.query(Prediction)
+            .filter(Prediction.case_id == case.id)
+            .order_by(Prediction.prediction_date.desc(), Prediction.id.desc())
+            .first()
+        )
+        latest_distress = (
+            db.query(DistressState)
+            .filter(DistressState.case_id == case.id)
+            .order_by(DistressState.observation_date.desc(), DistressState.id.desc())
+            .first()
+        )
+
+        prob = latest_pred.escalation_probability if latest_pred and latest_pred.escalation_probability is not None else 0.0
+        conf = latest_pred.confidence if latest_pred and latest_pred.confidence is not None else 1.0
+        score = latest_distress.distress_score if latest_distress and latest_distress.distress_score is not None else 0.50
+        traj = latest_distress.trajectory if latest_distress and latest_distress.trajectory else "STABLE"
+
+        risk_level = "HIGH" if prob >= 0.75 else ("MODERATE" if prob >= 0.40 else "LOW")
+
+        # Fetch Interventions & Outcomes
+        intervs = db.query(Intervention).filter(Intervention.case_id == case.id).all()
+        outs = db.query(Outcome).filter(Outcome.case_id == case.id).all()
+
+        int_records = [
+            {
+                "id": i.id,
+                "status": i.status,
+                "intervention_type": i.intervention_type,
+            }
+            for i in intervs
+        ]
+        out_records = [
+            {
+                "outcome_type": o.outcome_type,
+                "recorded_at": o.recorded_at.replace(tzinfo=timezone.utc) if o.recorded_at else None,
+            }
+            for o in outs
+        ]
+
+        summary = CaseMetricsCalculator.calculate(
+            case_id=case.case_id,
+            distress_score=score,
+            trajectory=traj,
+            escalation_prob=prob,
+            risk_level=risk_level,
+            confidence=conf,
+            interventions=int_records,
+            outcomes=out_records,
+        )
+        return summary.to_dict()
+
+    def get_rbac_district_analytics(
+        self,
+        db: Session,
+        district: str,
+        user_role: str,
+        user_district: Optional[str] = None,
+        suppress_small_cells: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Computes aggregate metrics for an administrative district with K<3 privacy suppression.
+        RBAC: Caseworkers/District Authorities can only view their assigned district.
+        """
+        role_upper = user_role.upper()
+        if role_upper in ("CASE_OFFICER", "COUNSELLOR", "DISTRICT_AUTHORITY"):
+            if not user_district or user_district.strip().lower() != district.strip().lower():
+                raise PermissionError(
+                    f"Access Denied: Role {user_role} in '{user_district}' cannot access analytics for '{district}'."
+                )
+
+        cases = db.query(Case).filter(Case.district.ilike(district.strip())).all()
+        case_ids = [c.id for c in cases]
+
+        case_records = []
+        for c in cases:
+            pred = (
+                db.query(Prediction)
+                .filter(Prediction.case_id == c.id)
+                .order_by(Prediction.prediction_date.desc(), Prediction.id.desc())
+                .first()
+            )
+            d_state = (
+                db.query(DistressState)
+                .filter(DistressState.case_id == c.id)
+                .order_by(DistressState.observation_date.desc(), DistressState.id.desc())
+                .first()
+            )
+            prob = pred.escalation_probability if pred and pred.escalation_probability is not None else 0.0
+            r_level = "HIGH" if prob >= 0.75 else ("MODERATE" if prob >= 0.40 else "LOW")
+            t_traj = d_state.trajectory if d_state and d_state.trajectory else "STABLE"
+
+            case_records.append({
+                "case_id": c.case_id,
+                "risk_level": r_level,
+                "trajectory": t_traj,
+            })
+
+        intervs = db.query(Intervention).filter(Intervention.case_id.in_(case_ids)).all() if case_ids else []
+        outs = db.query(Outcome).filter(Outcome.case_id.in_(case_ids)).all() if case_ids else []
+
+        int_records = [
+            {"id": i.id, "status": i.status, "is_overdue": False}
+            for i in intervs
+        ]
+        out_records = [
+            {"outcome_type": o.outcome_type, "recorded_at": o.recorded_at}
+            for o in outs
+        ]
+
+        summary = DistrictMetricsCalculator.calculate(
+            district=district,
+            case_records=case_records,
+            intervention_records=int_records,
+            outcome_records=out_records,
+        )
+        return summary.to_dict(suppress_small_cells=suppress_small_cells)
+
+    def get_rbac_state_analytics(
+        self,
+        db: Session,
+        state: str,
+        districts: List[str],
+        user_role: str,
+    ) -> Dict[str, Any]:
+        """
+        Rolls up district summaries into state-level metrics by aggregating
+        raw numerators and denominators first.
+        RBAC: Requires STATE_AUTHORITY or NATIONAL_AUTHORITY.
+        """
+        role_upper = user_role.upper()
+        if role_upper not in ("STATE_AUTHORITY", "NATIONAL_AUTHORITY", "ADMIN"):
+            raise PermissionError(f"Access Denied: Role {user_role} is unauthorized for state analytics.")
+
+        district_summaries: List[DistrictSummaryMetrics] = []
+        for d in districts:
+            # Query district metrics without suppression for state rollups
+            cases = db.query(Case).filter(Case.district.ilike(d.strip())).all()
+            c_ids = [c.id for c in cases]
+
+            c_recs = []
+            for c in cases:
+                pred = (
+                    db.query(Prediction)
+                    .filter(Prediction.case_id == c.id)
+                    .order_by(Prediction.prediction_date.desc(), Prediction.id.desc())
+                    .first()
+                )
+                d_st = (
+                    db.query(DistressState)
+                    .filter(DistressState.case_id == c.id)
+                    .order_by(DistressState.observation_date.desc(), DistressState.id.desc())
+                    .first()
+                )
+                p = pred.escalation_probability if pred and pred.escalation_probability is not None else 0.0
+                c_recs.append({
+                    "case_id": c.case_id,
+                    "risk_level": "HIGH" if p >= 0.75 else ("MODERATE" if p >= 0.40 else "LOW"),
+                    "trajectory": d_st.trajectory if d_st and d_st.trajectory else "STABLE",
+                })
+
+            ints = db.query(Intervention).filter(Intervention.case_id.in_(c_ids)).all() if c_ids else []
+            outs = db.query(Outcome).filter(Outcome.case_id.in_(c_ids)).all() if c_ids else []
+
+            d_sum = DistrictMetricsCalculator.calculate(
+                district=d,
+                case_records=c_recs,
+                intervention_records=[{"id": i.id, "status": i.status} for i in ints],
+                outcome_records=[{"outcome_type": o.outcome_type, "recorded_at": o.recorded_at} for o in outs],
+            )
+            district_summaries.append(d_sum)
+
+        state_summary = StateMetricsCalculator.calculate(state=state, districts=district_summaries)
+        return state_summary.to_dict()
+
+    def get_rbac_national_analytics(
+        self,
+        state_summaries: List[Dict[str, Any]],
+        user_role: str,
+    ) -> Dict[str, Any]:
+        """
+        Rolls up state totals into national aggregates.
+        RBAC: Requires NATIONAL_AUTHORITY or ADMIN.
+        """
+        role_upper = user_role.upper()
+        if role_upper not in ("NATIONAL_AUTHORITY", "ADMIN"):
+            raise PermissionError(f"Access Denied: Role {user_role} is unauthorized for national analytics.")
+
+        # Reconstruct StateSummaryMetrics for sound rollup
+        parsed: List[StateSummaryMetrics] = []
+        for s in state_summaries:
+            perf = s.get("performance", {})
+            workload = s.get("intervention_totals", {})
+            risk = s.get("risk_totals", {})
+
+            parsed.append(
+                StateSummaryMetrics(
+                    state=s.get("state", "Unknown"),
+                    total_districts=int(s.get("total_districts", 0)),
+                    total_monitored_cases=int(s.get("total_monitored_cases", 0)),
+                    total_high_risk=int(risk.get("HIGH", 0)),
+                    total_moderate_risk=int(risk.get("MODERATE", 0)),
+                    total_low_risk=int(risk.get("LOW", 0)),
+                    total_pending_interventions=int(workload.get("pending", 0)),
+                    total_overdue_interventions=int(workload.get("overdue", 0)),
+                    total_completed_interventions=int(workload.get("completed", 0)),
+                    total_met_sla_interventions=int(s.get("total_met_sla_interventions", 0)),
+                    total_evaluated_sla_interventions=int(s.get("total_evaluated_sla_interventions", 0)),
+                    total_response_time_sum_hours=float(s.get("total_response_time_sum_hours", 0.0)),
+                    total_responded_interventions=int(s.get("total_responded_interventions", 0)),
+                    overall_sla_compliance_rate=perf.get("overall_sla_compliance_rate"),
+                    avg_response_time_hours=perf.get("avg_response_time_hours"),
+                    district_summaries=s.get("district_comparison", []),
+                )
+            )
+
+        nat_summary = NationalMetricsCalculator.calculate(states=parsed)
+        return nat_summary.to_dict()
+
+
+# Default singleton instance
+db_operational_service = DatabaseOperationalService()

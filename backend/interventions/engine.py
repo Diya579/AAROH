@@ -161,13 +161,14 @@ class InterventionEngine:
                 abstention_reason="Monitoring consent is absent or revoked; automated intervention blocked.",
                 consent_status=consent_map,
             )
-            return InterventionDecision(
+            decision = InterventionDecision(
                 case_id=case_id,
                 intervention_type=InterventionType.NO_AUTOMATED_INTERVENTION,
                 priority=PriorityLevel.NONE,
                 reason=reason,
                 suggested_categories=[],
             )
+            return self._check_duplicates(decision, active_interventions)
 
         # 2. ABSTENTION & LOW-CONFIDENCE CHECK
         # Never convert uncertainty into low risk. Require human review.
@@ -303,7 +304,7 @@ class InterventionEngine:
             int_type = intervention.get("intervention_type")
 
             # Active statuses that block duplicate creation
-            if status in ("PENDING", "ASSIGNED", "ACKNOWLEDGED", "IN_PROGRESS"):
+            if status in ("PENDING", "ASSIGNED", "ACKNOWLEDGED", "IN_PROGRESS", "ROUTING_UNAVAILABLE"):
                 if int_type == decision.intervention_type.value:
                     decision.is_duplicate = True
                     decision.existing_intervention_id = intervention.get("id")

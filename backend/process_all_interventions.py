@@ -7,9 +7,14 @@ sys.path.append(
     )
 )
 
-from database import SessionLocal
-from models import Case
-from intervention_engine import create_intervention
+try:
+    from backend.database import SessionLocal
+    from backend.models import Case
+    from backend.intervention_engine import create_intervention
+except ImportError:
+    from database import SessionLocal
+    from models import Case
+    from intervention_engine import create_intervention
 
 
 def main():
