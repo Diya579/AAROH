@@ -321,6 +321,7 @@ hard-coded inside training or scoring logic in this package.
 ## Scope & Limits
 
 - Trained artifacts for production models (Slices 3.5–3.9) are located in `models/` and orchestrated via `backend.ml.inference.MLInferencePipeline` (documented in detail in `README_ML.md`).
+- **Runtime Representation Architecture**: Production inference executes deterministic mathematical representations, exported learned projection heads, and calibrated downstream ML models using the Python standard library. Transformer architectures are referenced during design/training only and are not instantiated during production inference.
 - No PostgreSQL access from within the ML package.
 - Existing `features/` and `risk/` behaviour is preserved.
 - When using Slice 1 `infer()` legacy entry point without estimators, it returns `status: FAILED` or `INSUFFICIENT_DATA`.

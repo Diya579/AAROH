@@ -95,25 +95,31 @@ backend/ml/training/models/
 
 ### Models & Invariants
 
+> [!NOTE]
+> **Production Architecture vs. Training References**: Transformer architectures (`distilbert-base-*`, `xlm-roberta-base`) are referenced during design and offline training. In the production inference runtime, models execute zero-dependency deterministic mathematical representations (lexicon and hash-based feature spaces), passing through exported learned projection heads and calibrated downstream ML models without instantiating neural transformer backbones.
+
 #### 1. Text Emotion Model
 - **Datasets**: GoEmotions (English) + EmoHinD / GoEmotions Hindi Adaptation (Devanagari).
-- **Backbone**: Default `distilbert-base-multilingual-cased` (or `xlm-roberta-base`).
+- **Design/Training Reference**: Default `distilbert-base-multilingual-cased` (or `xlm-roberta-base`).
+- **Production Representation**: Deterministic mathematical representation (MD5 hash pseudo-embeddings + multilingual lexicon counts) projected via exported learned linear weights (`models/text_emotion/pytorch_model.bin`).
 - **Outputs**:
   - `emotion_probabilities`: 28-class normalized emotion distribution.
   - `emotion_embedding`: 768-dim latent text representation vector.
 - **Strict Boundary**: Represents general emotional affect; does NOT predict AAROH clinical distress.
 
-#### 2. Stress Model
+#### 2. Stress Model (Offline Auxiliary)
 - **Dataset**: Dreaddit social media stress corpus.
-- **Backbone**: Default `distilbert-base-uncased`.
+- **Design/Training Reference**: Default `distilbert-base-uncased`.
+- **Production Status**: Offline evaluation model (Slice 3.3 auxiliary); not loaded during production inference pipeline.
 - **Outputs**:
   - `stress_probability`: Probability between 0.0 and 1.0 of linguistic stress.
   - `stress_embedding`: 768-dim latent text representation vector.
 - **Strict Invariant**: `stress_probability != distress_score`. Stress probability measures colloquial linguistic expression and is NEVER renamed or treated as clinical distress.
 
-#### 3. Mental Health Language Model
+#### 3. Mental Health Language Model (Offline Auxiliary)
 - **Dataset**: MindBridge screening language dataset.
-- **Backbone**: Default `distilbert-base-uncased`.
+- **Design/Training Reference**: Default `distilbert-base-uncased`.
+- **Production Status**: Offline evaluation model (Slice 3.3 auxiliary); not loaded during production inference pipeline.
 - **Outputs**:
   - `mental_health_embedding`: 768-dim L2-normalized latent vector.
 - **Strict Invariant**: Learns screening-oriented language representations only. Does NOT predict PHQ or GAD scores during inference. Does NOT perform clinical diagnoses.
@@ -132,10 +138,11 @@ backend/ml/training/models/audio_emotion/
 ```
 
 ### Architecture & Capabilities
-- **Backbone**: `facebook/wav2vec2-base` (768-dim latent space).
-- **Backbone Status**: **Frozen by default** (trains linear classification and projection heads only, ~6,152 parameters). Full fine-tuning can be enabled via `--unfreeze-backbone`.
+- **Design/Training Reference**: `facebook/wav2vec2-base` (768-dim latent space referenced during design/training).
+- **Production Representation**: Production inference executes deterministic mathematical acoustic representations (deterministic time-domain/spectral features and statistical summaries) projected via exported learned linear weights (`models/audio_emotion/pytorch_model.bin`), requiring no neural transformer backbones or PyTorch.
+- **Backbone Status (Training)**: Frozen by default (trains linear classification and projection heads only, ~6,152 parameters). Full fine-tuning can be enabled via `--unfreeze-backbone` during offline GPU training.
 - **Audio Preprocessing**:
-  - Resampling to 16,000 Hz mono (via `torchaudio`/`librosa` with deterministic interpolation fallback).
+  - Resampling to 16,000 Hz mono (via standard library wave parsing / deterministic interpolation fallback).
   - Amplitude normalization to $[-1.0, 1.0]$.
   - Fixed-length padding or center truncation to 80,000 samples (5.0 seconds).
   - **Lazy Loading**: Audio waveforms are read from disk during iteration to preserve RAM.
@@ -188,15 +195,16 @@ backend/ml/training/models/fusion/
   Maps $h_{\text{fused}} \to \hat{x}_{\text{tab}} \in \mathbb{R}^{60}$, optimizing masked Mean Squared Error (MSE) over observed tabular signals during representation training.
 
 ### Explicit Execution Modes
-1. **`FALLBACK` Mode**:
-   - Executes lightweight pure-Python mathematical forward/backward propagation without requiring PyTorch or HuggingFace transformers.
-   - Pretrained transformer backbones are **referenced in configuration only** and are **NOT instantiated in memory**.
+1. **`FALLBACK` Mode (Production Default)**:
+   - The verified production runtime architecture. Executes lightweight pure-Python mathematical forward propagation using exported learned projection heads and calibrated downstream ML models without requiring PyTorch, HuggingFace transformers, or GPU acceleration.
+   - Pretrained transformer backbones are **referenced during design/training only** and are **NOT loaded or executed in production inference**.
+   - Production uses deterministic mathematical representations, exported learned projection heads, and calibrated downstream ML models.
    - Parameters actually instantiated: **332,223** (trainable projection and fusion heads only).
-2. **`PYTORCH_FROZEN` Mode**:
+2. **`PYTORCH_FROZEN` Mode (Offline Training Option)**:
    - Instantiates configured HuggingFace backbones (`distilbert-base-multilingual-cased` and `facebook/wav2vec2-base`).
    - Freezes all backbone parameters (`requires_grad=False`, 229,774,080 parameters).
    - Trains only the 332,223 fusion head parameters.
-3. **`PYTORCH_FINETUNE` Mode**:
+3. **`PYTORCH_FINETUNE` Mode (Offline Training Option)**:
    - Instantiates backbones and unfreezes them (`requires_grad=True` when `--unfreeze-backbone` is passed).
    - Trains all 230,106,303 parameters end-to-end on GPU.
 
@@ -435,9 +443,9 @@ The strict hierarchical pipeline flows as follows:
 ```
 MLInput (Slice 3.1)
   │
-  ├── Representation Models (Slice 3.3 / 3.4)
-  │     ├── Text: DistilBERT (Emotion 7-dim, Stress 2-dim, Mental Health 768-dim)
-  │     └── Audio: Wav2Vec2 (8-dim probabilities, 768-dim embedding)
+  ├── Representation Encoders (Slice 3.3 / 3.4)
+  │     ├── Text: Deterministic mathematical representation (Emotion 7-dim, 768-dim embedding; DistilBERT referenced in design/training)
+  │     └── Audio: Deterministic acoustic representation (8-dim probabilities, 768-dim embedding; Wav2Vec2 referenced in design/training)
   │
   └── Multimodal Feature Fusion (Slice 3.5)
         ├── Dynamic modality gating (tabular, text, audio)
@@ -581,6 +589,9 @@ result = model.predict_escalation(record)
 ---
 
 ## 10. Training & Evaluation Workflows (Google Colab Ready)
+
+> [!NOTE]
+> **Offline Training vs. Production Inference**: The training commands below demonstrate offline experimental/GPU training workflows (e.g. on Google Colab). Transformer architectures are referenced during design and offline training. The production inference pipeline (`pipeline.run()`) does NOT execute these transformer backbones; it operates exclusively on deterministic mathematical representations, exported learned projection heads, and calibrated downstream ML models using the Python standard library.
 
 All training scripts feature Google Colab compatible settings (`fp16`, gradient accumulation, early stopping, Google Drive checkpointing, and `seed=42`).
 
