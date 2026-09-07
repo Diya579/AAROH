@@ -15,6 +15,9 @@ This conftest applies to every test under backend/tests/ automatically.
 import sys
 import os
 
+os.environ["AAROH_AUTH_MODE"] = "dev"
+os.environ["AAROH_SESSION_SECRET"] = "dummy-secret-for-tests"
+
 # Ensure the project root is on sys.path so that `backend.*` imports resolve.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 

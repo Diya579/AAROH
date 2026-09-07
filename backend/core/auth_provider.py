@@ -170,3 +170,72 @@ class FakeAuthProvider:
 
     def authenticate(self, request: Request) -> AuthenticatedUser:
         return self._user
+
+
+# ---------------------------------------------------------------------------
+# SessionAuthProvider — production auth provider
+# ---------------------------------------------------------------------------
+
+class SessionAuthProvider:
+    """
+    Production authentication provider.
+    
+    Reads the aaroh_session cookie, validates the signed session ID,
+    looks up the session in the DB, checks expiry, and resolves
+    the User -> AuthenticatedUser.
+    """
+    
+    def authenticate(self, request: Request) -> AuthenticatedUser:
+        from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+        from backend.core.config import settings
+        from backend.database import SessionLocal
+        from backend.models import SessionRecord, User
+        from datetime import datetime
+
+        cookie = request.cookies.get("aaroh_session")
+        if not cookie:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. No session cookie found.",
+            )
+
+        signer = URLSafeTimedSerializer(settings.session_secret_key)
+        try:
+            session_id = signer.loads(cookie, max_age=settings.session_expiry_hours * 3600)
+        except (BadSignature, SignatureExpired):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired session cookie.",
+            )
+
+        db = SessionLocal()
+        try:
+            session_rec = db.query(SessionRecord).filter(SessionRecord.id == session_id).first()
+            if not session_rec or not session_rec.is_active or session_rec.expires_at < datetime.utcnow():
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session is invalid or expired.",
+                )
+            
+            user = db.query(User).filter(User.id == session_rec.user_id).first()
+            if not user or not user.active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User account is inactive.",
+                )
+            
+            # Map User -> AuthenticatedUser
+            auth_id = str(user.id)
+            if user.role in ("VICTIM", "USER") and user.case_id_ref:
+                auth_id = user.case_id_ref
+            elif user.role == "COUNSELLOR":
+                auth_id = user.username
+                
+            return AuthenticatedUser(
+                id=auth_id,
+                role=user.role,
+                district=user.district,
+                state=user.state
+            )
+        finally:
+            db.close()

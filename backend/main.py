@@ -24,6 +24,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from backend.core.config import settings
 from backend.api.v1.router import router as v1_router
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # ---------------------------------------------------------------------------
 # Global Middleware
 # ---------------------------------------------------------------------------
@@ -41,6 +43,20 @@ async def request_id_middleware(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     return response
 
+async def csrf_middleware(request: Request, call_next):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and getattr(settings, "auth_mode", "session") != "dev":
+        # Exempt login from CSRF check because it issues the token
+        if not request.url.path.endswith("/api/v1/auth/login"):
+            cookie_csrf = request.cookies.get("aaroh_csrf_token")
+            header_csrf = request.headers.get("X-CSRF-Token")
+            
+            if not cookie_csrf or not header_csrf or cookie_csrf != header_csrf:
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={"error": {"code": "CSRF_ERROR", "message": "Missing or invalid CSRF token"}},
+                )
+    return await call_next(request)
+
 # ---------------------------------------------------------------------------
 # Create the FastAPI application instance
 # ---------------------------------------------------------------------------
@@ -57,6 +73,14 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ---------------------------------------------------------------------------
 # Mount the versioned API router.
 # All health/readiness endpoints live at:
@@ -66,6 +90,7 @@ app = FastAPI(
 
 app.include_router(v1_router, prefix=settings.api_v1_prefix)
 
+app.middleware("http")(csrf_middleware)
 app.middleware("http")(request_id_middleware)
 
 # ---------------------------------------------------------------------------

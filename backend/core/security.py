@@ -31,11 +31,15 @@ def get_auth_provider() -> AuthProvider:
     """
     Returns the active authentication provider.
 
-    In production this returns DevAuthProvider.
+    In production this returns SessionAuthProvider.
     Tests override this via:
         app.dependency_overrides[get_auth_provider] = lambda: FakeAuthProvider(user)
     """
-    return DevAuthProvider()
+    from backend.core.config import settings
+    if settings.auth_mode == "dev":
+        return DevAuthProvider()
+    from backend.core.auth_provider import SessionAuthProvider
+    return SessionAuthProvider()
 
 
 # ---------------------------------------------------------------------------

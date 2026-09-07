@@ -436,4 +436,28 @@ class Notification(Base):
 
     is_read           = Column(Boolean,  nullable=False, default=False)
     created_at        = Column(DateTime, nullable=False, server_default=func.now())
-    read_at           = Column(DateTime, nullable=True)
+    read_at           = Column(DateTime, nullable=True)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id            = Column(Integer, primary_key=True)
+    username      = Column(String(100), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    role          = Column(String(50), nullable=False)
+    district      = Column(String(100), nullable=True)
+    state         = Column(String(100), nullable=True)
+    case_id_ref   = Column(String(50), unique=True, nullable=True)
+    active        = Column(Boolean, nullable=False, default=True)
+    created_at    = Column(DateTime, nullable=False, server_default=func.now())
+
+
+class SessionRecord(Base):
+    __tablename__ = "sessions"
+
+    id           = Column(String(64), primary_key=True)
+    user_id      = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at   = Column(DateTime, nullable=False, server_default=func.now())
+    expires_at   = Column(DateTime, nullable=False)
+    is_active    = Column(Boolean, nullable=False, default=True)
