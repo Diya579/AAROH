@@ -54,14 +54,22 @@ def override_get_db():
 def setup_auth_db():
     """Setup the test database and wire it into the app."""
     Base.metadata.create_all(bind=engine)
+    
+    # Snapshot the original overrides to prevent leaking to other test files
+    old_overrides = app.dependency_overrides.copy()
+    
     app.dependency_overrides[get_db] = override_get_db
     
-    # We must remove the FakeAuthProvider override from conftest
+    # We must remove the FakeAuthProvider override from conftest for auth tests
     app.dependency_overrides.pop(get_auth_provider, None)
     
-    yield
-    
-    Base.metadata.drop_all(bind=engine)
+    try:
+        yield
+    finally:
+        Base.metadata.drop_all(bind=engine)
+        # Safely restore the exact overrides dictionary in-place
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(old_overrides)
 
 @pytest.fixture(autouse=True)
 def mock_session_local(monkeypatch):

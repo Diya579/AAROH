@@ -99,31 +99,37 @@ def test_idempotency_transaction_rollback(monkeypatch):
     from backend.core.auth_provider import FakeAuthProvider, AuthenticatedUser
     from backend.core.security import get_auth_provider
     from backend.main import app
-    app.dependency_overrides[get_auth_provider] = lambda: FakeAuthProvider(
-        AuthenticatedUser(id="admin", role="ADMIN", state=None, district=None)
-    )
     
-    from fastapi.testclient import TestClient
-    client_no_raise = TestClient(app, raise_server_exceptions=False)
-    
-    response = client_no_raise.post("/api/v1/interactions", json=payload, headers={"Idempotency-Key": "crash-test-key"})
-    
-    # The simulated crash happens in `execute_idempotent` during the final `db.commit()`.
-    # It bubbles up to the global generic_exception_handler, returning a 500.
-    assert response.status_code == 500
-    
-    # Now, unpatch commit so we can query properly
-    monkeypatch.undo()
-    
-    # 2. Query the database to PROVE the interaction was rolled back.
-    # The global exception handler does not explicitly call db.rollback() because
-    # FastAPI's request lifecycle manages the session via dependencies.
-    # Actually, if the transaction wasn't explicitly committed, it is rolled back when
-    # the session is closed!
-    from backend.models import Interaction
-    interactions = db.query(Interaction).filter(Interaction.case_id == new_case.id).all()
-    
-    assert len(interactions) == 0, "Domain record was left half-committed!"
-    
-    db.close()
+    old_overrides = app.dependency_overrides.copy()
+    try:
+        app.dependency_overrides[get_auth_provider] = lambda: FakeAuthProvider(
+            AuthenticatedUser(id="admin", role="ADMIN", state=None, district=None)
+        )
+        
+        from fastapi.testclient import TestClient
+        client_no_raise = TestClient(app, raise_server_exceptions=False)
+        
+        response = client_no_raise.post("/api/v1/interactions", json=payload, headers={"Idempotency-Key": "crash-test-key"})
+        
+        # The simulated crash happens in `execute_idempotent` during the final `db.commit()`.
+        # It bubbles up to the global generic_exception_handler, returning a 500.
+        assert response.status_code == 500
+        
+        # Now, unpatch commit so we can query properly
+        monkeypatch.undo()
+        
+        # 2. Query the database to PROVE the interaction was rolled back.
+        # The global exception handler does not explicitly call db.rollback() because
+        # FastAPI's request lifecycle manages the session via dependencies.
+        # Actually, if the transaction wasn't explicitly committed, it is rolled back when
+        # the session is closed!
+        from backend.models import Interaction
+        interactions = db.query(Interaction).filter(Interaction.case_id == new_case.id).all()
+        
+        assert len(interactions) == 0, "Domain record was left half-committed!"
+        
+    finally:
+        db.close()
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(old_overrides)
 

@@ -50,3 +50,18 @@ def install_fake_auth():
     yield
     # Clean up after session
     app.dependency_overrides.pop(get_auth_provider, None)
+
+
+@pytest.fixture(autouse=True)
+def isolate_dependency_overrides():
+    """
+    Function-scoped fixture to guarantee that NO test can leak its
+    app.dependency_overrides modifications to subsequent tests,
+    even if an assertion fails before it can clean up.
+    """
+    old_overrides = app.dependency_overrides.copy()
+    try:
+        yield
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(old_overrides)
