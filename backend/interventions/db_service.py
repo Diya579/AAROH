@@ -175,17 +175,26 @@ class DatabaseOperationalService:
                 factors.append("severe intimidation")
 
         # 6. Map ML Outputs via InterventionEngine (as-is consumption)
-        # Determine nominal risk_level from probability or model attribute without altering upstream
-        prob = float(prediction.escalation_probability or 0.0)
-        conf = float(prediction.confidence or 1.0)
-        
-        # Nominal category for signal matching
-        if prob >= 0.75:
-            nominal_risk = "HIGH"
-        elif prob >= 0.40:
-            nominal_risk = "MODERATE"
+        # Determine nominal risk_level without altering upstream; handle missing data safely
+        ml_status = "SUCCESS"
+        if prediction.escalation_probability is None or prediction.confidence is None:
+            ml_status = "INSUFFICIENT_DATA"
+            prob = 0.0
+            conf = 0.0
+            nominal_risk = "UNKNOWN"
         else:
-            nominal_risk = "LOW"
+            prob = float(prediction.escalation_probability)
+            conf = float(prediction.confidence)
+            if conf < self.engine.min_confidence_threshold:
+                ml_status = "LOW_CONFIDENCE"
+            
+            # Nominal category for signal matching
+            if prob >= 0.75:
+                nominal_risk = "HIGH"
+            elif prob >= 0.40:
+                nominal_risk = "MODERATE"
+            else:
+                nominal_risk = "LOW"
 
         # Check existing active interventions in DB to avoid duplicate pending
         existing_interventions = (
@@ -212,6 +221,7 @@ class DatabaseOperationalService:
             text_analysis_consent=text_analysis_consent,
             voice_analysis_consent=voice_analysis_consent,
             case_linkage_consent=case_linkage_consent,
+            ml_status=ml_status,
             active_interventions=active_list,
         )
 
@@ -222,6 +232,12 @@ class DatabaseOperationalService:
                 "intervention_type": decision.intervention_type.value,
                 "priority": decision.priority.value,
                 "status": "PENDING",
+                "assigned_to": None,
+                "backup_assignee": None,
+                "backup_officer": None,
+                "district": case.district,
+                "routing_status": "ROUTING_UNAVAILABLE",
+                "capacity_flag": False,
                 "escalation_probability": prob,
                 "trajectory": trajectory,
                 "is_duplicate": True,
@@ -290,10 +306,12 @@ class DatabaseOperationalService:
             "status": new_intervention.status,
             "assigned_to": new_intervention.assigned_to,
             "backup_assignee": routing_res.backup_assignee,
+            "backup_officer": routing_res.backup_assignee,
             "district": case.district,
             "routing_status": routing_res.status.value,
             "capacity_flag": routing_res.capacity_flag,
             "sla_due_at": sla_record.due_at.isoformat(),
+            "sla_hours": round((sla_record.due_at - sla_record.created_at).total_seconds() / 3600.0, 1),
             "escalation_probability": prob,
             "trajectory": trajectory,
             "reason": decision.reason.to_dict(),
@@ -311,15 +329,34 @@ class DatabaseOperationalService:
         new_status: str,
         actor_id: str,
         actor_role: str,
+        actor_district: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Enforces finite state machine transitions:
         PENDING -> ASSIGNED -> ACKNOWLEDGED -> IN_PROGRESS -> COMPLETED (and ESCALATED)
+        Raises PermissionError on unauthorized actors.
         Raises ValueError on invalid transition.
         """
+        ALLOWED_OFFICIAL_ROLES = {
+            "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
+            "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
+            "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+        }
+        if not actor_role or actor_role.upper() not in ALLOWED_OFFICIAL_ROLES:
+            raise PermissionError(f"Access Denied: Role '{actor_role}' is not authorized to transition interventions.")
+
         interv = db.query(Intervention).filter(Intervention.id == intervention_id).first()
         if not interv:
             raise ValueError(f"Intervention {intervention_id} not found.")
+
+        # Cross-district check for district-scoped actors
+        if actor_district:
+            case = db.query(Case).filter(Case.id == interv.case_id).first()
+            if case and actor_role.upper() in ("CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER"):
+                if actor_district.strip().lower() != case.district.strip().lower():
+                    raise PermissionError(
+                        f"Access Denied: Officer from '{actor_district}' cannot modify intervention for case in '{case.district}'."
+                    )
 
         current_enum = InterventionStatus(interv.status)
         new_enum = InterventionStatus(new_status)
@@ -366,11 +403,24 @@ class DatabaseOperationalService:
         follow_up_required: bool = False,
         notes: Optional[str] = None,
         recorded_at: Optional[datetime] = None,
+        officer_id: Optional[str] = None,
+        officer_role: Optional[str] = None,
+        officer_district: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Records an outcome in PostgreSQL using the approved vocabulary.
         Transitions intervention to COMPLETED and evaluates SLA compliance.
+        Raises PermissionError on unauthorized actors.
+        Raises ValueError on invalid state machine jumps.
         """
+        ALLOWED_OFFICIAL_ROLES = {
+            "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
+            "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
+            "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+        }
+        if officer_role and officer_role.upper() not in ALLOWED_OFFICIAL_ROLES:
+            raise PermissionError(f"Access Denied: Role '{officer_role}' is not authorized to record outcomes.")
+
         out_enum = OutcomeType(outcome_type)
         rec_time = ensure_utc(recorded_at) if recorded_at else datetime.now(timezone.utc)
 
@@ -383,6 +433,13 @@ class DatabaseOperationalService:
         if not case:
             raise ValueError(f"Case {case_id} not found.")
 
+        # Cross-district check
+        if officer_district and officer_role and officer_role.upper() in ("CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER"):
+            if officer_district.strip().lower() != case.district.strip().lower():
+                raise PermissionError(
+                    f"Access Denied: Officer from '{officer_district}' cannot record outcome for case in '{case.district}'."
+                )
+
         # Fetch intervention
         interv = db.query(Intervention).filter(Intervention.id == intervention_id).first()
         if not interv:
@@ -390,6 +447,9 @@ class DatabaseOperationalService:
 
         # State machine: complete intervention
         if interv.status != InterventionStatus.COMPLETED.value:
+            if interv.status == InterventionStatus.PENDING.value:
+                raise ValueError("Invalid status transition: Cannot complete an intervention directly from PENDING status without assignment and progression.")
+            OutcomeManager.transition_status(InterventionStatus(interv.status), InterventionStatus.COMPLETED)
             interv.status = InterventionStatus.COMPLETED.value
 
         # Create Outcome in PostgreSQL
@@ -529,7 +589,15 @@ class DatabaseOperationalService:
 
         # RBAC Authorization Guard
         role_upper = user_role.upper()
-        if role_upper in ("CASE_OFFICER", "COUNSELLOR"):
+        ALLOWED_ANALYTICS_ROLES = {
+            "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
+            "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
+            "STATE_AUTHORITY", "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+        }
+        if role_upper not in ALLOWED_ANALYTICS_ROLES:
+            raise PermissionError(f"Access Denied: Role '{user_role}' is not authorized to access case analytics.")
+
+        if role_upper in ("CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER"):
             if not user_district or user_district.strip().lower() != case.district.strip().lower():
                 raise PermissionError(
                     f"Access Denied: Officer assigned to '{user_district}' cannot access case in '{case.district}'."
@@ -601,7 +669,15 @@ class DatabaseOperationalService:
         RBAC: Caseworkers/District Authorities can only view their assigned district.
         """
         role_upper = user_role.upper()
-        if role_upper in ("CASE_OFFICER", "COUNSELLOR", "DISTRICT_AUTHORITY"):
+        ALLOWED_ANALYTICS_ROLES = {
+            "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
+            "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
+            "STATE_AUTHORITY", "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+        }
+        if role_upper not in ALLOWED_ANALYTICS_ROLES:
+            raise PermissionError(f"Access Denied: Role '{user_role}' is not authorized to access district analytics.")
+
+        if role_upper in ("CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER", "DISTRICT_AUTHORITY", "DISTRICT_OFFICIAL"):
             if not user_district or user_district.strip().lower() != district.strip().lower():
                 raise PermissionError(
                     f"Access Denied: Role {user_role} in '{user_district}' cannot access analytics for '{district}'."
