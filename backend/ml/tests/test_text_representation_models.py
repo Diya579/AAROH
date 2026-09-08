@@ -374,6 +374,50 @@ class TestTextRepresentationModels(unittest.TestCase):
         self.assertIn("mental_health_language", results["evaluations"])
         self.assertTrue(out_json.exists())
 
+    def test_distilbert_backbone_clean_loading_and_mlm_handling(self) -> None:
+        """Verifies that the DistilBERT backbone loads with zero missing keys,
+        explicitly decoupling MLM prediction head weights and preserving legitimate encoder weights."""
+        model = TextEmotionModel(
+            backbone="distilbert-base-multilingual-cased",
+            execution_mode="PYTORCH_FINETUNE",
+            unfreeze_layers=2,
+        )
+        self.assertIsNotNone(model.torch_model)
+        self.assertIsNotNone(model.torch_model.encoder)
+
+        # Check total parameter counts
+        total_encoder_params = sum(p.numel() for p in model.torch_model.encoder.parameters())
+        self.assertEqual(total_encoder_params, 134_734_080)
+        self.assertEqual(model.trainable_parameters_count, 14_197_276)
+        self.assertEqual(model.frozen_parameters_count, 120_558_336)
+
+        # Verify legitimate encoder layers are present
+        param_names = [name for name, _ in model.torch_model.named_parameters()]
+        self.assertTrue(any("encoder.embeddings.word_embeddings.weight" in n for n in param_names))
+        self.assertTrue(any("encoder.transformer.layer.0" in n for n in param_names))
+        self.assertTrue(any("encoder.transformer.layer.5" in n for n in param_names))
+        self.assertTrue(any("classifier.weight" in n for n in param_names))
+
+        # Explicitly verify NO MLM-head keys exist in model parameters
+        mlm_head_keys = [
+            "vocab_transform.weight",
+            "vocab_transform.bias",
+            "vocab_layer_norm.weight",
+            "vocab_layer_norm.bias",
+            "vocab_projector.weight",
+            "vocab_projector.bias",
+        ]
+        for k in mlm_head_keys:
+            self.assertFalse(any(k in n for n in param_names), f"MLM-head key '{k}' unexpectedly found in model parameters!")
+
+        # Verify batched forward pass executes with valid 768-D representations
+        test_texts = ["Testing clean DistilBERT loading without MLM head warning.", "यह परीक्षण है।"]
+        res = model.encode_and_predict(test_texts, device="cpu", batch_size=2)
+        self.assertEqual(len(res["emotion_probabilities"]), 2)
+        self.assertEqual(len(res["emotion_embeddings"]), 2)
+        self.assertEqual(len(res["emotion_embeddings"][0]), 768)
+        self.assertIn("neutral", res["emotion_probabilities"][0])
+
 
 if __name__ == "__main__":
     unittest.main()
