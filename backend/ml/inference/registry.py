@@ -7,8 +7,16 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Set, Tuple
 
+from backend.ml.inference.config import (
+    EXECUTION_MODE_FALLBACK,
+    EXECUTION_MODE_NEURAL,
+    NEURAL_EXECUTION_MODES,
+    VALID_EXECUTION_MODES,
+    is_execution_mode_compatible,
+)
 from backend.ml.inference.exceptions import (
     ArtifactNotFoundError,
+    ExecutionModeError,
     VersionMismatchError,
 )
 
@@ -71,8 +79,9 @@ class ModelRegistry:
         self,
         base_dir: Optional[Path | str] = None,
         expected_versions: Optional[Mapping[str, str]] = None,
+        models_dir: Optional[Path | str] = None,
     ) -> None:
-        self.base_dir = Path(base_dir or "models").resolve()
+        self.base_dir = Path(models_dir or base_dir or "models").resolve()
         self.expected_versions = dict(expected_versions or DEFAULT_MODEL_VERSIONS)
 
     def get_model_path(self, model_key: str) -> Path:
@@ -113,6 +122,7 @@ class ModelRegistry:
         model_key: str,
         metadata: Dict[str, Any],
         required_execution_mode: Optional[str] = "FALLBACK",
+        execution_mode: Optional[str] = None,
     ) -> None:
         """Validates that loaded metadata matches expected model version, dataset version, and execution mode.
 
@@ -121,6 +131,8 @@ class ModelRegistry:
         VersionMismatchError
             If version or compatibility assertion fails.
         """
+        if execution_mode is not None:
+            required_execution_mode = execution_mode
         if not isinstance(metadata, dict):
             raise VersionMismatchError(
                 f"Corrupt metadata for '{model_key}': expected JSON dict, got {type(metadata).__name__}"
@@ -141,12 +153,47 @@ class ModelRegistry:
                     f"(or aliases {allowed_aliases}), got '{model_version}'"
                 )
 
+        # Validate required execution mode
+        if required_execution_mode is not None:
+            if required_execution_mode not in VALID_EXECUTION_MODES:
+                raise ExecutionModeError(
+                    f"Invalid required_execution_mode '{required_execution_mode}'. "
+                    f"Must be one of {sorted(VALID_EXECUTION_MODES)}"
+                )
+
         # Validate execution mode if present in metadata
-        if "execution_mode" in metadata and required_execution_mode:
-            exec_mode = metadata["execution_mode"]
-            if exec_mode != required_execution_mode:
-                # If model is explicitly compiled for incompatible mode, report it
-                pass  # Models trained in FALLBACK run in FALLBACK; PYTORCH modes also run fallback gracefully
+        if "execution_mode" in metadata:
+            artifact_mode = metadata["execution_mode"]
+            if artifact_mode not in VALID_EXECUTION_MODES:
+                raise ExecutionModeError(
+                    f"Model '{model_key}' artifact specifies invalid execution_mode '{artifact_mode}'. "
+                    f"Must be one of {sorted(VALID_EXECUTION_MODES)}"
+                )
+            if required_execution_mode:
+                if not is_execution_mode_compatible(required_execution_mode, artifact_mode):
+                    raise ExecutionModeError(
+                        f"Execution mode mismatch for model '{model_key}': runtime is configured for "
+                        f"'{required_execution_mode}', but artifact was built for '{artifact_mode}'. "
+                        f"Incompatible execution modes cannot proceed."
+                    )
+
+        # Validate representation consistency where specified in metadata
+        rep_type = metadata.get("training_representation") or metadata.get("upstream_representation") or metadata.get("representation")
+        if rep_type is not None and required_execution_mode:
+            is_req_fallback = (required_execution_mode == EXECUTION_MODE_FALLBACK)
+            rep_lower = str(rep_type).lower()
+            is_rep_fallback = ("fallback" in rep_lower or "deterministic" in rep_lower or "hash" in rep_lower or "heuristic" in rep_lower)
+            is_rep_neural = ("neural" in rep_lower or "transformer" in rep_lower) and not is_rep_fallback
+            if is_req_fallback and is_rep_neural:
+                raise ExecutionModeError(
+                    f"Representation mismatch for model '{model_key}': runtime is in FALLBACK mode, "
+                    f"but artifact was trained with neural representation '{rep_type}'."
+                )
+            if not is_req_fallback and is_rep_fallback:
+                raise ExecutionModeError(
+                    f"Representation mismatch for model '{model_key}': runtime is in '{required_execution_mode}' "
+                    f"neural mode, but artifact was trained with deterministic fallback representation '{rep_type}'."
+                )
 
     def get_all_artifact_checksums(self) -> Dict[str, Dict[str, str]]:
         """Returns nested dict of artifact checksums across all registered models."""

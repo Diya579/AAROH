@@ -31,3 +31,14 @@ class InvalidInputError(InferencePipelineError):
 class PipelineExecutionError(InferencePipelineError):
     """Raised when pipeline stage execution or stage interface validation fails."""
     pass
+
+
+class ExecutionModeError(InferencePipelineError, ValueError):
+    """Raised when an execution mode is invalid, unrecognized, or incompatible with model artifacts."""
+    pass
+
+
+class NeuralExecutionError(InferencePipelineError, RuntimeError):
+    """Raised when neural execution is explicitly requested but fails, is missing dependencies, or cannot run."""
+    pass
+

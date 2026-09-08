@@ -18,6 +18,15 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Union
 
+from backend.ml.inference.config import (
+    EXECUTION_MODE_FALLBACK,
+    NEURAL_EXECUTION_MODES,
+    VALID_EXECUTION_MODES,
+)
+from backend.ml.inference.exceptions import (
+    ExecutionModeError,
+    NeuralExecutionError,
+)
 from backend.ml.training.models.audio_emotion.dataset import (
     DEFAULT_TARGET_SAMPLE_RATE,
     DEFAULT_TARGET_SAMPLES,
@@ -50,7 +59,13 @@ class AudioEmotionModel:
         embedding_dim: int = 768,
         frozen_backbone: bool = True,
         dropout_rate: float = 0.1,
+        execution_mode: str = "FALLBACK",
     ) -> None:
+        if execution_mode not in VALID_EXECUTION_MODES:
+            raise ExecutionModeError(
+                f"Invalid execution mode '{execution_mode}'. Must be one of {sorted(VALID_EXECUTION_MODES)}"
+            )
+        self.execution_mode = execution_mode
         self.backbone = backbone
         self.num_classes = num_classes
         self.embedding_dim = embedding_dim
@@ -62,8 +77,9 @@ class AudioEmotionModel:
         # Head: Linear layer mapping 768-dim latent audio space to 8 emotion classes
         self.linear_head = TrainableLinearLayer(embedding_dim, num_classes)
 
-        # Attempt to initialize PyTorch / HuggingFace wav2vec2 if available
-        self._init_torch_layers()
+        # Only attempt to initialize PyTorch transformer if neural execution is explicitly requested
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            self._init_torch_layers()
 
     def _init_torch_layers(self) -> None:
         """Initializes PyTorch / HuggingFace wav2vec2 layers if installed."""
@@ -104,11 +120,9 @@ class AudioEmotionModel:
     @property
     def trainable_parameters_count(self) -> int:
         """Returns the total number of trainable parameters."""
-        if self.torch_model is not None:
-            try:
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is not None:
                 return sum(p.numel() for p in self.torch_model.parameters() if p.requires_grad)
-            except Exception:
-                pass
         # In fallback mode, head parameters are trainable: (768 * 8 + 8) = 6,152
         head_params = self.embedding_dim * self.num_classes + self.num_classes
         if not self.frozen_backbone:
@@ -153,11 +167,48 @@ class AudioEmotionModel:
             - audio_emotion_probabilities: list of dicts mapping emotion_name -> probability
             - audio_embeddings: list of 768-dim latent float vectors
         """
-        probabilities_list: list[dict[str, float]] = []
+        # CASE 1: FALLBACK mode - intentionally use deterministic acoustic representation
+        if self.execution_mode == EXECUTION_MODE_FALLBACK:
+            probabilities_list: list[dict[str, float]] = []
+            embs: list[list[float]] = [self._extract_latent_audio_embedding(w) for w in waveforms]
+            if embs:
+                logits = self.linear_head.forward(embs)
+                for row in logits:
+                    # Softmax over 8 classes
+                    max_l = max(row)
+                    exp_vals = [math.exp(max(-15.0, min(15.0, l - max_l))) for l in row]
+                    sum_exp = sum(exp_vals) or 1.0
+                    p_dict = {
+                        RAVDESS_EMOTIONS[i]: round(exp_vals[i] / sum_exp, 4)
+                        for i in range(self.num_classes)
+                    }
+                    probabilities_list.append(p_dict)
 
-        if self.torch_model is not None:
+            enforce_audio_emotion_boundary("audio_emotion_probabilities")
+            return {
+                "audio_emotion_probabilities": probabilities_list,
+                "audio_embeddings": embs,
+            }
+
+        # CASE 2: NEURAL mode - must execute neural inference; fail closed if unavailable or errors
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
             try:
                 import torch
+                from transformers import AutoProcessor, Wav2Vec2Model
+            except ImportError as err:
+                raise NeuralExecutionError(
+                    f"Neural execution mode '{self.execution_mode}' requested for AudioEmotionModel, "
+                    f"but required neural dependencies ('torch', 'transformers') are not installed: {err}"
+                ) from err
+
+            if self.torch_model is None:
+                raise NeuralExecutionError(
+                    f"Neural execution mode '{self.execution_mode}' requested for AudioEmotionModel, "
+                    f"but neural torch_model is not initialized or weights are missing."
+                )
+
+            probabilities_list = []
+            try:
                 self.torch_model.eval()
                 with torch.no_grad():
                     tensor_inputs = torch.tensor(waveforms, dtype=torch.float32).to(device)
@@ -174,23 +225,12 @@ class AudioEmotionModel:
                         "audio_emotion_probabilities": probabilities_list,
                         "audio_embeddings": embs_tensor,
                     }
-            except Exception:
-                pass
+            except Exception as exc:
+                raise NeuralExecutionError(
+                    f"Neural inference failed for AudioEmotionModel under mode '{self.execution_mode}': {exc}"
+                ) from exc
 
-        # Native mathematical forward pass
-        embs: list[list[float]] = [self._extract_latent_audio_embedding(w) for w in waveforms]
-        if embs:
-            logits = self.linear_head.forward(embs)
-            for row in logits:
-                # Softmax over 8 classes
-                max_l = max(row)
-                exp_vals = [math.exp(max(-15.0, min(15.0, l - max_l))) for l in row]
-                sum_exp = sum(exp_vals) or 1.0
-                p_dict = {
-                    RAVDESS_EMOTIONS[i]: round(exp_vals[i] / sum_exp, 4)
-                    for i in range(self.num_classes)
-                }
-                probabilities_list.append(p_dict)
+        raise ExecutionModeError(f"Unsupported execution mode '{self.execution_mode}'")
 
         enforce_audio_emotion_boundary("audio_emotion_probabilities")
         return {
@@ -274,23 +314,27 @@ class AudioEmotionModel:
 
     def state_dict(self) -> dict[str, Any]:
         """Returns model state dict."""
-        if self.torch_model is not None:
-            try:
-                return self.torch_model.state_dict()
-            except Exception:
-                pass
+        if self.execution_mode in NEURAL_EXECUTION_MODES and self.torch_model is not None:
+            return self.torch_model.state_dict()
         return self.linear_head.state_dict()
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         """Loads weights from state dict."""
-        if self.torch_model is not None:
-            try:
-                self.torch_model.load_state_dict(state_dict)
-                return
-            except Exception:
-                pass
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is None:
+                raise NeuralExecutionError(
+                    "Cannot load neural weights: torch_model is not initialized."
+                )
+            self.torch_model.load_state_dict(state_dict)
+            return
+
+        # FALLBACK mode
         if "W" in state_dict and "b" in state_dict:
             self.linear_head.load_state_dict(state_dict)
+        else:
+            raise ExecutionModeError(
+                "Provided state_dict does not contain linear head weights ('W', 'b') for FALLBACK mode."
+            )
 
     def get_config(self) -> dict[str, Any]:
         """Returns serializable architecture configuration."""

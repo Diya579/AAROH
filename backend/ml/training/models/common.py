@@ -272,6 +272,7 @@ class ModelMetadata:
     model_version: str
     dataset_name: str
     dataset_version: str
+    execution_mode: str = "PYTORCH_FROZEN"
     training_date: str = field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat()
     )
@@ -279,6 +280,8 @@ class ModelMetadata:
     backbone: str = "distilbert-base-multilingual-cased"
     embedding_dim: int = 768
     total_trainable_parameters: int = 0
+    total_frozen_parameters: int = 0
+    unfrozen_layers: list[str] = field(default_factory=list)
     clinical_boundaries: list[str] = field(default_factory=lambda: [
         "External datasets provide auxiliary representation learning only.",
         "Stress probability is strictly NOT AAROH distress.",
@@ -295,11 +298,14 @@ class ModelMetadata:
             model_version=data["model_version"],
             dataset_name=data["dataset_name"],
             dataset_version=data["dataset_version"],
+            execution_mode=data.get("execution_mode", "PYTORCH_FROZEN"),
             training_date=data.get("training_date", ""),
             hyperparameters=data.get("hyperparameters", {}),
             backbone=data.get("backbone", "distilbert-base-multilingual-cased"),
             embedding_dim=data.get("embedding_dim", 768),
             total_trainable_parameters=data.get("total_trainable_parameters", 0),
+            total_frozen_parameters=data.get("total_frozen_parameters", 0),
+            unfrozen_layers=data.get("unfrozen_layers", []),
             clinical_boundaries=data.get("clinical_boundaries", []),
         )
 
@@ -457,6 +463,10 @@ class CheckpointManager:
         optimizer_state: Optional[Any] = None,
         metrics: Optional[dict[str, Any]] = None,
         is_best: bool = False,
+        global_step: Optional[int] = None,
+        scheduler_state: Optional[Any] = None,
+        scaler_state: Optional[Any] = None,
+        best_macro_f1: Optional[float] = None,
     ) -> Path:
         """Saves a checkpoint and replicates to Google Drive if configured."""
         ckpt_filename = f"checkpoint_epoch_{epoch}.pt"
@@ -470,12 +480,24 @@ class CheckpointManager:
             optimizer_state.state_dict() if hasattr(optimizer_state, "state_dict")
             else (optimizer_state if isinstance(optimizer_state, dict) else {})
         )
+        sched_payload = (
+            scheduler_state.state_dict() if hasattr(scheduler_state, "state_dict")
+            else (scheduler_state if isinstance(scheduler_state, dict) else None)
+        )
+        scaler_payload = (
+            scaler_state.state_dict() if hasattr(scaler_state, "state_dict")
+            else (scaler_state if isinstance(scaler_state, dict) else None)
+        )
 
         ckpt_payload = {
             "epoch": epoch,
+            "global_step": global_step,
             "metrics": metrics or {},
             "model_state_dict": state_dict_payload,
             "optimizer_state_dict": opt_payload,
+            "scheduler_state_dict": sched_payload,
+            "scaler_state_dict": scaler_payload,
+            "best_macro_f1": best_macro_f1,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
 

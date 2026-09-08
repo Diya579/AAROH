@@ -32,12 +32,21 @@ from backend.ml.contract import (
 )
 from backend.ml.features.assembly import MLInput
 from backend.ml.inference.cache import InferenceCache
-from backend.ml.inference.config import PipelineConfig
+from backend.ml.inference.config import (
+    EXECUTION_MODE_FALLBACK,
+    NEURAL_EXECUTION_MODES,
+    VALID_EXECUTION_MODES,
+    PipelineConfig,
+    _UNSET,
+    is_execution_mode_compatible,
+)
 from backend.ml.inference.exceptions import (
     ArtifactNotFoundError,
+    ExecutionModeError,
     InferencePipelineError,
     InvalidInputError,
     ModelLoadError,
+    NeuralExecutionError,
     PipelineExecutionError,
     VersionMismatchError,
 )
@@ -96,7 +105,18 @@ class MLInferencePipeline:
         registry: Optional[ModelRegistry] = None,
         cache: Optional[InferenceCache] = None,
         base_dir: Optional[Union[str, Path]] = None,
+        execution_mode: Any = _UNSET,
     ) -> None:
+        if execution_mode != _UNSET:
+            if not execution_mode or execution_mode not in VALID_EXECUTION_MODES:
+                raise ExecutionModeError(
+                    f"Invalid execution mode '{execution_mode}'. Must be one of {sorted(VALID_EXECUTION_MODES)}"
+                )
+            if config is not None:
+                config.default_execution_mode = execution_mode
+            else:
+                config = PipelineConfig(execution_mode=execution_mode)
+
         self.config = config or PipelineConfig()
         self.registry = registry or ModelRegistry(base_dir=base_dir)
         self.cache = cache or InferenceCache()
@@ -112,6 +132,11 @@ class MLInferencePipeline:
         self.distress_model: Optional[DynamicDistressModel] = None
         self.trajectory_model: Optional[LongitudinalTrajectoryModel] = None
         self.escalation_model: Optional[EscalationAssessmentModel] = None
+
+    @property
+    def manifest(self) -> Optional[Dict[str, Any]]:
+        """Returns the loaded pipeline manifest dictionary."""
+        return self._last_manifest
 
     @classmethod
     def from_saved_models(
@@ -146,6 +171,37 @@ class MLInferencePipeline:
 
         self._set_seed()
 
+        # Enforce valid execution mode
+        if self.execution_mode not in VALID_EXECUTION_MODES:
+            raise ExecutionModeError(
+                f"Invalid pipeline execution mode '{self.execution_mode}'. "
+                f"Must be one of {sorted(VALID_EXECUTION_MODES)}"
+            )
+
+        # Check manifest compatibility if manifest exists on disk
+        manifest_file = self.registry.base_dir / "pipeline_manifest.json"
+        if manifest_file.exists():
+            try:
+                with open(manifest_file, "r", encoding="utf-8") as f:
+                    manifest_data = json.load(f)
+            except (json.JSONDecodeError, OSError) as exc:
+                raise ModelLoadError(
+                    f"Failed to read or parse pipeline manifest at '{manifest_file}': {exc}"
+                ) from exc
+
+            manifest_mode = manifest_data.get("execution_mode")
+            if manifest_mode:
+                if manifest_mode not in VALID_EXECUTION_MODES:
+                    raise ExecutionModeError(
+                        f"Pipeline manifest '{manifest_file}' has invalid execution_mode '{manifest_mode}'."
+                    )
+                if not is_execution_mode_compatible(self.execution_mode, manifest_mode):
+                    raise ExecutionModeError(
+                        f"Pipeline manifest execution_mode mismatch: runtime is configured for "
+                        f"'{self.execution_mode}', but manifest specifies '{manifest_mode}'. "
+                        f"Incompatible execution modes cannot proceed."
+                    )
+
         try:
             # 1. Verify artifacts for all models first
             for key in MODEL_DIRECTORIES:
@@ -158,10 +214,14 @@ class MLInferencePipeline:
             self.registry.validate_metadata("text", text_meta, self.execution_mode)
             self._loaded_versions["text"] = text_meta.get("model_version", "1.0.0")
 
-            text_m = TextEmotionModel()
+            text_m = TextEmotionModel(execution_mode=self.execution_mode)
             weights_file = text_dir / "pytorch_model.bin"
-            with open(weights_file, "r", encoding="utf-8") as f:
-                state_dict = json.load(f)
+            if self.execution_mode in NEURAL_EXECUTION_MODES:
+                import torch
+                state_dict = torch.load(weights_file, map_location="cpu", weights_only=True)
+            else:
+                with open(weights_file, "r", encoding="utf-8") as f:
+                    state_dict = json.load(f)
             text_m.load_state_dict(state_dict)
             self.text_model = text_m
             self.cache.put("model_text", text_m)
@@ -174,10 +234,14 @@ class MLInferencePipeline:
             self.registry.validate_metadata("audio", audio_meta, self.execution_mode)
             self._loaded_versions["audio"] = audio_meta.get("model_version", "1.0.0")
 
-            audio_m = AudioEmotionModel()
+            audio_m = AudioEmotionModel(execution_mode=self.execution_mode)
             audio_weights_file = audio_dir / "pytorch_model.bin"
-            with open(audio_weights_file, "r", encoding="utf-8") as f:
-                audio_state_dict = json.load(f)
+            if self.execution_mode in NEURAL_EXECUTION_MODES:
+                import torch
+                audio_state_dict = torch.load(audio_weights_file, map_location="cpu", weights_only=True)
+            else:
+                with open(audio_weights_file, "r", encoding="utf-8") as f:
+                    audio_state_dict = json.load(f)
             audio_m.load_state_dict(audio_state_dict)
             self.audio_model = audio_m
             self.cache.put("model_audio", audio_m)
@@ -190,7 +254,7 @@ class MLInferencePipeline:
             self.registry.validate_metadata("fusion", fusion_meta, self.execution_mode)
             self._loaded_versions["fusion"] = fusion_meta.get("model_version", "1.0.0")
 
-            fusion_m = MultimodalFusionModel(seed=self.config.seed)
+            fusion_m = MultimodalFusionModel(seed=self.config.seed, force_mode=self.execution_mode)
             fusion_m.load_checkpoint(fusion_dir / "weights")
             self.fusion_model = fusion_m
             self.cache.put("model_fusion", fusion_m)
@@ -203,7 +267,7 @@ class MLInferencePipeline:
             self.registry.validate_metadata("distress", distress_meta, self.execution_mode)
             self._loaded_versions["distress"] = distress_meta.get("model_version", "aaroh-distress-v1")
 
-            distress_m = DynamicDistressModel(seed=self.config.seed)
+            distress_m = DynamicDistressModel(seed=self.config.seed, force_mode=self.execution_mode)
             distress_m.load_checkpoint(distress_dir / "weights")
             self.distress_model = distress_m
             self.cache.put("model_distress", distress_m)
@@ -216,7 +280,7 @@ class MLInferencePipeline:
             self.registry.validate_metadata("trajectory", traj_meta, self.execution_mode)
             self._loaded_versions["trajectory"] = traj_meta.get("model_version", "aaroh-trajectory-v1")
 
-            traj_m = LongitudinalTrajectoryModel(seed=self.config.seed)
+            traj_m = LongitudinalTrajectoryModel(seed=self.config.seed, force_mode=self.execution_mode)
             traj_m.load_checkpoint(traj_dir / "weights")
             self.trajectory_model = traj_m
             self.cache.put("model_trajectory", traj_m)
@@ -245,7 +309,7 @@ class MLInferencePipeline:
             if self.config.warmup_on_load:
                 self.warmup()
 
-        except (ArtifactNotFoundError, VersionMismatchError):
+        except (ArtifactNotFoundError, VersionMismatchError, ExecutionModeError, NeuralExecutionError):
             self._models_loaded = False
             raise
         except Exception as exc:

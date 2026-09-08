@@ -42,14 +42,21 @@ from backend.ml.training.models.fusion.dataset import MultimodalInputRecord
 # Pretrained backbone parameter references
 DISTILBERT_PARAM_COUNT = 134_734_080
 WAV2VEC2_PARAM_COUNT = 95_040_000
+from backend.ml.inference.exceptions import (
+    ExecutionModeError,
+    NeuralExecutionError,
+)
+
 FROZEN_BACKBONES_PARAM_COUNT = DISTILBERT_PARAM_COUNT + WAV2VEC2_PARAM_COUNT
 
 # Explicit Execution Modes
 EXECUTION_MODE_FALLBACK = "FALLBACK"
+EXECUTION_MODE_NEURAL = "NEURAL"
 EXECUTION_MODE_PYTORCH_FROZEN = "PYTORCH_FROZEN"
 EXECUTION_MODE_PYTORCH_FINETUNE = "PYTORCH_FINETUNE"
 VALID_EXECUTION_MODES = {
     EXECUTION_MODE_FALLBACK,
+    EXECUTION_MODE_NEURAL,
     EXECUTION_MODE_PYTORCH_FROZEN,
     EXECUTION_MODE_PYTORCH_FINETUNE,
 }
@@ -116,12 +123,15 @@ class MultimodalFusionModel:
             self.is_torch_available = False
 
         # Determine explicit execution mode
-        if force_mode:
+        if force_mode is not None:
             if force_mode not in VALID_EXECUTION_MODES:
-                raise ValueError(
-                    f"Invalid execution mode '{force_mode}'. Must be one of {VALID_EXECUTION_MODES}"
+                raise ExecutionModeError(
+                    f"Invalid execution mode '{force_mode}'. Must be one of {sorted(VALID_EXECUTION_MODES)}"
                 )
-            self.execution_mode = force_mode
+            if force_mode == EXECUTION_MODE_NEURAL:
+                self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE if self.unfreeze_backbone else EXECUTION_MODE_PYTORCH_FROZEN
+            else:
+                self.execution_mode = force_mode
         elif not self.is_torch_available:
             self.execution_mode = EXECUTION_MODE_FALLBACK
         elif self.unfreeze_backbone:

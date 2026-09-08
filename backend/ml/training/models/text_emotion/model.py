@@ -18,6 +18,17 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
+from backend.ml.inference.config import (
+    EXECUTION_MODE_FALLBACK,
+    EXECUTION_MODE_PYTORCH_FROZEN,
+    EXECUTION_MODE_PYTORCH_FINETUNE,
+    NEURAL_EXECUTION_MODES,
+    VALID_EXECUTION_MODES,
+)
+from backend.ml.inference.exceptions import (
+    ExecutionModeError,
+    NeuralExecutionError,
+)
 from backend.ml.training.models.common import (
     ModelExportManager,
     ModelMetadata,
@@ -44,31 +55,59 @@ class TextEmotionModel:
         embedding_dim: int = 768,
         max_length: int = 128,
         dropout_rate: float = 0.2,
+        execution_mode: str = "FALLBACK",
+        unfreeze_layers: int = 2,
+        local_artifact_dir: Optional[Path | str] = None,
     ) -> None:
+        if execution_mode not in VALID_EXECUTION_MODES:
+            raise ExecutionModeError(
+                f"Invalid execution mode '{execution_mode}'. Must be one of {sorted(VALID_EXECUTION_MODES)}"
+            )
+        self.execution_mode = execution_mode
         self.backbone = backbone
         self.num_classes = num_classes
         self.embedding_dim = embedding_dim
         self.max_length = max_length
         self.dropout_rate = dropout_rate
+        self.unfreeze_layers = unfreeze_layers
+        self.local_artifact_dir = Path(local_artifact_dir) if local_artifact_dir else None
 
         self.torch_model: Optional[Any] = None
         self.tokenizer: Optional[Any] = None
         self.linear_head = TrainableLinearLayer(embedding_dim, num_classes)
 
-        # Attempt to initialize PyTorch transformer if torch and transformers are installed
-        self._init_torch_layers()
+        # Only attempt to initialize PyTorch transformer if neural execution is explicitly requested
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            self._init_torch_layers(self.local_artifact_dir)
 
-    def _init_torch_layers(self) -> None:
-        """Initializes PyTorch layers if available."""
+    def _init_torch_layers(self, local_artifact_dir: Optional[Path] = None) -> None:
+        """Initializes PyTorch layers and tokenizer if available."""
         try:
             import torch
             import torch.nn as nn
-            from transformers import AutoModel
+            from transformers import AutoConfig, AutoModel, AutoTokenizer
 
             class _TorchEmotionHead(nn.Module):
-                def __init__(self, encoder_name: str, n_classes: int, emb_dim: int, drop: float):
+                def __init__(
+                    self,
+                    encoder_name_or_path: str,
+                    n_classes: int,
+                    emb_dim: int,
+                    drop: float,
+                    is_local: bool = False,
+                ):
                     super().__init__()
-                    self.encoder = AutoModel.from_pretrained(encoder_name)
+                    if is_local:
+                        cfg_file = Path(encoder_name_or_path) / "transformer_config.json"
+                        if cfg_file.exists():
+                            cfg = AutoConfig.from_pretrained(str(cfg_file), local_files_only=True)
+                            self.encoder = AutoModel.from_config(cfg)
+                        else:
+                            self.encoder = AutoModel.from_pretrained(
+                                encoder_name_or_path, local_files_only=True, attn_implementation="eager"
+                            )
+                    else:
+                        self.encoder = AutoModel.from_pretrained(encoder_name_or_path, attn_implementation="eager")
                     self.dropout = nn.Dropout(drop)
                     self.classifier = nn.Linear(emb_dim, n_classes)
 
@@ -90,18 +129,67 @@ class TextEmotionModel:
                     }
 
             self._torch_class = _TorchEmotionHead
-        except (ImportError, Exception):
+            is_local = local_artifact_dir is not None and local_artifact_dir.exists()
+            encoder_source = str(local_artifact_dir) if is_local else self.backbone
+
+            self.torch_model = self._torch_class(
+                encoder_name_or_path=encoder_source,
+                n_classes=self.num_classes,
+                emb_dim=self.embedding_dim,
+                drop=self.dropout_rate,
+                is_local=is_local,
+            )
+            if is_local:
+                self.tokenizer = AutoTokenizer.from_pretrained(str(local_artifact_dir), local_files_only=True)
+            else:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.backbone)
+
+            if self.execution_mode == EXECUTION_MODE_PYTORCH_FROZEN:
+                for p in self.torch_model.encoder.parameters():
+                    p.requires_grad = False
+            elif self.execution_mode == EXECUTION_MODE_PYTORCH_FINETUNE:
+                # Freeze lower transformer layers and unfreeze upper layers
+                for p in self.torch_model.encoder.parameters():
+                    p.requires_grad = False
+                if hasattr(self.torch_model.encoder, "transformer") and hasattr(
+                    self.torch_model.encoder.transformer, "layer"
+                ):
+                    layers = self.torch_model.encoder.transformer.layer
+                    n_unfreeze = max(0, min(len(layers), self.unfreeze_layers))
+                    for layer in layers[-n_unfreeze:]:
+                        for p in layer.parameters():
+                            p.requires_grad = True
+        except Exception as exc:
             self._torch_class = None
+            self.torch_model = None
+            self.tokenizer = None
+            if self.execution_mode in NEURAL_EXECUTION_MODES:
+                raise NeuralExecutionError(
+                    f"Failed to initialize PyTorch transformer backbone '{self.backbone}' "
+                    f"under mode '{self.execution_mode}': {exc}"
+                ) from exc
 
     @property
     def trainable_parameters_count(self) -> int:
         """Returns total trainable parameter count."""
-        if self.torch_model is not None:
-            try:
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is not None:
                 return sum(p.numel() for p in self.torch_model.parameters() if p.requires_grad)
-            except Exception:
-                pass
         return self.embedding_dim * self.num_classes + self.num_classes
+
+    @property
+    def frozen_parameters_count(self) -> int:
+        """Returns total frozen parameter count."""
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is not None:
+                return sum(p.numel() for p in self.torch_model.parameters() if not p.requires_grad)
+        return 0
+
+    def get_unfrozen_layer_names(self) -> list[str]:
+        """Returns list of layer parameter names that are trainable."""
+        if self.execution_mode in NEURAL_EXECUTION_MODES and self.torch_model is not None:
+            return [name for name, p in self.torch_model.named_parameters() if p.requires_grad]
+        return ["linear_head.W", "linear_head.b"]
 
     def _extract_latent_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
         """Computes deterministic latent representation embeddings for texts."""
@@ -124,11 +212,43 @@ class TextEmotionModel:
         device: str = "cpu",
     ) -> dict[str, Any]:
         """Encodes texts and returns emotion probabilities and emotion embeddings."""
-        probabilities_list: list[dict[str, float]] = []
+        # CASE 1: FALLBACK mode - intentionally use deterministic representation
+        if self.execution_mode == EXECUTION_MODE_FALLBACK:
+            probabilities_list: list[dict[str, float]] = []
+            embs = self._extract_latent_embeddings(texts)
+            if embs:
+                logits = self.linear_head.forward(embs)
+                for row in logits:
+                    prob_dict: dict[str, float] = {}
+                    for i, logit_val in enumerate(row):
+                        p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, logit_val))))
+                        prob_dict[GOEMOTIONS_TAXONOMY[i]] = round(p, 4)
+                    probabilities_list.append(prob_dict)
 
-        if self.torch_model is not None and self.tokenizer is not None:
+            return {
+                "emotion_probabilities": probabilities_list,
+                "emotion_embeddings": embs,
+            }
+
+        # CASE 2: NEURAL mode - must execute neural inference; fail closed if unavailable or errors
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
             try:
                 import torch
+                from transformers import AutoModel, AutoTokenizer
+            except ImportError as err:
+                raise NeuralExecutionError(
+                    f"Neural execution mode '{self.execution_mode}' requested for TextEmotionModel, "
+                    f"but required neural dependencies ('torch', 'transformers') are not installed: {err}"
+                ) from err
+
+            if self.torch_model is None or self.tokenizer is None:
+                raise NeuralExecutionError(
+                    f"Neural execution mode '{self.execution_mode}' requested for TextEmotionModel, "
+                    f"but neural torch_model or tokenizer is not initialized or weights are missing."
+                )
+
+            probabilities_list = []
+            try:
                 self.torch_model.eval()
                 with torch.no_grad():
                     inputs = self.tokenizer(
@@ -156,25 +276,12 @@ class TextEmotionModel:
                         "emotion_probabilities": probabilities_list,
                         "emotion_embeddings": embs_tensor,
                     }
-            except Exception:
-                pass
+            except Exception as exc:
+                raise NeuralExecutionError(
+                    f"Neural inference failed for TextEmotionModel under mode '{self.execution_mode}': {exc}"
+                ) from exc
 
-        # Native mathematical forward pass through linear_head
-        embs = self._extract_latent_embeddings(texts)
-        if embs:
-            logits = self.linear_head.forward(embs)
-            for row in logits:
-                prob_dict: dict[str, float] = {}
-                for i, logit_val in enumerate(row):
-                    # Sigmoid activation
-                    p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, logit_val))))
-                    prob_dict[GOEMOTIONS_TAXONOMY[i]] = round(p, 4)
-                probabilities_list.append(prob_dict)
-
-        return {
-            "emotion_probabilities": probabilities_list,
-            "emotion_embeddings": embs,
-        }
+        raise ExecutionModeError(f"Unsupported execution mode '{self.execution_mode}'")
 
     def train_step(
         self,
@@ -218,23 +325,27 @@ class TextEmotionModel:
 
     def state_dict(self) -> dict[str, Any]:
         """Returns model weights state dict."""
-        if self.torch_model is not None:
-            try:
-                return self.torch_model.state_dict()
-            except Exception:
-                pass
+        if self.execution_mode in NEURAL_EXECUTION_MODES and self.torch_model is not None:
+            return self.torch_model.state_dict()
         return self.linear_head.state_dict()
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         """Loads weights from state dict."""
-        if self.torch_model is not None:
-            try:
-                self.torch_model.load_state_dict(state_dict)
-                return
-            except Exception:
-                pass
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is None:
+                raise NeuralExecutionError(
+                    "Cannot load neural weights: torch_model is not initialized."
+                )
+            self.torch_model.load_state_dict(state_dict)
+            return
+
+        # FALLBACK mode
         if "W" in state_dict and "b" in state_dict:
             self.linear_head.load_state_dict(state_dict)
+        else:
+            raise ExecutionModeError(
+                "Provided state_dict does not contain linear head weights ('W', 'b') for FALLBACK mode."
+            )
 
     def get_config(self) -> dict[str, Any]:
         """Returns serializable architecture configuration."""
@@ -245,6 +356,7 @@ class TextEmotionModel:
             "embedding_dim": self.embedding_dim,
             "max_length": self.max_length,
             "dropout_rate": self.dropout_rate,
+            "unfreeze_layers": getattr(self, "unfreeze_layers", 2),
             "taxonomy": list(GOEMOTIONS_TAXONOMY),
         }
 
@@ -262,10 +374,13 @@ class TextEmotionModel:
             model_version=model_version,
             dataset_name="goemotions_and_emohind",
             dataset_version=dataset_version,
+            execution_mode=self.execution_mode,
             hyperparameters=hyperparameters or {},
             backbone=self.backbone,
             embedding_dim=self.embedding_dim,
             total_trainable_parameters=self.trainable_parameters_count,
+            total_frozen_parameters=self.frozen_parameters_count,
+            unfrozen_layers=self.get_unfrozen_layer_names(),
             clinical_boundaries=[
                 "Outputs emotion probabilities and embeddings only.",
                 "Does NOT predict AAROH clinical distress score.",
@@ -279,7 +394,7 @@ class TextEmotionModel:
         }
 
         weights_payload = self.torch_model if self.torch_model is not None else self.state_dict()
-        return ModelExportManager.save_model(
+        out_p = ModelExportManager.save_model(
             output_dir=output_dir,
             metadata=metadata,
             config=self.get_config(),
@@ -287,3 +402,52 @@ class TextEmotionModel:
             metrics=metrics or {},
             weights_data=weights_payload,
         )
+        if self.tokenizer is not None and hasattr(self.tokenizer, "save_pretrained"):
+            try:
+                self.tokenizer.save_pretrained(out_p)
+            except Exception:
+                pass
+        if self.torch_model is not None and hasattr(self.torch_model, "encoder") and hasattr(self.torch_model.encoder, "config"):
+            try:
+                self.torch_model.encoder.config.to_json_file(out_p / "transformer_config.json")
+            except Exception:
+                pass
+        return out_p
+
+    @classmethod
+    def load_from_artifact(cls, artifact_dir: Path | str) -> "TextEmotionModel":
+        """Loads a model directly from a self-contained artifact directory offline."""
+        art_path = Path(artifact_dir)
+        if not art_path.exists():
+            raise FileNotFoundError(f"Artifact directory not found: {art_path}")
+
+        req_files = ["config.json", "metadata.json", "pytorch_model.bin", "label_mapping.json"]
+        missing = [f for f in req_files if not (art_path / f).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required artifact files in {art_path}: {missing}")
+
+        with open(art_path / "config.json", "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        with open(art_path / "metadata.json", "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+        execution_mode = meta.get("execution_mode", EXECUTION_MODE_FALLBACK)
+        model = cls(
+            execution_mode=execution_mode,
+            backbone=cfg.get("backbone", DEFAULT_TEXT_EMOTION_BACKBONE),
+            num_classes=cfg.get("num_classes", len(GOEMOTIONS_TAXONOMY)),
+            embedding_dim=cfg.get("embedding_dim", 768),
+            max_length=cfg.get("max_length", 128),
+            dropout_rate=cfg.get("dropout_rate", 0.2),
+            unfreeze_layers=cfg.get("unfreeze_layers", 2),
+            local_artifact_dir=art_path,
+        )
+
+        weights_path = art_path / "pytorch_model.bin"
+        import torch
+        weights = torch.load(weights_path, map_location="cpu")
+        model.load_state_dict(weights)
+        if model.torch_model is not None:
+            model.torch_model.eval()
+        return model
+

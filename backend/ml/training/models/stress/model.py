@@ -18,11 +18,21 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
+from backend.ml.inference.config import (
+    EXECUTION_MODE_FALLBACK,
+    NEURAL_EXECUTION_MODES,
+    VALID_EXECUTION_MODES,
+)
+from backend.ml.inference.exceptions import (
+    ExecutionModeError,
+    NeuralExecutionError,
+)
 from backend.ml.training.models.common import (
     ModelExportManager,
     ModelMetadata,
     TrainableLinearLayer,
     compute_accuracy,
+    compute_confusion_matrix,
     compute_precision_recall_f1,
     compute_roc_auc,
     enforce_stress_boundary,
@@ -40,7 +50,13 @@ class StressModel:
         embedding_dim: int = 768,
         max_length: int = 128,
         dropout_rate: float = 0.2,
+        execution_mode: str = "FALLBACK",
     ) -> None:
+        if execution_mode not in VALID_EXECUTION_MODES:
+            raise ExecutionModeError(
+                f"Invalid execution mode '{execution_mode}'. Must be one of {sorted(VALID_EXECUTION_MODES)}"
+            )
+        self.execution_mode = execution_mode
         self.backbone = backbone
         self.embedding_dim = embedding_dim
         self.max_length = max_length
@@ -50,7 +66,9 @@ class StressModel:
         self.tokenizer: Optional[Any] = None
         self.linear_head = TrainableLinearLayer(embedding_dim, 1)
 
-        self._init_torch_layers()
+        # Only attempt to initialize PyTorch transformer if neural execution is explicitly requested
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            self._init_torch_layers()
 
     def _init_torch_layers(self) -> None:
         """Initializes PyTorch layers if available."""
@@ -90,11 +108,9 @@ class StressModel:
     @property
     def trainable_parameters_count(self) -> int:
         """Returns total trainable parameter count."""
-        if self.torch_model is not None:
-            try:
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is not None:
                 return sum(p.numel() for p in self.torch_model.parameters() if p.requires_grad)
-            except Exception:
-                pass
         return self.embedding_dim * 1 + 1
 
     def _extract_latent_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
@@ -118,11 +134,41 @@ class StressModel:
         device: str = "cpu",
     ) -> dict[str, Any]:
         """Encodes texts and returns stress_probability and stress_embedding."""
-        probabilities: list[float] = []
+        # CASE 1: FALLBACK mode - intentionally use deterministic representation
+        if self.execution_mode == EXECUTION_MODE_FALLBACK:
+            probabilities: list[float] = []
+            embs = self._extract_latent_embeddings(texts)
+            if embs:
+                logits = self.linear_head.forward(embs)
+                for row in logits:
+                    z = row[0]
+                    p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, z))))
+                    probabilities.append(round(p, 4))
 
-        if self.torch_model is not None and self.tokenizer is not None:
+            enforce_stress_boundary("stress_probability")
+            return {
+                "stress_probabilities": probabilities,
+                "stress_embeddings": embs,
+            }
+
+        # CASE 2: NEURAL mode - must execute neural inference; fail closed if unavailable or errors
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
             try:
                 import torch
+                from transformers import AutoModel, AutoTokenizer
+            except ImportError as err:
+                raise NeuralExecutionError(
+                    f"Neural execution mode '{self.execution_mode}' requested for StressModel, "
+                    f"but required neural dependencies ('torch', 'transformers') are not installed: {err}"
+                ) from err
+
+            if self.torch_model is None or self.tokenizer is None:
+                raise NeuralExecutionError(
+                    f"Neural execution mode '{self.execution_mode}' requested for StressModel, "
+                    f"but neural torch_model or tokenizer is not initialized or weights are missing."
+                )
+
+            try:
                 self.torch_model.eval()
                 with torch.no_grad():
                     inputs = self.tokenizer(
@@ -145,23 +191,12 @@ class StressModel:
                         "stress_probabilities": [float(p) for p in probs_tensor],
                         "stress_embeddings": embs_tensor,
                     }
-            except Exception:
-                pass
+            except Exception as exc:
+                raise NeuralExecutionError(
+                    f"Neural inference failed for StressModel under mode '{self.execution_mode}': {exc}"
+                ) from exc
 
-        # Native mathematical forward pass
-        embs = self._extract_latent_embeddings(texts)
-        if embs:
-            logits = self.linear_head.forward(embs)
-            for row in logits:
-                z = row[0]
-                p = 1.0 / (1.0 + math.exp(-max(-15.0, min(15.0, z))))
-                probabilities.append(round(p, 4))
-
-        enforce_stress_boundary("stress_probability")
-        return {
-            "stress_probabilities": probabilities,
-            "stress_embeddings": embs,
-        }
+        raise ExecutionModeError(f"Unsupported execution mode '{self.execution_mode}'")
 
     def train_step(
         self,
@@ -202,23 +237,27 @@ class StressModel:
 
     def state_dict(self) -> dict[str, Any]:
         """Returns model weights state dict."""
-        if self.torch_model is not None:
-            try:
-                return self.torch_model.state_dict()
-            except Exception:
-                pass
+        if self.execution_mode in NEURAL_EXECUTION_MODES and self.torch_model is not None:
+            return self.torch_model.state_dict()
         return self.linear_head.state_dict()
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         """Loads weights from state dict."""
-        if self.torch_model is not None:
-            try:
-                self.torch_model.load_state_dict(state_dict)
-                return
-            except Exception:
-                pass
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is None:
+                raise NeuralExecutionError(
+                    "Cannot load neural weights: torch_model is not initialized."
+                )
+            self.torch_model.load_state_dict(state_dict)
+            return
+
+        # FALLBACK mode
         if "W" in state_dict and "b" in state_dict:
             self.linear_head.load_state_dict(state_dict)
+        else:
+            raise ExecutionModeError(
+                "Provided state_dict does not contain linear head weights ('W', 'b') for FALLBACK mode."
+            )
 
     def get_config(self) -> dict[str, Any]:
         """Returns serializable architecture configuration."""

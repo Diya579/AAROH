@@ -53,6 +53,11 @@ from backend.ml.training.models.distress.dataset import (
     DistressInputRecord,
 )
 
+from backend.ml.inference.exceptions import (
+    ExecutionModeError,
+    NeuralExecutionError,
+)
+
 # Upstream Pretrained Backbone Parameter References (Slice 3.3 and Slice 3.4)
 DISTILBERT_PARAM_COUNT = 134_734_080
 WAV2VEC2_PARAM_COUNT = 95_040_000
@@ -60,10 +65,12 @@ FROZEN_BACKBONES_PARAM_COUNT = DISTILBERT_PARAM_COUNT + WAV2VEC2_PARAM_COUNT
 
 # Explicit Execution Modes
 EXECUTION_MODE_FALLBACK = "FALLBACK"
+EXECUTION_MODE_NEURAL = "NEURAL"
 EXECUTION_MODE_PYTORCH_FROZEN = "PYTORCH_FROZEN"
 EXECUTION_MODE_PYTORCH_FINETUNE = "PYTORCH_FINETUNE"
 VALID_EXECUTION_MODES = {
     EXECUTION_MODE_FALLBACK,
+    EXECUTION_MODE_NEURAL,
     EXECUTION_MODE_PYTORCH_FROZEN,
     EXECUTION_MODE_PYTORCH_FINETUNE,
 }
@@ -189,12 +196,15 @@ class DynamicDistressModel:
             self.is_torch_available = False
 
         # Determine explicit execution mode
-        if force_mode:
+        if force_mode is not None:
             if force_mode not in VALID_EXECUTION_MODES:
-                raise ValueError(
-                    f"Invalid execution mode: {force_mode}. Valid options: {VALID_EXECUTION_MODES}"
+                raise ExecutionModeError(
+                    f"Invalid execution mode: {force_mode}. Valid options: {sorted(VALID_EXECUTION_MODES)}"
                 )
-            self.execution_mode = force_mode
+            if force_mode == EXECUTION_MODE_NEURAL:
+                self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE if self.unfreeze_backbone else EXECUTION_MODE_PYTORCH_FROZEN
+            else:
+                self.execution_mode = force_mode
         elif not self.is_torch_available:
             self.execution_mode = EXECUTION_MODE_FALLBACK
         elif self.unfreeze_backbone:
@@ -202,7 +212,7 @@ class DynamicDistressModel:
         else:
             self.execution_mode = EXECUTION_MODE_PYTORCH_FROZEN
 
-        # In FALLBACK mode, backbones are strictly NOT instantiated
+        # Backbones
         self.text_backbone = None
         self.audio_backbone = None
 

@@ -138,3 +138,27 @@ class TextEmotionDataset:
                 pass
 
         return sample
+
+
+def collate_text_emotion_batch(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Collates a list of TextEmotionDataset samples into a batched dictionary for PyTorch."""
+    import torch
+
+    texts = [item["text"] for item in batch]
+    languages = [item.get("language", "en") for item in batch]
+    utterance_ids = [item.get("utterance_id", "") for item in batch]
+    primary_ids = torch.tensor([item["primary_id"] for item in batch], dtype=torch.long)
+    label_vecs = torch.tensor([item["label_vec"] for item in batch], dtype=torch.float32)
+
+    res: dict[str, Any] = {
+        "text": texts,
+        "language": languages,
+        "utterance_id": utterance_ids,
+        "primary_id": primary_ids,
+        "label_vec": label_vecs,
+    }
+    if batch and "input_ids" in batch[0]:
+        res["input_ids"] = torch.stack([item["input_ids"] for item in batch])
+    if batch and "attention_mask" in batch[0]:
+        res["attention_mask"] = torch.stack([item["attention_mask"] for item in batch])
+    return res
