@@ -202,15 +202,15 @@ class DynamicDistressModel:
                     f"Invalid execution mode: {force_mode}. Valid options: {sorted(VALID_EXECUTION_MODES)}"
                 )
             if force_mode == EXECUTION_MODE_NEURAL:
-                self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE if self.unfreeze_backbone else EXECUTION_MODE_PYTORCH_FROZEN
+                self.execution_mode = (
+                    EXECUTION_MODE_PYTORCH_FINETUNE
+                    if self.unfreeze_backbone
+                    else EXECUTION_MODE_PYTORCH_FROZEN
+                )
             else:
                 self.execution_mode = force_mode
-        elif not self.is_torch_available:
-            self.execution_mode = EXECUTION_MODE_FALLBACK
-        elif self.unfreeze_backbone:
-            self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE
         else:
-            self.execution_mode = EXECUTION_MODE_PYTORCH_FROZEN
+            self.execution_mode = EXECUTION_MODE_FALLBACK
 
         # Backbones
         self.text_backbone = None
