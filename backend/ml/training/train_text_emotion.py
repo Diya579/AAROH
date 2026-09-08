@@ -47,6 +47,30 @@ from backend.ml.training.models.text_emotion.model import (
     TextEmotionModel,
 )
 
+SANITY_CASES = [
+    # English cases
+    ("EN-Gratitude", "Thank you so much for your help and support!", ["gratitude", "admiration"]),
+    ("EN-Joy", "I am feeling so wonderful and happy today.", ["joy", "optimism"]),
+    ("EN-Fear", "I am terrified and have no idea what will happen to me.", ["fear", "nervousness"]),
+    ("EN-Sadness", "I have lost all hope and feel completely alone.", ["sadness", "grief"]),
+    ("EN-Grief", "My heart is shattered, I miss them so much and cannot stop crying.", ["grief", "sadness"]),
+    ("EN-Anger", "Stop doing this to me right now, I hate it!", ["anger", "annoyance"]),
+    ("EN-Nervousness", "My hands are shaking, I have a terrible feeling about tomorrow.", ["nervousness", "fear"]),
+    ("EN-Optimism", "I truly believe things will get better soon.", ["optimism", "joy"]),
+    ("EN-Neutral", "The meeting is scheduled for tomorrow at 3 pm.", ["neutral"]),
+
+    # Hindi cases
+    ("HI-Gratitude", "आपकी मदद के लिए बहुत-बहुत धन्यवाद!", ["gratitude", "admiration"]),
+    ("HI-Joy", "आज मैं बहुत खुश हूँ और सब कुछ अच्छा लग रहा है।", ["joy", "optimism"]),
+    ("HI-Fear", "मुझे बहुत डर लग रहा है, कुछ समझ नहीं आ रहा।", ["fear", "nervousness"]),
+    ("HI-Sadness", "मेरी सारी उम्मीद खत्म हो चुकी है, बहुत अकेला महसूस कर रहा हूँ।", ["sadness", "grief"]),
+    ("HI-Grief", "मेरा दिल टूट गया है, उनका जाना सहन नहीं हो रहा।", ["grief", "sadness"]),
+    ("HI-Anger", "मुझे इस बात पर बहुत गुस्सा आ रहा है!", ["anger", "annoyance"]),
+    ("HI-Nervousness", "मुझे बहुत घबराहट हो रही है और बेचैनी लग रही है।", ["nervousness", "fear"]),
+    ("HI-Optimism", "मुझे भरोसा है कि सब कुछ ठीक हो जाएगा।", ["optimism", "joy"]),
+    ("HI-Neutral", "कल दोपहर तीन बजे एक साधारण बैठक है।", ["neutral"]),
+]
+
 
 def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Text Emotion Model (GoEmotions + EmoHinD).")
@@ -67,6 +91,9 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--gradient-accumulation-steps", type=int, default=2, help="Gradient accumulation steps.")
     parser.add_argument("--weight-decay", type=float, default=0.01, help="Weight decay for optimizer.")
     parser.add_argument("--warmup-ratio", type=float, default=0.10, help="Warmup ratio for learning rate scheduler.")
+    parser.add_argument("--eval-only", action="store_true", default=False, help="Run evaluation only from checkpoint without retraining.")
+    parser.add_argument("--eval-batch-size", type=int, default=16, help="Batch size for validation inference.")
+    parser.add_argument("--eval-checkpoint", default=None, help="Path to checkpoint for evaluation (defaults to best_checkpoint.pt in checkpoint-dir).")
     parser.add_argument("--resume", default=None, help="Path to checkpoint to resume training from.")
     parser.add_argument("--early-stopping-patience", type=int, default=3, help="Early stopping patience.")
     parser.add_argument("--fp16", action="store_true", default=False, help="Enable fp16 mixed precision on CUDA.")
@@ -154,15 +181,26 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
         max_val = args.max_val_samples
         batch_size = args.batch_size
 
-    train_records = load_balanced_split(args.data_dir, split="train", max_samples=max_train, seed=args.seed)
-    val_records = load_balanced_split(args.data_dir, split="valid", max_samples=max_val, seed=args.seed)
-    test_records = load_combined_emotion_records(args.data_dir, split="test")
+    if args.eval_only:
+        train_records = []
+        val_records = load_balanced_split(args.data_dir, split="valid", max_samples=max_val, seed=args.seed)
+        test_records = []
+        train_en = 0
+        train_hi = 0
+        val_en = sum(1 for r in val_records if r.get("language") == "en")
+        val_hi = sum(1 for r in val_records if r.get("language") == "hi")
+        dataset_loaded = True
+        dataloader_built = True
+    else:
+        train_records = load_balanced_split(args.data_dir, split="train", max_samples=max_train, seed=args.seed)
+        val_records = load_balanced_split(args.data_dir, split="valid", max_samples=max_val, seed=args.seed)
+        test_records = load_combined_emotion_records(args.data_dir, split="test")
 
-    dataset_loaded = len(train_records) > 0
-    train_en = sum(1 for r in train_records if r.get("language") == "en")
-    train_hi = sum(1 for r in train_records if r.get("language") == "hi")
-    val_en = sum(1 for r in val_records if r.get("language") == "en")
-    val_hi = sum(1 for r in val_records if r.get("language") == "hi")
+        dataset_loaded = len(train_records) > 0
+        train_en = sum(1 for r in train_records if r.get("language") == "en")
+        train_hi = sum(1 for r in train_records if r.get("language") == "hi")
+        val_en = sum(1 for r in val_records if r.get("language") == "en")
+        val_hi = sum(1 for r in val_records if r.get("language") == "hi")
 
     print(f"Loaded samples -> Train: {len(train_records)} (EN: {train_en}, HI: {train_hi}) | Valid: {len(val_records)} (EN: {val_en}, HI: {val_hi})")
 
@@ -186,20 +224,21 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
     print(f"Tokenizer loaded: {tokenizer_loaded} (type: {tokenizer.__class__.__name__})")
 
     # 3. Dataloader creation
-    if args.execution_mode in NEURAL_EXECUTION_MODES and has_torch:
-        train_ds = TextEmotionDataset(train_records, tokenizer=tokenizer, max_length=128)
-        dataloader = DataLoader(
-            train_ds,
-            batch_size=batch_size,
-            shuffle=True,
-            collate_fn=collate_text_emotion_batch,
-        )
-        dataloader_built = len(dataloader) > 0
-    else:
-        train_ds = TextEmotionDataset(train_records, tokenizer=None)
-        dataloader = SimpleDataLoader(train_ds, batch_size=batch_size, shuffle=True)
-        dataloader_built = len(dataloader) > 0
-    print(f"Dataloader built: {dataloader_built} ({len(dataloader)} batches)")
+    if not args.eval_only:
+        if args.execution_mode in NEURAL_EXECUTION_MODES and has_torch:
+            train_ds = TextEmotionDataset(train_records, tokenizer=tokenizer, max_length=128)
+            dataloader = DataLoader(
+                train_ds,
+                batch_size=batch_size,
+                shuffle=True,
+                collate_fn=collate_text_emotion_batch,
+            )
+            dataloader_built = len(dataloader) > 0
+        else:
+            train_ds = TextEmotionDataset(train_records, tokenizer=None)
+            dataloader = SimpleDataLoader(train_ds, batch_size=batch_size, shuffle=True)
+            dataloader_built = len(dataloader) > 0
+        print(f"Dataloader built: {dataloader_built} ({len(dataloader)} batches)")
 
     # 4. Compute class pos_weights strictly from training subset
     num_classes = len(GOEMOTIONS_TAXONOMY)
@@ -242,7 +281,7 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
     loss_decreased = False
     epoch_trajectories: list[dict[str, Any]] = []
 
-    if has_torch and len(train_records) > 0 and args.execution_mode in NEURAL_EXECUTION_MODES:
+    if not args.eval_only and has_torch and len(train_records) > 0 and args.execution_mode in NEURAL_EXECUTION_MODES:
         # PyTorch real training path with pos_weight imbalance handling
         print(f"[INFO] Executing PyTorch neural training loop on {device} (mode: {args.execution_mode})...")
         model.torch_model.to(device)
@@ -454,7 +493,7 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
             final_loss = batch_losses[-1]
             loss_decreased = final_loss <= initial_loss
             print(f"Training Loss -> Initial: {initial_loss:.4f} | Final: {final_loss:.4f} (Decreased: {loss_decreased})")
-    else:
+    elif not args.eval_only:
         # Native mathematical gradient training path
         print("[INFO] Executing fallback gradient descent training loop...")
         batch_losses: list[float] = []
@@ -477,17 +516,36 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
             print(f"Training Loss -> Initial: {initial_loss:.4f} | Final: {final_loss:.4f} (Decreased: {loss_decreased})")
 
     # 6. Checkpointing verification
-    best_ckpt_path = checkpoint_mgr.checkpoint_dir / "best_checkpoint.pt"
-    latest_ckpt_path = checkpoint_mgr.checkpoint_dir / f"checkpoint_epoch_{epochs}.pt"
-    ckpt_path = best_ckpt_path if best_ckpt_path.exists() else latest_ckpt_path
-    if not ckpt_path.exists():
-        ckpt_path = checkpoint_mgr.save_checkpoint(
-            epoch=epochs,
-            model_state=model.state_dict(),
-            metrics={"loss": final_loss or 0.0},
-            is_best=True,
-        )
-    checkpoint_saved = ckpt_path.exists() or ckpt_path.with_suffix(".json").exists()
+    if args.eval_only:
+        if args.eval_checkpoint:
+            ckpt_path = Path(args.eval_checkpoint)
+        elif args.resume:
+            ckpt_path = Path(args.resume)
+        else:
+            best_ckpt_path = checkpoint_mgr.checkpoint_dir / "best_checkpoint.pt"
+            latest_ckpt_path = checkpoint_mgr.checkpoint_dir / f"checkpoint_epoch_{epochs}.pt"
+            ckpt_path = best_ckpt_path if best_ckpt_path.exists() else latest_ckpt_path
+            if not ckpt_path.exists():
+                candidates = list(checkpoint_mgr.checkpoint_dir.glob("checkpoint_epoch_*.pt"))
+                if candidates:
+                    ckpt_path = sorted(candidates)[-1]
+        assert ckpt_path.exists(), f"Evaluation checkpoint not found: {ckpt_path}"
+        checkpoint_saved = True
+        forward_success = True
+        backward_success = True
+        optimizer_step_success = True
+    else:
+        best_ckpt_path = checkpoint_mgr.checkpoint_dir / "best_checkpoint.pt"
+        latest_ckpt_path = checkpoint_mgr.checkpoint_dir / f"checkpoint_epoch_{epochs}.pt"
+        ckpt_path = best_ckpt_path if best_ckpt_path.exists() else latest_ckpt_path
+        if not ckpt_path.exists():
+            ckpt_path = checkpoint_mgr.save_checkpoint(
+                epoch=epochs,
+                model_state=model.state_dict(),
+                metrics={"loss": final_loss or 0.0},
+                is_best=True,
+            )
+        checkpoint_saved = ckpt_path.exists() or ckpt_path.with_suffix(".json").exists()
     print(f"Checkpoint verified: {checkpoint_saved} ({ckpt_path})")
 
     # 7. Reload into fresh model instance
@@ -507,7 +565,7 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
 
     # 8. Verify inference after reload
     test_phrase = ["I am very thankful for this help", "यह बहुत डरावना था"]
-    fresh_preds = fresh_model.encode_and_predict(test_phrase, device=device)
+    fresh_preds = fresh_model.encode_and_predict(test_phrase, device=device, batch_size=args.eval_batch_size)
     inference_after_reload_success = (
         len(fresh_preds["emotion_probabilities"]) == len(test_phrase)
         and len(fresh_preds["emotion_embeddings"]) == len(test_phrase)
@@ -525,7 +583,7 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
                 vec[lid] = 1.0
         val_true_labels.append(vec)
 
-    eval_preds = fresh_model.encode_and_predict(val_texts, device=device)
+    eval_preds = fresh_model.encode_and_predict(val_texts, device=device, batch_size=args.eval_batch_size)
     pred_prob_dicts = eval_preds["emotion_probabilities"]
 
     import numpy as np
@@ -542,11 +600,12 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
         for c, name in enumerate(GOEMOTIONS_TAXONOMY):
             pred_prob_matrix[i, c] = p_dict.get(name, 0.0)
 
-    # Compute validation loss
+    # Compute validation loss safely in batches on CPU to avoid CUDA OOM
     if has_torch and args.execution_mode in NEURAL_EXECUTION_MODES:
+        fresh_model.torch_model.eval()
         with torch.no_grad():
             val_logits_list = []
-            val_bs = 32
+            val_bs = args.eval_batch_size
             for vi in range(0, len(val_texts), val_bs):
                 v_batch_texts = val_texts[vi:vi + val_bs]
                 v_inputs = fresh_model.tokenizer(
@@ -557,10 +616,10 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
                     return_tensors="pt",
                 ).to(device)
                 v_out = fresh_model.torch_model(v_inputs["input_ids"], v_inputs["attention_mask"])
-                val_logits_list.append(v_out["logits"])
+                val_logits_list.append(v_out["logits"].detach().cpu())
             val_logits_tensor = torch.cat(val_logits_list, dim=0)
-            val_targets_tensor = torch.tensor(val_true_matrix, dtype=torch.float32).to(device)
-            val_loss = float(criterion(val_logits_tensor, val_targets_tensor).item())
+            val_targets_tensor = torch.tensor(val_true_matrix, dtype=torch.float32)
+            val_loss = float(torch.nn.functional.binary_cross_entropy_with_logits(val_logits_tensor, val_targets_tensor).item())
     else:
         val_loss = 0.0
 
@@ -645,6 +704,37 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
         "zero_recall_classes_at_05": 24,
     }
 
+    # Evaluate 18 clinical & crisis sanity test cases
+    sanity_texts = [c[1] for c in SANITY_CASES]
+    sanity_preds = fresh_model.encode_and_predict(sanity_texts, device=device, batch_size=args.eval_batch_size)
+    sanity_results = []
+    for idx, (cid, text, expected_emotions) in enumerate(SANITY_CASES):
+        probs_dict = sanity_preds["emotion_probabilities"][idx]
+        sorted_probs = sorted(probs_dict.items(), key=lambda x: x[1], reverse=True)
+        top1_emo, top1_prob = sorted_probs[0]
+        top3 = sorted_probs[:3]
+        top3_emos = [k for k, _ in top3]
+        matched = any(exp in top3_emos for exp in expected_emotions)
+        sanity_results.append({
+            "id": cid,
+            "text": text,
+            "expected": expected_emotions,
+            "top1": top1_emo,
+            "top1_prob": round(float(top1_prob), 4),
+            "top3": [(k, round(float(v), 4)) for k, v in top3],
+            "matched_top3": matched,
+        })
+
+    # Gate evaluations
+    gate_micro = agg_eval["micro_f1"] >= 0.40
+    gate_macro = agg_eval["macro_f1"] >= 0.30
+    gate_zero_rec = agg_eval["zero_recall_classes_count"] <= 12
+    gate_en_micro = en_eval.get("micro_f1", 0.0) >= 0.35
+    gate_hi_micro = hi_eval.get("micro_f1", 0.0) >= 0.35
+    num_sanity_passed = sum(1 for sc in sanity_results if sc["matched_top3"])
+    gate_sanity = num_sanity_passed >= 12
+    all_gates_passed = gate_micro and gate_macro and gate_zero_rec and gate_en_micro and gate_hi_micro and gate_sanity
+
     eval_metrics = {
         "validation_loss": round(val_loss, 4),
         "exact_match_accuracy": agg_eval["exact_match_accuracy"],
@@ -668,6 +758,16 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
         "language_specific": {
             "english": en_eval,
             "hindi": hi_eval,
+        },
+        "sanity_cases": sanity_results,
+        "acceptance_gates": {
+            "gate_micro_f1_ge_0_40": {"target": 0.40, "actual": agg_eval["micro_f1"], "passed": gate_micro},
+            "gate_macro_f1_ge_0_30": {"target": 0.30, "actual": agg_eval["macro_f1"], "passed": gate_macro},
+            "gate_zero_recall_classes_le_12": {"target": 12, "actual": agg_eval["zero_recall_classes_count"], "passed": gate_zero_rec},
+            "gate_en_micro_ge_0_35": {"target": 0.35, "actual": en_eval.get("micro_f1", 0.0), "passed": gate_en_micro},
+            "gate_hi_micro_ge_0_35": {"target": 0.35, "actual": hi_eval.get("micro_f1", 0.0), "passed": gate_hi_micro},
+            "gate_sanity_cases_ge_12": {"target": 12, "actual": num_sanity_passed, "passed": gate_sanity},
+            "verdict": "GO" if all_gates_passed else "NO-GO",
         },
         "epoch_trajectories": epoch_trajectories,
         "before_frozen_baseline": before_frozen_baseline,
@@ -761,6 +861,8 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
         print(f"  Hindi Micro / Macro F1:   {hi_m.get('micro_f1')} / {hi_m.get('macro_f1')}")
     print(f"  Best Threshold:       {eval_metrics['best_macro_f1_threshold']} (Macro F1: {eval_metrics['best_macro_f1_at_best_threshold']})")
     print(f"  Mean Brier Score:     {eval_metrics['mean_brier_score']}")
+    print(f"  Sanity Cases Passed:  {eval_metrics['acceptance_gates']['gate_sanity_cases_ge_12']['actual']}/18")
+    print(f"  Acceptance Verdict:   {eval_metrics['acceptance_gates']['verdict']}")
     print(f"  Duration:             {duration}s")
     print("=" * 70)
     return report

@@ -210,8 +210,9 @@ class TextEmotionModel:
         self,
         texts: Sequence[str],
         device: str = "cpu",
+        batch_size: int = 16,
     ) -> dict[str, Any]:
-        """Encodes texts and returns emotion probabilities and emotion embeddings."""
+        """Encodes texts and returns emotion probabilities and emotion embeddings using memory-safe batched inference."""
         # CASE 1: FALLBACK mode - intentionally use deterministic representation
         if self.execution_mode == EXECUTION_MODE_FALLBACK:
             probabilities_list: list[dict[str, float]] = []
@@ -248,33 +249,44 @@ class TextEmotionModel:
                 )
 
             probabilities_list = []
+            embeddings_list = []
+            safe_bs = max(1, int(batch_size))
+            text_list = list(texts)
+
             try:
                 self.torch_model.eval()
                 with torch.no_grad():
-                    inputs = self.tokenizer(
-                        list(texts),
-                        padding=True,
-                        truncation=True,
-                        max_length=self.max_length,
-                        return_tensors="pt",
-                    ).to(device)
+                    for start_idx in range(0, len(text_list), safe_bs):
+                        batch_slice = text_list[start_idx : start_idx + safe_bs]
+                        if not batch_slice:
+                            continue
 
-                    outputs = self.torch_model(
-                        input_ids=inputs["input_ids"],
-                        attention_mask=inputs["attention_mask"],
-                    )
-                    probs_tensor = outputs["emotion_probabilities"].cpu().tolist()
-                    embs_tensor = outputs["emotion_embedding"].cpu().tolist()
+                        inputs = self.tokenizer(
+                            batch_slice,
+                            padding=True,
+                            truncation=True,
+                            max_length=self.max_length,
+                            return_tensors="pt",
+                        ).to(device)
 
-                    for probs_vec in probs_tensor:
-                        probs_dict = {
-                            GOEMOTIONS_TAXONOMY[i]: float(probs_vec[i])
-                            for i in range(len(GOEMOTIONS_TAXONOMY))
-                        }
-                        probabilities_list.append(probs_dict)
+                        outputs = self.torch_model(
+                            input_ids=inputs["input_ids"],
+                            attention_mask=inputs["attention_mask"],
+                        )
+                        probs_tensor = outputs["emotion_probabilities"].detach().cpu().tolist()
+                        embs_tensor = outputs["emotion_embedding"].detach().cpu().tolist()
+
+                        for probs_vec in probs_tensor:
+                            probs_dict = {
+                                GOEMOTIONS_TAXONOMY[i]: float(probs_vec[i])
+                                for i in range(len(GOEMOTIONS_TAXONOMY))
+                            }
+                            probabilities_list.append(probs_dict)
+                        embeddings_list.extend(embs_tensor)
+
                     return {
                         "emotion_probabilities": probabilities_list,
-                        "emotion_embeddings": embs_tensor,
+                        "emotion_embeddings": embeddings_list,
                     }
             except Exception as exc:
                 raise NeuralExecutionError(
