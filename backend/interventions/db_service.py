@@ -270,13 +270,37 @@ class DatabaseOperationalService:
             final_status = "PENDING"
             assigned_to = None
 
-        # 10. Persist Intervention to PostgreSQL
-        new_intervention = Intervention(
-            case_id=cid_int,
-            intervention_type=decision.intervention_type.value,
-            status=final_status,
-            assigned_to=assigned_to,
-        )
+        # 10. Persist Intervention to PostgreSQL (defensively populates extended columns if present)
+        interv_kwargs = {
+            "case_id": cid_int,
+            "intervention_type": decision.intervention_type.value,
+            "status": final_status,
+            "assigned_to": assigned_to,
+        }
+        if hasattr(Intervention, "priority"):
+            interv_kwargs["priority"] = decision.priority.value
+        if hasattr(Intervention, "reason"):
+            interv_kwargs["reason"] = (
+                decision.reason.to_json()
+                if hasattr(decision.reason, "to_json")
+                else str(decision.reason.to_dict())
+            )
+        if hasattr(Intervention, "assigned_role") and routing_res.assigned_role:
+            interv_kwargs["assigned_role"] = (
+                routing_res.assigned_role.value
+                if hasattr(routing_res.assigned_role, "value")
+                else str(routing_res.assigned_role)
+            )
+        if hasattr(Intervention, "backup_assigned_to"):
+            interv_kwargs["backup_assigned_to"] = routing_res.backup_assignee
+        if hasattr(Intervention, "assigned_at") and assigned_to:
+            interv_kwargs["assigned_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+        if hasattr(Intervention, "due_at") and sla_record:
+            interv_kwargs["due_at"] = sla_record.due_at.replace(tzinfo=None)
+        if hasattr(Intervention, "created_at"):
+            interv_kwargs["created_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        new_intervention = Intervention(**interv_kwargs)
         db.add(new_intervention)
         db.commit()
         db.refresh(new_intervention)
@@ -367,6 +391,12 @@ class DatabaseOperationalService:
         # Update in PostgreSQL
         old_status = interv.status
         interv.status = new_enum.value
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        if new_enum == InterventionStatus.ACKNOWLEDGED and hasattr(interv, "acknowledged_at") and not getattr(interv, "acknowledged_at", None):
+            interv.acknowledged_at = now_utc
+        elif new_enum == InterventionStatus.COMPLETED and hasattr(interv, "completed_at") and not getattr(interv, "completed_at", None):
+            interv.completed_at = now_utc
+
         db.commit()
         db.refresh(interv)
 
@@ -451,15 +481,23 @@ class DatabaseOperationalService:
                 raise ValueError("Invalid status transition: Cannot complete an intervention directly from PENDING status without assignment and progression.")
             OutcomeManager.transition_status(InterventionStatus(interv.status), InterventionStatus.COMPLETED)
             interv.status = InterventionStatus.COMPLETED.value
+            if hasattr(interv, "completed_at") and not getattr(interv, "completed_at", None):
+                interv.completed_at = rec_time.replace(tzinfo=None)
 
-        # Create Outcome in PostgreSQL
-        outcome = Outcome(
-            case_id=case.id,
-            intervention_id=interv.id,
-            outcome_type=out_enum.value,
-            completed=completed,
-            recorded_at=rec_time.replace(tzinfo=None),  # Stored in DB as naive UTC
-        )
+        # Create Outcome in PostgreSQL (defensively populates extended columns if present)
+        outcome_kwargs = {
+            "case_id": case.id,
+            "intervention_id": interv.id,
+            "outcome_type": out_enum.value,
+            "completed": completed,
+            "recorded_at": rec_time.replace(tzinfo=None),  # Stored in DB as naive UTC
+        }
+        if hasattr(Outcome, "follow_up_required"):
+            outcome_kwargs["follow_up_required"] = follow_up_required
+        if hasattr(Outcome, "notes"):
+            outcome_kwargs["notes"] = notes
+
+        outcome = Outcome(**outcome_kwargs)
         db.add(outcome)
         db.commit()
         db.refresh(outcome)
@@ -495,6 +533,8 @@ class DatabaseOperationalService:
             "completed": outcome.completed,
             "recorded_at": rec_time.isoformat(),
             "intervention_status": interv.status,
+            "follow_up_required": follow_up_required,
+            "notes": notes,
         }
 
     # -------------------------------------------------------------------------
