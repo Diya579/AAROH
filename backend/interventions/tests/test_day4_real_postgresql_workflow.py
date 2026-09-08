@@ -15,8 +15,9 @@ Directly tests the real operational flow against live PostgreSQL database record
 10. closed-loop re-monitoring -> temporal association with clinical disclaimer
 """
 
-from datetime import datetime, timedelta, timezone
+import os
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from backend.database import SessionLocal
 from backend.models import (
@@ -60,9 +61,34 @@ from backend.interventions.db_service import (
 )
 
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 class TestDay4RealPostgreSqlWorkflow(unittest.TestCase):
+    engine = None
+    Session = None
+
+    @classmethod
+    def setUpClass(cls):
+        pg_url = os.environ.get("DATABASE_URL")
+        if not pg_url or "sqlite" in pg_url:
+            pg_url = "postgresql://postgres:root@localhost:5432/aaroh_db"
+        try:
+            cls.engine = create_engine(pg_url, pool_pre_ping=True)
+            with cls.engine.connect() as conn:
+                pass
+            cls.Session = sessionmaker(bind=cls.engine, autocommit=False, autoflush=False)
+        except Exception:
+            cls.Session = None
+
     def setUp(self) -> None:
-        self.db = SessionLocal()
+        if self.Session is None:
+            self.skipTest("PostgreSQL database is not reachable at localhost:5432.")
+        self.db = self.Session()
+        case_1 = self.db.query(Case).filter(Case.id == 1).first()
+        if not case_1:
+            self.db.close()
+            self.skipTest("Test Case 1 not found in database.")
         self._clean_all_test_interventions()
 
     def tearDown(self) -> None:
