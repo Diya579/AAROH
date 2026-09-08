@@ -297,6 +297,16 @@ class TextEmotionModel:
 
             try:
                 self.torch_model.eval()
+                target_device = torch.device(device)
+                try:
+                    first_param = next(self.torch_model.parameters())
+                    if first_param.device.type != target_device.type or (
+                        target_device.index is not None and first_param.device.index != target_device.index
+                    ):
+                        self.torch_model.to(target_device)
+                except StopIteration:
+                    pass
+
                 with torch.no_grad():
                     for start_idx in range(0, len(text_list), safe_bs):
                         batch_slice = text_list[start_idx : start_idx + safe_bs]
@@ -309,7 +319,7 @@ class TextEmotionModel:
                             truncation=True,
                             max_length=self.max_length,
                             return_tensors="pt",
-                        ).to(device)
+                        ).to(target_device)
 
                         outputs = self.torch_model(
                             input_ids=inputs["input_ids"],
@@ -459,17 +469,19 @@ class TextEmotionModel:
         if self.tokenizer is not None and hasattr(self.tokenizer, "save_pretrained"):
             try:
                 self.tokenizer.save_pretrained(out_p)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to export tokenizer to '{out_p}': {e}")
         if self.torch_model is not None and hasattr(self.torch_model, "encoder") and hasattr(self.torch_model.encoder, "config"):
             try:
                 self.torch_model.encoder.config.to_json_file(out_p / "transformer_config.json")
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to export transformer_config.json to '{out_p}': {e}")
         return out_p
 
     @classmethod
-    def load_from_artifact(cls, artifact_dir: Path | str) -> "TextEmotionModel":
+    def load_from_artifact(cls, artifact_dir: Path | str, device: str = "cpu") -> "TextEmotionModel":
         """Loads a model directly from a self-contained artifact directory offline."""
         art_path = Path(artifact_dir)
         if not art_path.exists():
@@ -486,6 +498,14 @@ class TextEmotionModel:
             meta = json.load(f)
 
         execution_mode = meta.get("execution_mode", EXECUTION_MODE_FALLBACK)
+        if execution_mode in NEURAL_EXECUTION_MODES:
+            neural_req = ["tokenizer.json", "tokenizer_config.json"]
+            missing_neural = [f for f in neural_req if not (art_path / f).exists()]
+            if missing_neural:
+                raise FileNotFoundError(
+                    f"Missing required neural tokenizer files in '{art_path}' under mode '{execution_mode}': {missing_neural}"
+                )
+
         model = cls(
             execution_mode=execution_mode,
             backbone=cfg.get("backbone", DEFAULT_TEXT_EMOTION_BACKBONE),
@@ -499,9 +519,11 @@ class TextEmotionModel:
 
         weights_path = art_path / "pytorch_model.bin"
         import torch
-        weights = torch.load(weights_path, map_location="cpu")
+        weights = torch.load(weights_path, map_location="cpu", weights_only=True)
         model.load_state_dict(weights)
         if model.torch_model is not None:
+            if device != "cpu":
+                model.torch_model.to(device)
             model.torch_model.eval()
         return model
 

@@ -462,6 +462,118 @@ class TestTextRepresentationModels(unittest.TestCase):
                 self.assertIn("transformer.wte.weight", str(ctx.exception))
                 mock_base.assert_called_once()
 
+    def test_encode_and_predict_automatic_device_synchronization(self) -> None:
+        """Verifies that encode_and_predict dynamically synchronizes model parameter placement
+        with the requested target device (e.g. CPU or MPS), preventing device mismatch failures."""
+        import torch
+        model = TextEmotionModel(
+            backbone="distilbert-base-multilingual-cased",
+            execution_mode="PYTORCH_FINETUNE",
+        )
+        self.assertIsNotNone(model.torch_model)
+
+        # 1. Start on CPU
+        res_cpu = model.encode_and_predict(["Test on CPU"], device="cpu", batch_size=1)
+        self.assertEqual(len(res_cpu["emotion_probabilities"]), 1)
+        first_param = next(model.torch_model.parameters())
+        self.assertEqual(first_param.device.type, "cpu")
+
+        # 2. Transition to MPS if available, otherwise mock target device
+        if torch.backends.mps.is_available():
+            res_mps = model.encode_and_predict(["Test on MPS"], device="mps", batch_size=1)
+            self.assertEqual(len(res_mps["emotion_probabilities"]), 1)
+            first_param = next(model.torch_model.parameters())
+            self.assertEqual(first_param.device.type, "mps")
+
+            # Transition back to CPU cleanly
+            res_back_cpu = model.encode_and_predict(["Test back on CPU"], device="cpu", batch_size=1)
+            self.assertEqual(len(res_back_cpu["emotion_probabilities"]), 1)
+            first_param = next(model.torch_model.parameters())
+            self.assertEqual(first_param.device.type, "cpu")
+
+    def test_tokenization_edge_cases_and_numerical_stability(self) -> None:
+        """Verifies that empty string, whitespace, unicode, emoji, Hindi, and long texts
+        produce valid 768-D embeddings and probabilities without NaNs or infinities."""
+        import math
+        model = TextEmotionModel(
+            backbone="distilbert-base-multilingual-cased",
+            execution_mode="PYTORCH_FINETUNE",
+        )
+
+        edge_cases = [
+            "",
+            "   ",
+            "\n\t\r",
+            "😊🎉🔥🚨💔",
+            "नमस्ते आप कैसे हैं? मुझे बहुत चिंता हो रही है।",
+            "Hello world I feel very anxious today.",
+            "Mujhe lagta hai ki everything is going wrong yaar.",
+            "English with emoji 😢 and Hindi शब्द mixed! 12345! @#$%",
+            "a",
+            "long " * 500,
+        ]
+
+        res = model.encode_and_predict(edge_cases, device="cpu", batch_size=4)
+        self.assertEqual(len(res["emotion_probabilities"]), len(edge_cases))
+        self.assertEqual(len(res["emotion_embeddings"]), len(edge_cases))
+
+        for p_dict, emb in zip(res["emotion_probabilities"], res["emotion_embeddings"]):
+            self.assertEqual(len(p_dict), len(GOEMOTIONS_TAXONOMY))
+            self.assertEqual(len(emb), 768)
+            for prob in p_dict.values():
+                self.assertFalse(math.isnan(prob))
+                self.assertFalse(math.isinf(prob))
+                self.assertGreaterEqual(prob, 0.0)
+                self.assertLessEqual(prob, 1.0)
+            for val in emb:
+                self.assertFalse(math.isnan(val))
+                self.assertFalse(math.isinf(val))
+
+    def test_batch_size_inference_invariance(self) -> None:
+        """Verifies numerical consistency across varying batch sizes (1, 3, 7, 16)."""
+        import numpy as np
+        model = TextEmotionModel(
+            backbone="distilbert-base-multilingual-cased",
+            execution_mode="PYTORCH_FINETUNE",
+        )
+        texts = [
+            "I feel ecstatic!",
+            "I feel anxious and worried.",
+            "Just another day.",
+            "यह एक परीक्षण है।",
+            "I cannot handle this stress anymore.",
+        ]
+
+        res_1 = model.encode_and_predict(texts, batch_size=1)
+        res_3 = model.encode_and_predict(texts, batch_size=3)
+        res_7 = model.encode_and_predict(texts, batch_size=7)
+
+        for i in range(len(texts)):
+            p1 = [res_1["emotion_probabilities"][i][k] for k in GOEMOTIONS_TAXONOMY]
+            p3 = [res_3["emotion_probabilities"][i][k] for k in GOEMOTIONS_TAXONOMY]
+            p7 = [res_7["emotion_probabilities"][i][k] for k in GOEMOTIONS_TAXONOMY]
+            np.testing.assert_allclose(p1, p3, atol=1e-4)
+            np.testing.assert_allclose(p1, p7, atol=1e-4)
+
+    def test_load_from_artifact_validation_and_weights_only(self) -> None:
+        """Verifies that load_from_artifact enforces missing neural file validation and safe weights loading."""
+        import tempfile
+        import torch
+        with tempfile.TemporaryDirectory() as tmpdir:
+            art_p = Path(tmpdir)
+            with open(art_p / "config.json", "w") as f:
+                json.dump({"backbone": "distilbert-base-multilingual-cased"}, f)
+            with open(art_p / "metadata.json", "w") as f:
+                json.dump({"execution_mode": "PYTORCH_FINETUNE", "model_version": "1.0.0"}, f)
+            with open(art_p / "label_mapping.json", "w") as f:
+                json.dump({"num_classes": 28}, f)
+            torch.save({"dummy": torch.zeros(1)}, art_p / "pytorch_model.bin")
+
+            # Missing neural tokenizer files must raise FileNotFoundError
+            with self.assertRaises(FileNotFoundError) as ctx:
+                TextEmotionModel.load_from_artifact(art_p)
+            self.assertIn("Missing required neural tokenizer files", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

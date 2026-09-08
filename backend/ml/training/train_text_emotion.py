@@ -443,11 +443,13 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
                             return_tensors="pt",
                         ).to(device)
                         v_out = model.torch_model(v_inputs["input_ids"], v_inputs["attention_mask"])
-                        val_logits_list.append(v_out["logits"])
+                        val_logits_list.append(v_out["logits"].detach().cpu())
                     val_logits_tensor = torch.cat(val_logits_list, dim=0)
-                    val_targets_tensor = torch.tensor(val_true_matrix, dtype=torch.float32).to(device)
-                    epoch_val_loss = float(criterion(val_logits_tensor, val_targets_tensor).item())
-                    epoch_probs = torch.sigmoid(val_logits_tensor).cpu().numpy()
+                    val_targets_tensor = torch.tensor(val_true_matrix, dtype=torch.float32)
+                    epoch_val_loss = float(torch.nn.functional.binary_cross_entropy_with_logits(
+                        val_logits_tensor, val_targets_tensor, pos_weight=pos_weight_tensor.cpu()
+                    ).item())
+                    epoch_probs = torch.sigmoid(val_logits_tensor).numpy()
 
                 epoch_bin_05 = (epoch_probs >= 0.5).astype(np.float32)
                 p_micro_ep, r_micro_ep, f1_micro_ep, _ = precision_recall_fscore_support(
