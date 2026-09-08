@@ -31,8 +31,13 @@ class NotificationRecipientRole(str, Enum):
     COUNSELLOR = "COUNSELLOR"
     DESIGNATED_OFFICER = "DESIGNATED_OFFICER"
     DISTRICT_AUTHORITY = "DISTRICT_AUTHORITY"
+    DISTRICT_OFFICIAL = "DISTRICT_OFFICIAL"
     STATE_AUTHORITY = "STATE_AUTHORITY"
+    STATE_OFFICIAL = "STATE_OFFICIAL"
     NATIONAL_AUTHORITY = "NATIONAL_AUTHORITY"
+    NATIONAL_OFFICIAL = "NATIONAL_OFFICIAL"
+    ADMIN = "ADMIN"
+    SYSTEM_SERVICE = "SYSTEM_SERVICE"
 
 
 class NotificationType(str, Enum):
@@ -87,6 +92,10 @@ class NotificationMessage:
         }
 
 
+# Backwards compatibility alias
+NotificationRecord = NotificationMessage
+
+
 class NotificationService:
     """
     Generates and distributes role-appropriate notifications while enforcing
@@ -121,20 +130,37 @@ class NotificationService:
         notification_type: NotificationType | str,
         title: str,
         message: str,
-        case_id: str,
+        case_id: Optional[str] = "SYSTEM",
         intervention_id: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> NotificationMessage:
-        role = (
-            recipient_role
-            if isinstance(recipient_role, NotificationRecipientRole)
-            else NotificationRecipientRole(str(recipient_role))
-        )
-        n_type = (
-            notification_type
-            if isinstance(notification_type, NotificationType)
-            else NotificationType(str(notification_type))
-        )
+        try:
+            role = (
+                recipient_role
+                if isinstance(recipient_role, NotificationRecipientRole)
+                else NotificationRecipientRole(str(recipient_role).upper())
+            )
+        except ValueError:
+            role_str = str(recipient_role).upper()
+            if "VICTIM" in role_str or "USER" in role_str:
+                role = NotificationRecipientRole.VICTIM
+            elif "DISTRICT" in role_str:
+                role = NotificationRecipientRole.DISTRICT_AUTHORITY
+            elif "STATE" in role_str:
+                role = NotificationRecipientRole.STATE_AUTHORITY
+            elif "NATIONAL" in role_str:
+                role = NotificationRecipientRole.NATIONAL_AUTHORITY
+            else:
+                role = NotificationRecipientRole.CASE_OFFICER
+
+        try:
+            n_type = (
+                notification_type
+                if isinstance(notification_type, NotificationType)
+                else NotificationType(str(notification_type).upper())
+            )
+        except ValueError:
+            n_type = NotificationType.SUPPORT_UPDATE
 
         clean_metadata = dict(metadata) if metadata else {}
 

@@ -1,11 +1,14 @@
 import sys
 import os
 
-sys.path.append(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
-)
+# Ensure project root is on sys.path
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# Default to active PostgreSQL aaroh_db if DATABASE_URL unset or sqlite
+if not os.environ.get("DATABASE_URL") or "sqlite" in os.environ.get("DATABASE_URL", ""):
+    os.environ["DATABASE_URL"] = "postgresql://postgres:root@localhost:5432/aaroh_db"
 
 try:
     from backend.database import SessionLocal

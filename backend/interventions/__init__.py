@@ -17,6 +17,31 @@ from .routing import AssignmentRouter, AssigneeRole, RoutingResult, RoutingStatu
 from .sla import SLACalculator, SLAManager, SLAStatus, SLARule, SLARecord, ensure_utc
 from .outcomes import OutcomeManager, OutcomeType, OutcomeRecord, ClosedLoopObservation, VALID_STATUS_TRANSITIONS
 from .service import OperationalInterventionService, intervention_service
+from .notifications import (
+    NotificationService,
+    NotificationRecipientRole,
+    NotificationType,
+    NotificationMessage,
+    NotificationRecord,
+    notification_service,
+)
+from .db_service import DatabaseOperationalService, db_operational_service
+from .channels import (
+    ChannelType,
+    ChannelEventType,
+    ChannelWorkflowService,
+    channel_service,
+)
+from backend.analytics import (
+    CaseMetricsCalculator,
+    DistrictMetricsCalculator,
+    StateMetricsCalculator,
+    NationalMetricsCalculator,
+    CaseSummaryMetrics,
+    DistrictSummaryMetrics,
+    StateSummaryMetrics,
+    NationalSummaryMetrics,
+)
 
 __all__ = [
     "InterventionEngine",
@@ -47,4 +72,25 @@ __all__ = [
     "VALID_STATUS_TRANSITIONS",
     "OperationalInterventionService",
     "intervention_service",
+    "NotificationService",
+    "NotificationRecipientRole",
+    "NotificationType",
+    "NotificationMessage",
+    "NotificationRecord",
+    "notification_service",
+    "DatabaseOperationalService",
+    "db_operational_service",
+    "ChannelType",
+    "ChannelEventType",
+    "ChannelWorkflowService",
+    "channel_service",
+    "CaseMetricsCalculator",
+    "DistrictMetricsCalculator",
+    "StateMetricsCalculator",
+    "NationalMetricsCalculator",
+    "CaseSummaryMetrics",
+    "DistrictSummaryMetrics",
+    "StateSummaryMetrics",
+    "NationalSummaryMetrics",
 ]
+

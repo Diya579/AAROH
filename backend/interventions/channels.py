@@ -90,12 +90,40 @@ class ChannelWorkflowService:
     # -------------------------------------------------------------------------
     # INTERNAL HELPERS
     # -------------------------------------------------------------------------
+    def _acquire_session(self, db: Optional[Session]) -> tuple[Session, bool]:
+        if db is not None:
+            return db, False
+        import os
+        from backend.database import SessionLocal, engine
+        if "sqlite" in str(engine.url):
+            pg_url = os.environ.get("DATABASE_URL")
+            if not pg_url or "sqlite" in pg_url:
+                pg_url = "postgresql://postgres:root@localhost:5432/aaroh_db"
+            try:
+                from sqlalchemy import create_engine
+                from sqlalchemy.orm import sessionmaker
+                pg_engine = create_engine(pg_url, pool_pre_ping=True)
+                PgSession = sessionmaker(bind=pg_engine, autocommit=False, autoflush=False)
+                return PgSession(), True
+            except Exception:
+                return SessionLocal(), True
+        return SessionLocal(), True
+
     def _get_case(self, db: Session, case_id: int | str) -> Case:
-        case = (
-            db.query(Case)
-            .filter(Case.id == case_id if isinstance(case_id, int) else Case.case_id == str(case_id))
-            .first()
-        )
+        """
+        Robust case lookup supporting:
+        1. Integer primary key: Case.id == case_id (e.g. 1)
+        2. Alphanumeric Case ID: Case.case_id == case_id (e.g. "AAROH-001")
+        3. Stringified integer ID: Case.id == int(case_id) when case_id.isdigit()
+        """
+        if isinstance(case_id, int):
+            case = db.query(Case).filter(Case.id == case_id).first()
+        else:
+            cid_str = str(case_id).strip()
+            case = db.query(Case).filter(Case.case_id == cid_str).first()
+            if not case and cid_str.isdigit():
+                case = db.query(Case).filter(Case.id == int(cid_str)).first()
+
         if not case:
             raise ValueError(f"Case '{case_id}' not found in database.")
         return case
@@ -269,8 +297,8 @@ class ChannelWorkflowService:
     # -------------------------------------------------------------------------
     def process_ivr_check_in(
         self,
-        db: Session,
-        case_id: int | str,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
         safety_response: Optional[int] = None,
         fear_level: Optional[int] = None,
         sleep_disruption: Optional[int] = None,
@@ -284,93 +312,102 @@ class ChannelWorkflowService:
         IVR Workflow:
         Check-in call -> Consent Verification -> Interaction Logging -> ML Prediction -> Intervention Engine
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        consent = self._get_consent(db, case.id)
-        if consent:
-            if not consent.monitoring_consent:
-                self._log_event(db, case, "MONITORING_CONSENT_REVOKED", "IVR call received but monitoring consent revoked.", now_utc, auto_commit=False)
-                return self.intervention_service.process_case_intervention(db, case.id, custom_router=custom_router, auto_commit=auto_commit)
+        db, close_session = self._acquire_session(db)
 
-            if not consent.voice_analysis_consent and voice_available:
-                self._log_event(db, case, "VOICE_CONSENT_DENIED", "Voice analysis not consented. Audio discarded.", now_utc, auto_commit=False)
-                voice_available = False
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
 
-            if consent.safe_channel and consent.safe_channel.upper() not in ("IVR", "VOICE", "ALL"):
+            consent = self._get_consent(db, case.id)
+            if consent:
+                if not consent.monitoring_consent:
+                    self._log_event(db, case, "MONITORING_CONSENT_REVOKED", "IVR call received but monitoring consent revoked.", now_utc, auto_commit=False)
+                    return self.intervention_service.process_case_intervention(db, case.id, custom_router=custom_router, auto_commit=auto_commit)
+
+                if not consent.voice_analysis_consent and voice_available:
+                    self._log_event(db, case, "VOICE_CONSENT_DENIED", "Voice analysis not consented. Audio discarded.", now_utc, auto_commit=False)
+                    voice_available = False
+
+                if consent.safe_channel and consent.safe_channel.upper() not in ("IVR", "VOICE", "ALL"):
+                    return self.handle_unsafe_channel_event(
+                        db=db,
+                        case_id=case.id,
+                        attempted_channel="IVR",
+                        reason=f"Beneficiary safe channel is restricted to '{consent.safe_channel}'.",
+                        custom_router=custom_router,
+                        auto_commit=auto_commit,
+                    )
+
+            if self._contains_panic_trigger(audio_transcript):
                 return self.handle_unsafe_channel_event(
                     db=db,
                     case_id=case.id,
                     attempted_channel="IVR",
-                    reason=f"Beneficiary safe channel is restricted to '{consent.safe_channel}'.",
+                    reason=f"Panic distress keyword detected in audio transcript: '{audio_transcript}'.",
                     custom_router=custom_router,
                     auto_commit=auto_commit,
                 )
 
-        if self._contains_panic_trigger(audio_transcript):
-            return self.handle_unsafe_channel_event(
+            dup = self._is_duplicate_interaction(db, case.id, "IVR", audio_transcript, now_utc)
+            if dup:
+                self._log_event(db, case, ChannelEventType.DUPLICATE_EVENT.value, f"Duplicate IVR event ignored. Existing interaction {dup.id}.", now_utc, auto_commit=False)
+                return {
+                    "channel": ChannelType.IVR.value,
+                    "interaction_id": dup.id,
+                    "is_duplicate": True,
+                    "status": "DUPLICATE_IGNORED",
+                }
+
+            interaction = Interaction(
+                case_id=case.id,
+                interaction_date=now_utc.replace(tzinfo=None),
+                channel=ChannelType.IVR.value,
+                language=case.language or "hi",
+                text_response=audio_transcript,
+                voice_available=voice_available,
+                response_completed=True,
+                safety_response=safety_response,
+                sleep_disruption=sleep_disruption,
+                fear_level=fear_level,
+                social_support=3,
+                help_requested=help_requested,
+                data_quality="good",
+            )
+            db.add(interaction)
+            db.flush()
+
+            self._log_event(db, case, ChannelEventType.CHECK_IN_RECEIVED.value, f"IVR check-in completed. Interaction #{interaction.id}.", now_utc, auto_commit=False)
+            self._derive_distress_and_prediction(db, case, safety_response, fear_level, sleep_disruption, help_requested)
+
+            intervention_res = self.intervention_service.process_case_intervention(
                 db=db,
                 case_id=case.id,
-                attempted_channel="IVR",
-                reason=f"Panic distress keyword detected in audio transcript: '{audio_transcript}'.",
                 custom_router=custom_router,
                 auto_commit=auto_commit,
             )
 
-        dup = self._is_duplicate_interaction(db, case.id, "IVR", audio_transcript, now_utc)
-        if dup:
-            self._log_event(db, case, ChannelEventType.DUPLICATE_EVENT.value, f"Duplicate IVR event ignored. Existing interaction {dup.id}.", now_utc, auto_commit=False)
             return {
                 "channel": ChannelType.IVR.value,
-                "interaction_id": dup.id,
-                "is_duplicate": True,
-                "status": "DUPLICATE_IGNORED",
+                "interaction_id": interaction.id,
+                "case_id": case.id,
+                "case_string_id": case.case_id,
+                "intervention": intervention_res,
             }
-
-        interaction = Interaction(
-            case_id=case.id,
-            interaction_date=now_utc.replace(tzinfo=None),
-            channel=ChannelType.IVR.value,
-            language=case.language or "hi",
-            text_response=audio_transcript,
-            voice_available=voice_available,
-            response_completed=True,
-            safety_response=safety_response,
-            sleep_disruption=sleep_disruption,
-            fear_level=fear_level,
-            social_support=3,
-            help_requested=help_requested,
-            data_quality="good",
-        )
-        db.add(interaction)
-        db.flush()
-
-        self._log_event(db, case, ChannelEventType.CHECK_IN_RECEIVED.value, f"IVR check-in completed. Interaction #{interaction.id}.", now_utc, auto_commit=False)
-        self._derive_distress_and_prediction(db, case, safety_response, fear_level, sleep_disruption, help_requested)
-
-        intervention_res = self.intervention_service.process_case_intervention(
-            db=db,
-            case_id=case.id,
-            custom_router=custom_router,
-            auto_commit=auto_commit,
-        )
-
-        return {
-            "channel": ChannelType.IVR.value,
-            "interaction_id": interaction.id,
-            "case_id": case.id,
-            "case_string_id": case.case_id,
-            "intervention": intervention_res,
-        }
+        finally:
+            if close_session:
+                db.close()
 
     # -------------------------------------------------------------------------
     # 2. SMS CHANNEL WORKFLOW
     # -------------------------------------------------------------------------
     def process_sms_check_in(
         self,
-        db: Session,
-        case_id: int | str,
-        text_response: str,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
+        text_response: str = "",
         safety_response: Optional[int] = None,
         fear_level: Optional[int] = None,
         help_requested: bool = False,
@@ -381,89 +418,98 @@ class ChannelWorkflowService:
         SMS Workflow:
         Scheduled check-in -> Beneficiary response -> Text Analysis Consent -> Interaction Logging -> ML -> Intervention
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        consent = self._get_consent(db, case.id)
-        if consent:
-            if not consent.monitoring_consent:
-                self._log_event(db, case, "MONITORING_CONSENT_REVOKED", "SMS response received but monitoring consent revoked.", now_utc, auto_commit=False)
-                return self.intervention_service.process_case_intervention(db, case.id, custom_router=custom_router, auto_commit=auto_commit)
+        db, close_session = self._acquire_session(db)
 
-            if consent.safe_channel and consent.safe_channel.upper() not in ("SMS", "TEXT", "ALL"):
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
+
+            consent = self._get_consent(db, case.id)
+            if consent:
+                if not consent.monitoring_consent:
+                    self._log_event(db, case, "MONITORING_CONSENT_REVOKED", "SMS response received but monitoring consent revoked.", now_utc, auto_commit=False)
+                    return self.intervention_service.process_case_intervention(db, case.id, custom_router=custom_router, auto_commit=auto_commit)
+
+                if consent.safe_channel and consent.safe_channel.upper() not in ("SMS", "TEXT", "ALL"):
+                    return self.handle_unsafe_channel_event(
+                        db=db,
+                        case_id=case.id,
+                        attempted_channel="SMS",
+                        reason=f"Beneficiary safe channel is restricted to '{consent.safe_channel}'.",
+                        custom_router=custom_router,
+                        auto_commit=auto_commit,
+                    )
+
+            if self._contains_panic_trigger(text_response):
                 return self.handle_unsafe_channel_event(
                     db=db,
                     case_id=case.id,
                     attempted_channel="SMS",
-                    reason=f"Beneficiary safe channel is restricted to '{consent.safe_channel}'.",
+                    reason=f"Panic keyword detected in SMS: '{text_response}'.",
                     custom_router=custom_router,
                     auto_commit=auto_commit,
                 )
 
-        if self._contains_panic_trigger(text_response):
-            return self.handle_unsafe_channel_event(
+            dup = self._is_duplicate_interaction(db, case.id, "SMS", text_response, now_utc)
+            if dup:
+                self._log_event(db, case, ChannelEventType.DUPLICATE_EVENT.value, f"Duplicate SMS ignored. Existing interaction {dup.id}.", now_utc, auto_commit=False)
+                return {
+                    "channel": ChannelType.SMS.value,
+                    "interaction_id": dup.id,
+                    "is_duplicate": True,
+                    "status": "DUPLICATE_IGNORED",
+                }
+
+            interaction = Interaction(
+                case_id=case.id,
+                interaction_date=now_utc.replace(tzinfo=None),
+                channel=ChannelType.SMS.value,
+                language=case.language or "en",
+                text_response=text_response,
+                voice_available=False,
+                response_completed=True,
+                safety_response=safety_response or (1 if help_requested else 4),
+                fear_level=fear_level or (4 if help_requested else 1),
+                sleep_disruption=2,
+                social_support=3,
+                help_requested=help_requested,
+                data_quality="good",
+            )
+            db.add(interaction)
+            db.flush()
+
+            self._log_event(db, case, ChannelEventType.CHECK_IN_RECEIVED.value, f"SMS check-in documented. Interaction #{interaction.id}.", now_utc, auto_commit=False)
+            self._derive_distress_and_prediction(db, case, safety_response, fear_level, sleep_disruption=2, help_requested=help_requested)
+
+            intervention_res = self.intervention_service.process_case_intervention(
                 db=db,
                 case_id=case.id,
-                attempted_channel="SMS",
-                reason=f"Panic keyword detected in SMS: '{text_response}'.",
                 custom_router=custom_router,
                 auto_commit=auto_commit,
             )
 
-        dup = self._is_duplicate_interaction(db, case.id, "SMS", text_response, now_utc)
-        if dup:
-            self._log_event(db, case, ChannelEventType.DUPLICATE_EVENT.value, f"Duplicate SMS ignored. Existing interaction {dup.id}.", now_utc, auto_commit=False)
             return {
                 "channel": ChannelType.SMS.value,
-                "interaction_id": dup.id,
-                "is_duplicate": True,
-                "status": "DUPLICATE_IGNORED",
+                "interaction_id": interaction.id,
+                "case_id": case.id,
+                "case_string_id": case.case_id,
+                "intervention": intervention_res,
             }
-
-        interaction = Interaction(
-            case_id=case.id,
-            interaction_date=now_utc.replace(tzinfo=None),
-            channel=ChannelType.SMS.value,
-            language=case.language or "en",
-            text_response=text_response,
-            voice_available=False,
-            response_completed=True,
-            safety_response=safety_response or (1 if help_requested else 4),
-            fear_level=fear_level or (4 if help_requested else 1),
-            sleep_disruption=2,
-            social_support=3,
-            help_requested=help_requested,
-            data_quality="good",
-        )
-        db.add(interaction)
-        db.flush()
-
-        self._log_event(db, case, ChannelEventType.CHECK_IN_RECEIVED.value, f"SMS check-in documented. Interaction #{interaction.id}.", now_utc, auto_commit=False)
-        self._derive_distress_and_prediction(db, case, safety_response, fear_level, sleep_disruption=2, help_requested=help_requested)
-
-        intervention_res = self.intervention_service.process_case_intervention(
-            db=db,
-            case_id=case.id,
-            custom_router=custom_router,
-            auto_commit=auto_commit,
-        )
-
-        return {
-            "channel": ChannelType.SMS.value,
-            "interaction_id": interaction.id,
-            "case_id": case.id,
-            "case_string_id": case.case_id,
-            "intervention": intervention_res,
-        }
+        finally:
+            if close_session:
+                db.close()
 
     # -------------------------------------------------------------------------
     # 3. CHATBOT CHANNEL WORKFLOW
     # -------------------------------------------------------------------------
     def process_chatbot_interaction(
         self,
-        db: Session,
-        case_id: int | str,
-        message_text: str,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
+        message_text: str = "",
         safety_response: Optional[int] = None,
         fear_level: Optional[int] = None,
         help_requested: bool = False,
@@ -474,77 +520,86 @@ class ChannelWorkflowService:
         Chatbot Workflow:
         Authorized Case Session -> Consent Check -> Interaction -> ML -> Intervention
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        consent = self._get_consent(db, case.id)
-        if consent and not consent.monitoring_consent:
-            self._log_event(db, case, "MONITORING_CONSENT_REVOKED", "Chatbot session attempted without monitoring consent.", now_utc, auto_commit=False)
-            return self.intervention_service.process_case_intervention(db, case.id, custom_router=custom_router, auto_commit=auto_commit)
+        db, close_session = self._acquire_session(db)
 
-        if self._contains_panic_trigger(message_text):
-            return self.handle_unsafe_channel_event(
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
+
+            consent = self._get_consent(db, case.id)
+            if consent and not consent.monitoring_consent:
+                self._log_event(db, case, "MONITORING_CONSENT_REVOKED", "Chatbot session attempted without monitoring consent.", now_utc, auto_commit=False)
+                return self.intervention_service.process_case_intervention(db, case.id, custom_router=custom_router, auto_commit=auto_commit)
+
+            if self._contains_panic_trigger(message_text):
+                return self.handle_unsafe_channel_event(
+                    db=db,
+                    case_id=case.id,
+                    attempted_channel="CHATBOT",
+                    reason=f"Panic keyword detected in Chatbot message: '{message_text}'.",
+                    custom_router=custom_router,
+                    auto_commit=auto_commit,
+                )
+
+            dup = self._is_duplicate_interaction(db, case.id, "CHATBOT", message_text, now_utc)
+            if dup:
+                self._log_event(db, case, ChannelEventType.DUPLICATE_EVENT.value, f"Duplicate Chatbot message ignored. Interaction {dup.id}.", now_utc, auto_commit=False)
+                return {
+                    "channel": ChannelType.CHATBOT.value,
+                    "interaction_id": dup.id,
+                    "is_duplicate": True,
+                    "status": "DUPLICATE_IGNORED",
+                }
+
+            interaction = Interaction(
+                case_id=case.id,
+                interaction_date=now_utc.replace(tzinfo=None),
+                channel=ChannelType.CHATBOT.value,
+                language=case.language or "en",
+                text_response=message_text,
+                voice_available=False,
+                response_completed=True,
+                safety_response=safety_response or 4,
+                fear_level=fear_level or 2,
+                sleep_disruption=2,
+                social_support=3,
+                help_requested=help_requested,
+                data_quality="good",
+            )
+            db.add(interaction)
+            db.flush()
+
+            self._log_event(db, case, ChannelEventType.CHECK_IN_RECEIVED.value, f"Chatbot interaction documented. Interaction #{interaction.id}.", now_utc, auto_commit=False)
+            self._derive_distress_and_prediction(db, case, safety_response, fear_level, sleep_disruption=2, help_requested=help_requested)
+
+            intervention_res = self.intervention_service.process_case_intervention(
                 db=db,
                 case_id=case.id,
-                attempted_channel="CHATBOT",
-                reason=f"Panic keyword detected in Chatbot message: '{message_text}'.",
                 custom_router=custom_router,
                 auto_commit=auto_commit,
             )
 
-        dup = self._is_duplicate_interaction(db, case.id, "CHATBOT", message_text, now_utc)
-        if dup:
-            self._log_event(db, case, ChannelEventType.DUPLICATE_EVENT.value, f"Duplicate Chatbot message ignored. Interaction {dup.id}.", now_utc, auto_commit=False)
             return {
                 "channel": ChannelType.CHATBOT.value,
-                "interaction_id": dup.id,
-                "is_duplicate": True,
-                "status": "DUPLICATE_IGNORED",
+                "interaction_id": interaction.id,
+                "case_id": case.id,
+                "case_string_id": case.case_id,
+                "intervention": intervention_res,
             }
-
-        interaction = Interaction(
-            case_id=case.id,
-            interaction_date=now_utc.replace(tzinfo=None),
-            channel=ChannelType.CHATBOT.value,
-            language=case.language or "en",
-            text_response=message_text,
-            voice_available=False,
-            response_completed=True,
-            safety_response=safety_response or 4,
-            fear_level=fear_level or 2,
-            sleep_disruption=2,
-            social_support=3,
-            help_requested=help_requested,
-            data_quality="good",
-        )
-        db.add(interaction)
-        db.flush()
-
-        self._log_event(db, case, ChannelEventType.CHECK_IN_RECEIVED.value, f"Chatbot interaction documented. Interaction #{interaction.id}.", now_utc, auto_commit=False)
-        self._derive_distress_and_prediction(db, case, safety_response, fear_level, sleep_disruption=2, help_requested=help_requested)
-
-        intervention_res = self.intervention_service.process_case_intervention(
-            db=db,
-            case_id=case.id,
-            custom_router=custom_router,
-            auto_commit=auto_commit,
-        )
-
-        return {
-            "channel": ChannelType.CHATBOT.value,
-            "interaction_id": interaction.id,
-            "case_id": case.id,
-            "case_string_id": case.case_id,
-            "intervention": intervention_res,
-        }
+        finally:
+            if close_session:
+                db.close()
 
     # -------------------------------------------------------------------------
     # 4. EDGE CASE WORKFLOWS (Periodic, Missed, Incomplete, Late, Unsafe)
     # -------------------------------------------------------------------------
     def handle_missed_check_in(
         self,
-        db: Session,
-        case_id: int | str,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
         scheduled_time: Optional[datetime] = None,
         custom_router: Optional[AssignmentRouter] = None,
         auto_commit: bool = True,
@@ -555,60 +610,69 @@ class ChannelWorkflowService:
         Logs CHECK_IN_MISSED event, synthesizes INSUFFICIENT_DATA / uncertainty state,
         and routes to PRIORITY_HUMAN_REVIEW (HIGH priority, 24h SLA).
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
-        sched = ensure_utc(scheduled_time) if scheduled_time else now_utc - timedelta(hours=2)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        self._log_event(
-            db=db,
-            case=case,
-            event_type=ChannelEventType.CHECK_IN_MISSED.value,
-            description=f"Scheduled check-in at {sched.strftime('%Y-%m-%d %H:%M UTC')} was missed. Contact window lapsed.",
-            event_date=now_utc,
-            auto_commit=False,
-        )
+        db, close_session = self._acquire_session(db)
 
-        dstate = DistressState(
-            case_id=case.id,
-            observation_date=now_utc.replace(tzinfo=None),
-            distress_score=0.60,
-            trajectory="UNCERTAIN",
-            confidence=0.45,
-        )
-        db.add(dstate)
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
+            sched = ensure_utc(scheduled_time) if scheduled_time else now_utc - timedelta(hours=2)
 
-        pred = Prediction(
-            case_id=case.id,
-            prediction_date=now_utc.replace(tzinfo=None),
-            escalation_probability=None,
-            confidence=0.45,
-            target_horizon_days=7,
-        )
-        if hasattr(Prediction, "risk_level"):
-            pred.risk_level = "INSUFFICIENT_DATA"
-        db.add(pred)
-        db.flush()
+            self._log_event(
+                db=db,
+                case=case,
+                event_type=ChannelEventType.CHECK_IN_MISSED.value,
+                description=f"Scheduled check-in at {sched.strftime('%Y-%m-%d %H:%M UTC')} was missed. Contact window lapsed.",
+                event_date=now_utc,
+                auto_commit=False,
+            )
 
-        intervention_res = self.intervention_service.process_case_intervention(
-            db=db,
-            case_id=case.id,
-            custom_router=custom_router,
-            auto_commit=auto_commit,
-        )
+            dstate = DistressState(
+                case_id=case.id,
+                observation_date=now_utc.replace(tzinfo=None),
+                distress_score=0.60,
+                trajectory="UNCERTAIN",
+                confidence=0.45,
+            )
+            db.add(dstate)
 
-        return {
-            "event_type": ChannelEventType.CHECK_IN_MISSED.value,
-            "case_id": case.id,
-            "case_string_id": case.case_id,
-            "scheduled_time": sched.isoformat(),
-            "intervention": intervention_res,
-        }
+            pred = Prediction(
+                case_id=case.id,
+                prediction_date=now_utc.replace(tzinfo=None),
+                escalation_probability=None,
+                confidence=0.45,
+                target_horizon_days=7,
+            )
+            if hasattr(Prediction, "risk_level"):
+                pred.risk_level = "INSUFFICIENT_DATA"
+            db.add(pred)
+            db.flush()
+
+            intervention_res = self.intervention_service.process_case_intervention(
+                db=db,
+                case_id=case.id,
+                custom_router=custom_router,
+                auto_commit=auto_commit,
+            )
+
+            return {
+                "event_type": ChannelEventType.CHECK_IN_MISSED.value,
+                "case_id": case.id,
+                "case_string_id": case.case_id,
+                "scheduled_time": sched.isoformat(),
+                "intervention": intervention_res,
+            }
+        finally:
+            if close_session:
+                db.close()
 
     def handle_incomplete_interaction(
         self,
-        db: Session,
-        case_id: int | str,
-        channel: str,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
+        channel: str = "IVR",
         reason: str = "Call dropped before survey completion",
         custom_router: Optional[AssignmentRouter] = None,
         auto_commit: bool = True,
@@ -618,53 +682,62 @@ class ChannelWorkflowService:
         Call dropped or survey abandoned midway (response_completed=False).
         Logs INTERACTION_INCOMPLETE event and safely routes to PRIORITY_HUMAN_REVIEW.
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        interaction = Interaction(
-            case_id=case.id,
-            interaction_date=now_utc.replace(tzinfo=None),
-            channel=channel.upper(),
-            language=case.language or "en",
-            response_completed=False,
-            data_quality="incomplete",
-        )
-        db.add(interaction)
-        db.flush()
+        db, close_session = self._acquire_session(db)
 
-        self._log_event(
-            db=db,
-            case=case,
-            event_type=ChannelEventType.INTERACTION_INCOMPLETE.value,
-            description=f"Incomplete {channel} interaction (ID #{interaction.id}): {reason}.",
-            event_date=now_utc,
-            auto_commit=False,
-        )
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
 
-        self._derive_distress_and_prediction(db, case, safety_response=None, fear_level=None, sleep_disruption=None, help_requested=False, incomplete=True)
+            interaction = Interaction(
+                case_id=case.id,
+                interaction_date=now_utc.replace(tzinfo=None),
+                channel=channel.upper(),
+                language=case.language or "en",
+                response_completed=False,
+                data_quality="incomplete",
+            )
+            db.add(interaction)
+            db.flush()
 
-        intervention_res = self.intervention_service.process_case_intervention(
-            db=db,
-            case_id=case.id,
-            custom_router=custom_router,
-            auto_commit=auto_commit,
-        )
+            self._log_event(
+                db=db,
+                case=case,
+                event_type=ChannelEventType.INTERACTION_INCOMPLETE.value,
+                description=f"Incomplete {channel} interaction (ID #{interaction.id}): {reason}.",
+                event_date=now_utc,
+                auto_commit=False,
+            )
 
-        return {
-            "event_type": ChannelEventType.INTERACTION_INCOMPLETE.value,
-            "interaction_id": interaction.id,
-            "case_id": case.id,
-            "case_string_id": case.case_id,
-            "reason": reason,
-            "intervention": intervention_res,
-        }
+            self._derive_distress_and_prediction(db, case, safety_response=None, fear_level=None, sleep_disruption=None, help_requested=False, incomplete=True)
+
+            intervention_res = self.intervention_service.process_case_intervention(
+                db=db,
+                case_id=case.id,
+                custom_router=custom_router,
+                auto_commit=auto_commit,
+            )
+
+            return {
+                "event_type": ChannelEventType.INTERACTION_INCOMPLETE.value,
+                "interaction_id": interaction.id,
+                "case_id": case.id,
+                "case_string_id": case.case_id,
+                "reason": reason,
+                "intervention": intervention_res,
+            }
+        finally:
+            if close_session:
+                db.close()
 
     def handle_late_response(
         self,
-        db: Session,
-        case_id: int | str,
-        channel: str,
-        delay_hours: float,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
+        channel: str = "SMS",
+        delay_hours: float = 1.0,
         text_response: Optional[str] = None,
         custom_router: Optional[AssignmentRouter] = None,
         auto_commit: bool = True,
@@ -674,41 +747,50 @@ class ChannelWorkflowService:
         Interaction received after scheduled check-in window.
         Logs LATE_RESPONSE event with delay metrics, then proceeds with evaluation.
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        self._log_event(
-            db=db,
-            case=case,
-            event_type=ChannelEventType.LATE_RESPONSE.value,
-            description=f"Late {channel} response received with delay of {delay_hours:.1f} hours.",
-            event_date=now_utc,
-            auto_commit=False,
-        )
+        db, close_session = self._acquire_session(db)
 
-        if channel.upper() == ChannelType.IVR.value:
-            return self.process_ivr_check_in(
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
+
+            self._log_event(
                 db=db,
-                case_id=case.id,
-                audio_transcript=text_response,
-                custom_router=custom_router,
-                auto_commit=auto_commit,
+                case=case,
+                event_type=ChannelEventType.LATE_RESPONSE.value,
+                description=f"Late {channel} response received with delay of {delay_hours:.1f} hours.",
+                event_date=now_utc,
+                auto_commit=False,
             )
-        else:
-            return self.process_sms_check_in(
-                db=db,
-                case_id=case.id,
-                text_response=text_response or "Late check-in response",
-                custom_router=custom_router,
-                auto_commit=auto_commit,
-            )
+
+            if channel.upper() == ChannelType.IVR.value:
+                return self.process_ivr_check_in(
+                    db=db,
+                    case_id=case.id,
+                    audio_transcript=text_response,
+                    custom_router=custom_router,
+                    auto_commit=auto_commit,
+                )
+            else:
+                return self.process_sms_check_in(
+                    db=db,
+                    case_id=case.id,
+                    text_response=text_response or "Late check-in response",
+                    custom_router=custom_router,
+                    auto_commit=auto_commit,
+                )
+        finally:
+            if close_session:
+                db.close()
 
     def handle_unsafe_channel_event(
         self,
-        db: Session,
-        case_id: int | str,
-        attempted_channel: str,
-        reason: str,
+        db: Optional[Session] = None,
+        case_id: int | str = None,
+        attempted_channel: str = "UNKNOWN",
+        reason: str = "Unsafe channel detected",
         custom_router: Optional[AssignmentRouter] = None,
         auto_commit: bool = True,
     ) -> Dict[str, Any]:
@@ -718,55 +800,64 @@ class ChannelWorkflowService:
         Immediately logs UNSAFE_CHANNEL_DETECTED event and triggers EMERGENCY_ESCALATION
         with URGENT priority (4h SLA).
         """
-        case = self._get_case(db, case_id)
-        now_utc = datetime.now(timezone.utc)
+        if case_id is None:
+            raise ValueError("case_id must be provided.")
 
-        self._log_event(
-            db=db,
-            case=case,
-            event_type=ChannelEventType.UNSAFE_CHANNEL_DETECTED.value,
-            description=f"Security alert on channel '{attempted_channel}': {reason}. Emergency protocol activated.",
-            event_date=now_utc,
-            auto_commit=False,
-        )
+        db, close_session = self._acquire_session(db)
 
-        dstate = DistressState(
-            case_id=case.id,
-            observation_date=now_utc.replace(tzinfo=None),
-            distress_score=0.95,
-            trajectory="RAPIDLY_WORSENING",
-            confidence=0.99,
-        )
-        db.add(dstate)
+        try:
+            case = self._get_case(db, case_id)
+            now_utc = datetime.now(timezone.utc)
 
-        pred = Prediction(
-            case_id=case.id,
-            prediction_date=now_utc.replace(tzinfo=None),
-            escalation_probability=0.95,
-            confidence=0.99,
-            target_horizon_days=1,
-        )
-        if hasattr(Prediction, "risk_level"):
-            pred.risk_level = "CRITICAL"
-        db.add(pred)
-        db.flush()
+            self._log_event(
+                db=db,
+                case=case,
+                event_type=ChannelEventType.UNSAFE_CHANNEL_DETECTED.value,
+                description=f"Security alert on channel '{attempted_channel}': {reason}. Emergency protocol activated.",
+                event_date=now_utc,
+                auto_commit=False,
+            )
 
-        intervention_res = self.intervention_service.process_case_intervention(
-            db=db,
-            case_id=case.id,
-            custom_router=custom_router,
-            auto_commit=auto_commit,
-        )
+            dstate = DistressState(
+                case_id=case.id,
+                observation_date=now_utc.replace(tzinfo=None),
+                distress_score=0.95,
+                trajectory="RAPIDLY_WORSENING",
+                confidence=0.99,
+            )
+            db.add(dstate)
 
-        return {
-            "channel": attempted_channel,
-            "event_type": ChannelEventType.UNSAFE_CHANNEL_DETECTED.value,
-            "case_id": case.id,
-            "case_string_id": case.case_id,
-            "attempted_channel": attempted_channel,
-            "reason": reason,
-            "intervention": intervention_res,
-        }
+            pred = Prediction(
+                case_id=case.id,
+                prediction_date=now_utc.replace(tzinfo=None),
+                escalation_probability=0.95,
+                confidence=0.99,
+                target_horizon_days=1,
+            )
+            if hasattr(Prediction, "risk_level"):
+                pred.risk_level = "CRITICAL"
+            db.add(pred)
+            db.flush()
+
+            intervention_res = self.intervention_service.process_case_intervention(
+                db=db,
+                case_id=case.id,
+                custom_router=custom_router,
+                auto_commit=auto_commit,
+            )
+
+            return {
+                "channel": attempted_channel,
+                "event_type": ChannelEventType.UNSAFE_CHANNEL_DETECTED.value,
+                "case_id": case.id,
+                "case_string_id": case.case_id,
+                "attempted_channel": attempted_channel,
+                "reason": reason,
+                "intervention": intervention_res,
+            }
+        finally:
+            if close_session:
+                db.close()
 
 
 # Global singleton instance

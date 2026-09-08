@@ -80,6 +80,18 @@ DEMO_OFFICER_REGISTRY: List[SyntheticOfficer] = [
     SyntheticOfficer("SYNTH-OFFCR-02", "[SIMULATED] P. Patel", AssigneeRole.CASE_OFFICER, "Ahmedabad", active_caseload=2),
     SyntheticOfficer("SYNTH-DSGNT-02", "[SIMULATED] Insp. V. Solanki", AssigneeRole.DESIGNATED_OFFICER, "Ahmedabad", active_caseload=0),
     SyntheticOfficer("SYNTH-DISTA-02", "[SIMULATED] Dist. Magistrate Desk", AssigneeRole.DISTRICT_AUTHORITY, "Ahmedabad", active_caseload=0),
+
+    # Synthetic Urban District (Demo PostgreSQL Database)
+    SyntheticOfficer("SYNTH-URBAN-DSGNT", "[SIMULATED] Insp. R. Sharma", AssigneeRole.DESIGNATED_OFFICER, "Synthetic Urban District", active_caseload=1),
+    SyntheticOfficer("SYNTH-URBAN-COUNS", "[SIMULATED] Dr. P. Mehta", AssigneeRole.COUNSELLOR, "Synthetic Urban District", active_caseload=2),
+    SyntheticOfficer("SYNTH-URBAN-OFFCR", "[SIMULATED] Officer K. Nair", AssigneeRole.CASE_OFFICER, "Synthetic Urban District", active_caseload=2),
+    SyntheticOfficer("SYNTH-URBAN-DISTA", "[SIMULATED] Urban Magistrate Desk", AssigneeRole.DISTRICT_AUTHORITY, "Synthetic Urban District", active_caseload=0),
+
+    # Synthetic Rural District (Demo PostgreSQL Database)
+    SyntheticOfficer("SYNTH-RURAL-DSGNT", "[SIMULATED] Insp. S. Yadav", AssigneeRole.DESIGNATED_OFFICER, "Synthetic Rural District", active_caseload=1),
+    SyntheticOfficer("SYNTH-RURAL-COUNS", "[SIMULATED] Dr. A. Das", AssigneeRole.COUNSELLOR, "Synthetic Rural District", active_caseload=2),
+    SyntheticOfficer("SYNTH-RURAL-OFFCR", "[SIMULATED] Officer M. Gowda", AssigneeRole.CASE_OFFICER, "Synthetic Rural District", active_caseload=3),
+    SyntheticOfficer("SYNTH-RURAL-DISTA", "[SIMULATED] Rural Magistrate Desk", AssigneeRole.DISTRICT_AUTHORITY, "Synthetic Rural District", active_caseload=0),
 ]
 
 
