@@ -156,3 +156,132 @@ def test_voice_ingestion_flow():
         assert resp.json()["status"] == "RECEIVED"
     finally:
         os.unlink(temp_audio.name)
+
+
+def test_text_interaction_ml_integration():
+    """Tests case->ML pipeline and persistence in Postgres."""
+    # 1. Create a case
+    case_payload = {
+        "case_id": "CASE-TEST-INT-TEXT",
+        "language": "hi-IN",
+        "district_type": "rural",
+        "district": "Pune",
+        "priority_use_case": "domestic_violence",
+        "current_stage": "intake",
+    }
+    resp = client.post("/api/v1/cases", json=case_payload)
+    assert resp.status_code == 201
+    db_case_id = resp.json()["id"]
+
+    # 2. Create interaction with text
+    interaction_payload = {
+        "case_id": db_case_id,
+        "interaction_date": "2026-09-04T12:00:00Z",
+        "channel": "whatsapp",
+        "language": "en-IN",
+        "text_response": "I am feeling very hopeless and want to end my life",
+        "safety_response": 5,
+    }
+    resp = client.post("/api/v1/interactions", json=interaction_payload)
+    assert resp.status_code == 201
+
+    # 3. Check persistence of Prediction and DistressState
+    from backend.models import Prediction, DistressState
+    db = TestingSessionLocal()
+    try:
+        preds = db.query(Prediction).filter(Prediction.case_id == db_case_id).all()
+        assert len(preds) == 1
+        assert preds[0].risk_level == "EMERGENCY"
+        
+        distress = db.query(DistressState).filter(DistressState.case_id == db_case_id).all()
+        assert len(distress) == 1
+    finally:
+        db.close()
+
+def test_rbac_on_interactions_and_predictions():
+    """Test RBAC for interactions (which implicitly covers predictions if endpoint exists)."""
+    # Create a case for Pune
+    case_payload = {
+        "case_id": "CASE-TEST-RBAC-1",
+        "language": "hi-IN",
+        "district_type": "rural",
+        "district": "Pune",
+        "priority_use_case": "domestic_violence",
+        "current_stage": "intake",
+    }
+    resp = client.post("/api/v1/cases", json=case_payload)
+    db_case_id = resp.json()["id"]
+    
+    # Interaction
+    client.post("/api/v1/interactions", json={
+        "case_id": db_case_id,
+        "interaction_date": "2026-09-04T12:00:00Z",
+        "channel": "whatsapp",
+        "language": "en-IN",
+        "text_response": "I am okay today.",
+    })
+    
+    # Test read access for correct district official
+    with as_role("DISTRICT_OFFICIAL", district="Pune"):
+        resp = client.get(f"/api/v1/interactions?case_id={db_case_id}")
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+        
+        # Test direct fetch to prediction endpoint
+        resp = client.get(f"/api/v1/predictions/{db_case_id}")
+        assert resp.status_code == 200
+
+    # Test read access for wrong district official
+    with as_role("DISTRICT_OFFICIAL", district="Mumbai"):
+        resp = client.get(f"/api/v1/interactions?case_id={db_case_id}")
+        assert resp.status_code == 200
+        assert len(resp.json()) == 0 # Scope filter hides it
+        
+        # Test direct fetch to prediction endpoint (should return 403 Forbidden)
+        resp = client.get(f"/api/v1/predictions/{db_case_id}")
+        assert resp.status_code == 403
+
+def test_ml_failure_error_handling(monkeypatch):
+    """Test that an ML pipeline failure does not prevent interaction creation."""
+    case_payload = {
+        "case_id": "CASE-TEST-FAIL-1",
+        "language": "hi-IN",
+        "district_type": "rural",
+        "district": "Pune",
+        "priority_use_case": "domestic_violence",
+        "current_stage": "intake",
+    }
+    db_case_id = client.post("/api/v1/cases", json=case_payload).json()["id"]
+
+    # Force a failure in the ML pipeline
+    from backend.services import interaction_service
+    
+    def mock_run_case(*args, **kwargs):
+        raise Exception("Simulated ML Failure")
+        
+    monkeypatch.setattr(interaction_service._ml_pipeline, "run_case", mock_run_case)
+    
+    # Interaction creation should succeed despite ML failure
+    interaction_payload = {
+        "case_id": db_case_id,
+        "interaction_date": "2026-09-05T12:00:00Z",
+        "channel": "whatsapp",
+        "language": "en-IN",
+        "text_response": "Checking failure mode",
+    }
+    resp = client.post("/api/v1/interactions", json=interaction_payload)
+    assert resp.status_code == 201
+    
+    # DB should have interaction and an error-state prediction
+    from backend.models import Prediction, Interaction
+    db = TestingSessionLocal()
+    try:
+        interactions = db.query(Interaction).filter(Interaction.case_id == db_case_id).all()
+        assert len(interactions) == 1
+        
+        preds = db.query(Prediction).filter(Prediction.case_id == db_case_id).all()
+        assert len(preds) == 1
+        assert preds[0].risk_level == "SYSTEM_ERROR"
+        assert "ML pipeline failed" in preds[0].explanation["message"]
+    finally:
+        db.close()

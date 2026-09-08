@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from typing import List
 
-from backend.models import Prediction
+from backend.models import Prediction, DistressState
 from backend.schemas.prediction import PredictionCreate
-
+from backend.schemas.distress import DistressStateCreate
 
 def create_prediction(db: Session, payload: PredictionCreate) -> Prediction:
     db_obj = Prediction(**payload.model_dump())
@@ -11,7 +11,6 @@ def create_prediction(db: Session, payload: PredictionCreate) -> Prediction:
     db.commit()
     db.refresh(db_obj)
     return db_obj
-
 
 def get_predictions_by_case(db: Session, case_id: int, skip: int = 0, limit: int = 100) -> List[Prediction]:
     return (
@@ -22,3 +21,10 @@ def get_predictions_by_case(db: Session, case_id: int, skip: int = 0, limit: int
         .limit(limit)
         .all()
     )
+
+def create_distress_state(db: Session, payload: DistressStateCreate) -> DistressState:
+    db_obj = DistressState(**payload.model_dump())
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
