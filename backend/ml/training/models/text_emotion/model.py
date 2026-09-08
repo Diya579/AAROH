@@ -113,21 +113,27 @@ class TextEmotionModel:
                         # Loading via generic AutoModel warns that these MLM-head keys are UNEXPECTED.
                         # We explicitly load via AutoModelForMaskedLM with output_loading_info=True, assert that
                         # zero legitimate encoder keys are missing, and extract the exact base DistilBertModel encoder.
+                        mlm_backbone = None
+                        mlm_loading_info = None
                         try:
                             from transformers import AutoModelForMaskedLM
-                            mlm_backbone, loading_info = AutoModelForMaskedLM.from_pretrained(
+                            mlm_backbone, mlm_loading_info = AutoModelForMaskedLM.from_pretrained(
                                 encoder_name_or_path,
                                 attn_implementation="eager",
                                 output_loading_info=True,
                             )
-                            if loading_info.get("missing_keys"):
+                        except (ValueError, KeyError, AttributeError):
+                            # Pretrained checkpoint is genuinely incompatible with AutoModelForMaskedLM architecture
+                            mlm_backbone = None
+
+                        if mlm_backbone is not None:
+                            if mlm_loading_info.get("missing_keys"):
                                 raise RuntimeError(
                                     f"Missing encoder keys loading pretrained backbone '{encoder_name_or_path}': "
-                                    f"{loading_info['missing_keys']}"
+                                    f"{mlm_loading_info['missing_keys']}"
                                 )
                             self.encoder = getattr(mlm_backbone, "base_model", getattr(mlm_backbone, "distilbert", mlm_backbone))
-                        except Exception as err:
-                            # Fallback if backbone is not an MLM architecture
+                        else:
                             model_obj, loading_info = AutoModel.from_pretrained(
                                 encoder_name_or_path,
                                 attn_implementation="eager",
@@ -137,7 +143,7 @@ class TextEmotionModel:
                                 raise RuntimeError(
                                     f"Missing encoder keys loading pretrained backbone '{encoder_name_or_path}': "
                                     f"{loading_info['missing_keys']}"
-                                ) from err
+                                )
                             self.encoder = model_obj
                     self.dropout = nn.Dropout(drop)
                     self.classifier = nn.Linear(emb_dim, n_classes)

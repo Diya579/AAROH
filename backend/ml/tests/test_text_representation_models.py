@@ -20,6 +20,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
+
+from backend.ml.inference.exceptions import NeuralExecutionError
 
 from backend.ml.training.evaluate_text_models import (
     evaluate_all,
@@ -417,6 +420,47 @@ class TestTextRepresentationModels(unittest.TestCase):
         self.assertEqual(len(res["emotion_embeddings"]), 2)
         self.assertEqual(len(res["emotion_embeddings"][0]), 768)
         self.assertIn("neutral", res["emotion_probabilities"][0])
+
+    def test_distilbert_backbone_missing_keys_fails_closed_no_fallback(self) -> None:
+        """Verifies that missing encoder keys detected by AutoModelForMaskedLM fail closed immediately,
+        raising NeuralExecutionError and NOT silently falling back to AutoModel."""
+        with patch("transformers.AutoModelForMaskedLM.from_pretrained") as mock_mlm, \
+             patch("transformers.AutoModel.from_pretrained") as mock_base:
+            mock_mlm.return_value = (
+                MagicMock(),
+                {"missing_keys": ["distilbert.embeddings.word_embeddings.weight"], "unexpected_keys": []},
+            )
+
+            with self.assertRaises(NeuralExecutionError) as ctx:
+                TextEmotionModel(
+                    backbone="distilbert-base-multilingual-cased",
+                    execution_mode="PYTORCH_FINETUNE",
+                )
+
+            self.assertIn("Missing encoder keys", str(ctx.exception))
+            self.assertIn("distilbert.embeddings.word_embeddings.weight", str(ctx.exception))
+            # Critical requirement: AutoModel fallback must NOT have been called!
+            mock_base.assert_not_called()
+
+    def test_distilbert_backbone_fallback_to_automodel_on_incompatible_arch(self) -> None:
+        """Verifies that AutoModel fallback is ONLY used when AutoModelForMaskedLM is genuinely incompatible
+        (e.g., ValueError), and if AutoModel also detects missing keys, it fails closed loudly."""
+        with patch("transformers.AutoModelForMaskedLM.from_pretrained", side_effect=ValueError("Unrecognized configuration")):
+            with patch("transformers.AutoModel.from_pretrained") as mock_base:
+                mock_base.return_value = (
+                    MagicMock(),
+                    {"missing_keys": ["transformer.wte.weight"], "unexpected_keys": []},
+                )
+
+                with self.assertRaises(NeuralExecutionError) as ctx:
+                    TextEmotionModel(
+                        backbone="gpt2-or-custom",
+                        execution_mode="PYTORCH_FINETUNE",
+                    )
+
+                self.assertIn("Missing encoder keys", str(ctx.exception))
+                self.assertIn("transformer.wte.weight", str(ctx.exception))
+                mock_base.assert_called_once()
 
 
 if __name__ == "__main__":
