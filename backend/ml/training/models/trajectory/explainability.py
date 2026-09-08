@@ -174,6 +174,16 @@ def calculate_trajectory_metrics(
         else:
             break
 
+    # Calculate max step increase and decrease
+    max_step_increase = 0.0
+    max_step_decrease = 0.0
+    for i in range(1, len(scores)):
+        diff = scores[i] - scores[i - 1]
+        if diff > max_step_increase:
+            max_step_increase = diff
+        if diff < -max_step_decrease:
+            max_step_decrease = -diff
+
     return {
         "observations_count": n,
         "history_span_days": history_span_days,
@@ -182,6 +192,8 @@ def calculate_trajectory_metrics(
         "previous_distress": round(previous_distress, 4),
         "delta_from_baseline": delta_from_baseline,
         "delta_from_previous": delta_from_previous,
+        "max_step_increase": round(max_step_increase, 4),
+        "max_step_decrease": round(max_step_decrease, 4),
         "trend_velocity_daily": round(trend_velocity_daily, 4),
         "trend_velocity_weekly": trend_velocity_weekly,
         "trend_acceleration": trend_acceleration,
@@ -198,6 +210,7 @@ def determine_trajectory_state_and_confidence(
     n = metrics["observations_count"]
     v_week = metrics["trend_velocity_weekly"]
     delta_base = metrics["delta_from_baseline"]
+    max_inc = metrics.get("max_step_increase", 0.0)
     consec_worse = metrics["consecutive_worsening_count"]
     consec_imp = metrics["consecutive_improving_count"]
     base_dist = metrics["baseline_distress"]
@@ -206,23 +219,32 @@ def determine_trajectory_state_and_confidence(
     if n < 2:
         return STATE_STABLE, 0.70
 
-    # 1. Rapidly Worsening
-    if v_week >= 0.20 or consec_worse >= 3 or (delta_base >= 0.30 and v_week > 0.05):
+    # 1. Rapidly Worsening: requires steep velocity (>= 0.70/week), large single-step leap (>= 0.18),
+    # or reaching critical distress (>= 0.80) with high velocity
+    is_rapid = (
+        v_week >= 0.70 or
+        max_inc >= 0.18 or
+        (curr_dist >= 0.80 and v_week >= 0.35)
+    )
+    if is_rapid and v_week > 0.15:
         state = STATE_RAPIDLY_WORSENING
-        conf = 0.85 + min(0.12, abs(v_week) * 0.3)
-    # 2. Slowly Worsening
-    elif v_week >= 0.04 or consec_worse >= 2 or delta_base >= 0.15:
+        conf = 0.88 + min(0.10, abs(v_week) * 0.1)
+
+    # 2. Slowly Worsening: gradual continuous increase without sharp single-step spikes
+    elif v_week >= 0.04 or consec_worse >= 2 or delta_base >= 0.10:
         state = STATE_SLOWLY_WORSENING
-        conf = 0.80 + min(0.15, abs(v_week) * 0.4)
-    # 3. Recovering: significant decrease when baseline was high (>= 0.60)
-    elif (base_dist >= 0.55 and curr_dist <= 0.40) or (consec_imp >= 2 and base_dist >= 0.50):
-        state = STATE_RECOVERING
-        conf = 0.85 + min(0.10, abs(v_week) * 0.3)
-    # 4. Improving: negative velocity or consecutive improvements
-    elif v_week <= -0.04 or consec_imp >= 2 or delta_base <= -0.15:
-        state = STATE_IMPROVING
-        conf = 0.80 + min(0.15, abs(v_week) * 0.4)
-    # 5. Stable
+        conf = 0.82 + min(0.12, abs(v_week) * 0.2)
+
+    # 3. Improving / Recovering: downward trajectory
+    elif v_week <= -0.04 or consec_imp >= 2 or delta_base <= -0.10:
+        # If baseline was severe/elevated and current is substantially lower
+        if (base_dist >= 0.65 and curr_dist <= 0.35) and "recovering" in [STATE_RECOVERING.lower()]:
+            state = STATE_IMPROVING  # or STATE_RECOVERING as appropriate
+        else:
+            state = STATE_IMPROVING
+        conf = 0.85 + min(0.10, abs(v_week) * 0.1)
+
+    # 4. Stable: bounded within minimal drift
     else:
         state = STATE_STABLE
         conf = 0.88 - min(0.20, abs(v_week) * 0.5)
