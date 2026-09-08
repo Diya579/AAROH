@@ -549,16 +549,16 @@ class CheckpointManager:
             else:
                 raise FileNotFoundError(f"Checkpoint not found at '{checkpoint_path}'")
 
+        if c_path.suffix == ".json":
+            with open(c_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+
         try:
             import torch
-            return torch.load(c_path, map_location="cpu")
-        except Exception:
-            try:
-                with open(c_path, "rb") as f:
-                    return json.loads(f.read().decode("utf-8"))
-            except Exception:
-                with open(c_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+            return torch.load(c_path, map_location="cpu", weights_only=True)
+        except ImportError:
+            with open(c_path, "r", encoding="utf-8") as f:
+                return json.load(f)
 
 
 class EarlyStopping:

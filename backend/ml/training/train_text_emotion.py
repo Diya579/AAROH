@@ -341,19 +341,19 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
                     optimizer.load_state_dict(loaded_ckpt["optimizer_state_dict"])
                     print("[INFO] Optimizer state restored.")
                 except Exception as e:
-                    print(f"[WARN] Could not restore optimizer state: {e}")
+                    raise RuntimeError(f"Failed to restore optimizer state from checkpoint '{args.resume}': {e}") from e
             if "scheduler_state_dict" in loaded_ckpt and loaded_ckpt["scheduler_state_dict"]:
                 try:
                     scheduler.load_state_dict(loaded_ckpt["scheduler_state_dict"])
                     print("[INFO] Scheduler state restored.")
                 except Exception as e:
-                    print(f"[WARN] Could not restore scheduler state: {e}")
+                    raise RuntimeError(f"Failed to restore scheduler state from checkpoint '{args.resume}': {e}") from e
             if "scaler_state_dict" in loaded_ckpt and loaded_ckpt["scaler_state_dict"] and scaler is not None:
                 try:
                     scaler.load_state_dict(loaded_ckpt["scaler_state_dict"])
                     print("[INFO] GradScaler state restored.")
                 except Exception as e:
-                    print(f"[WARN] Could not restore scaler state: {e}")
+                    raise RuntimeError(f"Failed to restore scaler state from checkpoint '{args.resume}': {e}") from e
             start_epoch = loaded_ckpt.get("epoch", 0) + 1
             global_step = loaded_ckpt.get("global_step", 0)
             best_macro_f1 = loaded_ckpt.get("best_macro_f1", 0.0)
@@ -403,9 +403,18 @@ def train_text_emotion(args: argparse.Namespace) -> dict[str, Any]:
                 is_accum_step = ((batch_idx + 1) % grad_accum_steps == 0) or ((batch_idx + 1) == len(dataloader))
                 if is_accum_step:
                     if scaler is not None and use_fp16:
+                        scaler.unscale_(optimizer)
+                        torch.nn.utils.clip_grad_norm_(
+                            [p for p in model.torch_model.parameters() if p.requires_grad],
+                            max_norm=1.0,
+                        )
                         scaler.step(optimizer)
                         scaler.update()
                     else:
+                        torch.nn.utils.clip_grad_norm_(
+                            [p for p in model.torch_model.parameters() if p.requires_grad],
+                            max_norm=1.0,
+                        )
                         optimizer.step()
                     if scheduler is not None:
                         scheduler.step()

@@ -574,6 +574,68 @@ class TestTextRepresentationModels(unittest.TestCase):
                 TextEmotionModel.load_from_artifact(art_p)
             self.assertIn("Missing required neural tokenizer files", str(ctx.exception))
 
+    def test_export_import_round_trip_parity(self) -> None:
+        """Verifies Phase 13 export/import round trip across PYTORCH_FINETUNE and FALLBACK modes,
+        ensuring 100% numerical equivalence on embeddings, probabilities, and execution mode."""
+        import numpy as np
+        import tempfile
+        test_texts = [
+            "I feel happy and hopeful today!",
+            "This is completely terrifying and overwhelming.",
+            "नमस्ते, यह परीक्षण है।",
+        ]
+
+        for mode in ["PYTORCH_FINETUNE", "FALLBACK"]:
+            model = TextEmotionModel(
+                backbone="distilbert-base-multilingual-cased",
+                execution_mode=mode,
+            )
+            pred_orig = model.encode_and_predict(test_texts, device="cpu", batch_size=2)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_dir = Path(tmpdir) / "exported_model"
+                model.save(output_dir=out_dir)
+
+                loaded_model = TextEmotionModel.load_from_artifact(out_dir, device="cpu")
+                pred_loaded = loaded_model.encode_and_predict(test_texts, device="cpu", batch_size=2)
+
+                self.assertEqual(loaded_model.execution_mode, mode)
+                np.testing.assert_allclose(
+                    pred_orig["emotion_embeddings"],
+                    pred_loaded["emotion_embeddings"],
+                    atol=1e-5,
+                    err_msg=f"Embedding mismatch in mode {mode}",
+                )
+
+                for i in range(len(test_texts)):
+                    p_orig = list(pred_orig["emotion_probabilities"][i].values())
+                    p_loaded = list(pred_loaded["emotion_probabilities"][i].values())
+                    np.testing.assert_allclose(
+                        p_orig,
+                        p_loaded,
+                        atol=1e-5,
+                        err_msg=f"Probability mismatch in mode {mode}",
+                    )
+
+    def test_checkpoint_manager_load_checkpoint_weights_only(self) -> None:
+        """Verifies that CheckpointManager.load_checkpoint enforces weights_only=True and rejects exploit payloads."""
+        import tempfile
+        import torch
+
+        class Exploit:
+            def __reduce__(self):
+                return (eval, ("__import__('os').system('echo EXPLOIT')",))
+
+        mgr = CheckpointManager(checkpoint_dir=self.test_dir / "ckpts")
+        mgr.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        exploit_path = mgr.checkpoint_dir / "exploit.pt"
+        torch.save(Exploit(), exploit_path)
+
+        with self.assertRaises(Exception) as ctx:
+            mgr.load_checkpoint(exploit_path)
+        # Should raise unpickling/security error, not execute payload
+        self.assertTrue("UnpicklingError" in type(ctx.exception).__name__ or "weights_only" in str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
