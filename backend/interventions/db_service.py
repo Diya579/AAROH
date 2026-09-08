@@ -103,6 +103,7 @@ class DatabaseOperationalService:
         db: Session,
         case_id: int | str,
         custom_router: Optional[AssignmentRouter] = None,
+        auto_commit: bool = True,
     ) -> Dict[str, Any]:
         """
         Loads case records from PostgreSQL and creates an operational intervention:
@@ -302,8 +303,11 @@ class DatabaseOperationalService:
 
         new_intervention = Intervention(**interv_kwargs)
         db.add(new_intervention)
-        db.commit()
-        db.refresh(new_intervention)
+        if auto_commit:
+            db.commit()
+            db.refresh(new_intervention)
+        else:
+            db.flush()
 
         # 11. Role-appropriate Notification
         if assigned_to:
@@ -323,8 +327,10 @@ class DatabaseOperationalService:
             )
 
         return {
+            "id": new_intervention.id,
             "intervention_id": new_intervention.id,
-            "case_id": cid_str,
+            "case_id": case.id,
+            "case_string_id": cid_str,
             "intervention_type": new_intervention.intervention_type,
             "priority": decision.priority.value,
             "status": new_intervention.status,
@@ -354,6 +360,7 @@ class DatabaseOperationalService:
         actor_id: str,
         actor_role: str,
         actor_district: Optional[str] = None,
+        auto_commit: bool = True,
     ) -> Dict[str, Any]:
         """
         Enforces finite state machine transitions:
@@ -364,7 +371,8 @@ class DatabaseOperationalService:
         ALLOWED_OFFICIAL_ROLES = {
             "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
             "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
-            "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+            "STATE_AUTHORITY", "NATIONAL_OFFICIAL", "NATIONAL_AUTHORITY",
+            "ADMIN", "SYSTEM_SERVICE",
         }
         if not actor_role or actor_role.upper() not in ALLOWED_OFFICIAL_ROLES:
             raise PermissionError(f"Access Denied: Role '{actor_role}' is not authorized to transition interventions.")
@@ -397,8 +405,11 @@ class DatabaseOperationalService:
         elif new_enum == InterventionStatus.COMPLETED and hasattr(interv, "completed_at") and not getattr(interv, "completed_at", None):
             interv.completed_at = now_utc
 
-        db.commit()
-        db.refresh(interv)
+        if auto_commit:
+            db.commit()
+            db.refresh(interv)
+        else:
+            db.flush()
 
         # Role-appropriate escalation notification
         if new_enum == InterventionStatus.ESCALATED:
@@ -413,8 +424,13 @@ class DatabaseOperationalService:
             )
 
         return {
+            "id": interv.id,
             "intervention_id": interv.id,
+            "case_id": interv.case_id,
+            "intervention_type": interv.intervention_type,
+            "assigned_to": interv.assigned_to,
             "previous_status": old_status,
+            "status": interv.status,
             "current_status": interv.status,
             "actor_id": actor_id,
             "actor_role": actor_role,
@@ -436,6 +452,7 @@ class DatabaseOperationalService:
         officer_id: Optional[str] = None,
         officer_role: Optional[str] = None,
         officer_district: Optional[str] = None,
+        auto_commit: bool = True,
     ) -> Dict[str, Any]:
         """
         Records an outcome in PostgreSQL using the approved vocabulary.
@@ -446,7 +463,8 @@ class DatabaseOperationalService:
         ALLOWED_OFFICIAL_ROLES = {
             "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
             "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
-            "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+            "STATE_AUTHORITY", "NATIONAL_OFFICIAL", "NATIONAL_AUTHORITY",
+            "ADMIN", "SYSTEM_SERVICE",
         }
         if officer_role and officer_role.upper() not in ALLOWED_OFFICIAL_ROLES:
             raise PermissionError(f"Access Denied: Role '{officer_role}' is not authorized to record outcomes.")
@@ -499,8 +517,11 @@ class DatabaseOperationalService:
 
         outcome = Outcome(**outcome_kwargs)
         db.add(outcome)
-        db.commit()
-        db.refresh(outcome)
+        if auto_commit:
+            db.commit()
+            db.refresh(outcome)
+        else:
+            db.flush()
 
         # Notify official
         if interv.assigned_to:
@@ -526,8 +547,10 @@ class DatabaseOperationalService:
         )
 
         return {
+            "id": outcome.id,
             "outcome_id": outcome.id,
-            "case_id": case.case_id,
+            "case_id": case.id,
+            "case_string_id": case.case_id,
             "intervention_id": interv.id,
             "outcome_type": outcome.outcome_type,
             "completed": outcome.completed,
@@ -547,6 +570,7 @@ class DatabaseOperationalService:
         new_distress_score: float,
         new_trajectory: str,
         confidence: float = 1.0,
+        auto_commit: bool = True,
     ) -> Dict[str, Any]:
         """
         Records subsequent monitoring observation in PostgreSQL and evaluates
@@ -579,8 +603,11 @@ class DatabaseOperationalService:
             confidence=round(confidence, 4),
         )
         db.add(new_state)
-        db.commit()
-        db.refresh(new_state)
+        if auto_commit:
+            db.commit()
+            db.refresh(new_state)
+        else:
+            db.flush()
 
         # Closed-loop temporal evaluation
         diff = round(new_distress_score - pre_score, 4)
@@ -632,7 +659,8 @@ class DatabaseOperationalService:
         ALLOWED_ANALYTICS_ROLES = {
             "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
             "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
-            "STATE_AUTHORITY", "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+            "STATE_AUTHORITY", "NATIONAL_OFFICIAL", "NATIONAL_AUTHORITY",
+            "ADMIN", "SYSTEM_SERVICE",
         }
         if role_upper not in ALLOWED_ANALYTICS_ROLES:
             raise PermissionError(f"Access Denied: Role '{user_role}' is not authorized to access case analytics.")
@@ -712,7 +740,8 @@ class DatabaseOperationalService:
         ALLOWED_ANALYTICS_ROLES = {
             "CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER",
             "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL",
-            "STATE_AUTHORITY", "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE",
+            "STATE_AUTHORITY", "NATIONAL_OFFICIAL", "NATIONAL_AUTHORITY",
+            "ADMIN", "SYSTEM_SERVICE",
         }
         if role_upper not in ALLOWED_ANALYTICS_ROLES:
             raise PermissionError(f"Access Denied: Role '{user_role}' is not authorized to access district analytics.")
