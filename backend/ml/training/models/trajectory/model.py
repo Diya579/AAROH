@@ -167,7 +167,7 @@ class LongitudinalTrajectoryModel:
         elif self.unfreeze_backbone:
             self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE
         else:
-            self.execution_mode = EXECUTION_MODE_PYTORCH_FROZEN
+            self.execution_mode = EXECUTION_MODE_FALLBACK
 
         # Transformer backbones: referenced in config only, never instantiated in FALLBACK
         self.text_backbone = None
@@ -712,3 +712,80 @@ class LongitudinalTrajectoryModel:
             "metrics": str(out_dir / "metrics.json"),
             "label_mapping": str(out_dir / "label_mapping.json"),
         }
+
+    def predict_trajectory_with_evidence(
+        self,
+        input_data: Union[CaseTrajectory, List[TrajectoryInputRecord], List[List[float]], Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Predicts trajectory and returns structured, machine-readable evidence grounded in inputs."""
+        from backend.ml.training.models.trajectory.explainability import generate_trajectory_evidence
+
+        base_result = self.predict_trajectory(input_data)
+
+        records: List[TrajectoryInputRecord] = []
+        if isinstance(input_data, CaseTrajectory):
+            records = input_data.records
+        elif isinstance(input_data, list) and len(input_data) > 0 and isinstance(input_data[0], TrajectoryInputRecord):
+            records = input_data
+
+        evidence = generate_trajectory_evidence(
+            records=records,
+            trajectory_score=base_result["trajectory_score"],
+            trajectory_label=base_result["trajectory_label"],
+            model_version=self.model_version,
+        )
+
+        return {
+            "trajectory_score": base_result["trajectory_score"],
+            "trajectory_state": evidence.trajectory_state,
+            "trajectory_label": base_result["trajectory_label"],
+            "confidence": evidence.confidence,
+            "trend_velocity": evidence.trend_velocity,
+            "trend_velocity_display": evidence.trend_velocity_display,
+            "trend_acceleration": evidence.trend_acceleration,
+            "trajectory_embedding": base_result["trajectory_embedding"],
+            "trajectory_probabilities": base_result["trajectory_probabilities"],
+            "reasons": evidence.reasons,
+            "evidence": evidence.to_dict(),
+            "model_version": base_result["model_version"],
+        }
+
+    @classmethod
+    def load_from_artifact(
+        cls,
+        artifact_dir: Union[str, Path],
+        device: Optional[str] = None,
+    ) -> "LongitudinalTrajectoryModel":
+        """Loads a LongitudinalTrajectoryModel entirely from an exported artifact directory.
+
+        Ensures fresh Python process compatibility with zero global variables.
+        """
+        art_dir = Path(artifact_dir)
+        if not art_dir.exists():
+            raise FileNotFoundError(f"Trajectory artifact directory not found: {art_dir}")
+
+        req_files = ["config.json", "metadata.json", "weights"]
+        missing = [f for f in req_files if not (art_dir / f).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required trajectory artifact files in {art_dir}: {missing}")
+
+        with open(art_dir / "config.json", "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+
+        with open(art_dir / "metadata.json", "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+        execution_mode = meta.get("execution_mode", cfg.get("execution_mode", EXECUTION_MODE_FALLBACK))
+        history_window = cfg.get("history_window", DEFAULT_HISTORY_WINDOW)
+
+        model = cls(
+            model_version=cfg.get("model_version", DEFAULT_MODEL_VERSION),
+            history_window=history_window,
+            device=device,
+            seed=meta.get("hyperparameters", {}).get("seed", 42),
+            force_mode=execution_mode,
+        )
+
+        model.load_checkpoint(art_dir / "weights")
+        return model
+

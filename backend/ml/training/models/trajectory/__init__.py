@@ -39,6 +39,21 @@ from backend.ml.training.models.trajectory.dataset import (
     split_trajectories_by_case,
     validate_no_case_leakage,
 )
+from backend.ml.training.models.trajectory.explainability import (
+    STATE_IMPROVING,
+    STATE_RAPIDLY_WORSENING,
+    STATE_RECOVERING,
+    STATE_SLOWLY_WORSENING,
+    STATE_STABLE,
+    TrajectoryEvidence,
+    calculate_trajectory_metrics,
+    determine_trajectory_state_and_confidence,
+    generate_trajectory_evidence,
+    generate_trajectory_reasons,
+)
+from backend.ml.training.models.trajectory.inference import (
+    TrajectoryInferencePipeline,
+)
 from backend.ml.training.models.trajectory.model import (
     DEFAULT_MODEL_VERSION,
     EXECUTION_MODE_FALLBACK,
@@ -50,10 +65,21 @@ from backend.ml.training.models.trajectory.model import (
 
 __all__ = [
     "LongitudinalTrajectoryModel",
+    "TrajectoryInferencePipeline",
     "TrajectoryInputRecord",
     "CaseTrajectory",
     "TrajectoryDataset",
     "TrajectoryLabel",
+    "TrajectoryEvidence",
+    "calculate_trajectory_metrics",
+    "determine_trajectory_state_and_confidence",
+    "generate_trajectory_evidence",
+    "generate_trajectory_reasons",
+    "STATE_IMPROVING",
+    "STATE_STABLE",
+    "STATE_SLOWLY_WORSENING",
+    "STATE_RAPIDLY_WORSENING",
+    "STATE_RECOVERING",
     "TRAJECTORY_INTERNAL_SCORES",
     "TRAJECTORY_DEFINITIONS",
     "build_synthetic_trajectories",
