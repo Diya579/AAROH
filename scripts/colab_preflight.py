@@ -152,7 +152,7 @@ def check_checkpoint_payload() -> None:
     best_ckpt = smoke_ckpt_dir / "best_checkpoint.pt"
     assert best_ckpt.exists(), f"Best checkpoint not found at {best_ckpt}"
 
-    ckpt = torch.load(best_ckpt, map_location="cpu")
+    ckpt = torch.load(best_ckpt, map_location="cpu", weights_only=True)
     expected_keys = [
         "epoch",
         "global_step",
