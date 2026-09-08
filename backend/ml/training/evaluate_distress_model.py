@@ -145,12 +145,33 @@ def evaluate_distress(
     den = math.sqrt(sum((p - mean_p) ** 2 for p in predictions) * sum((t - mean_t) ** 2 for t in targets))
     pearson_r = (num / den) if den > 1e-12 else 0.0
 
-    # Threshold Classification Accuracy
+    # Threshold Classification Accuracy & Level Metrics
     correct_matches = sum(1 for p_l, t_l in zip(pred_levels, true_levels) if p_l == t_l)
     threshold_accuracy = (correct_matches / n) if n else 0.0
 
+    from sklearn.metrics import precision_recall_fscore_support
+    levels_order = ["LOW", "MODERATE", "HIGH", "CRITICAL"]
+    p_ma, r_ma, f1_ma, _ = precision_recall_fscore_support(
+        true_levels, pred_levels, labels=levels_order, average="macro", zero_division=0
+    )
+    p_wt, r_wt, f1_wt, _ = precision_recall_fscore_support(
+        true_levels, pred_levels, labels=levels_order, average="weighted", zero_division=0
+    )
+    p_per, r_per, f1_per, sup_per = precision_recall_fscore_support(
+        true_levels, pred_levels, labels=levels_order, average=None, zero_division=0
+    )
+    per_level_metrics = {
+        lvl: {
+            "precision": round(float(p_per[i]), 4),
+            "recall": round(float(r_per[i]), 4),
+            "f1": round(float(f1_per[i]), 4),
+            "support": int(sup_per[i]),
+        }
+        for i, lvl in enumerate(levels_order)
+    }
+
     # Distress Level Distribution
-    level_counts = {lvl: pred_levels.count(lvl) for lvl in ("LOW", "MODERATE", "HIGH", "CRITICAL")}
+    level_counts = {lvl: pred_levels.count(lvl) for lvl in levels_order}
     level_pcts = {lvl: round(count / n * 100.0, 1) for lvl, count in level_counts.items()}
 
     mean_emb_norm = sum(embedding_norms) / n if n else 1.0
@@ -162,6 +183,11 @@ def evaluate_distress(
         "rmse": round(float(rmse), 4),
         "pearson_correlation": round(float(pearson_r), 4),
         "threshold_accuracy": round(float(threshold_accuracy), 4),
+        "macro_precision": round(float(p_ma), 4),
+        "macro_recall": round(float(r_ma), 4),
+        "macro_f1": round(float(f1_ma), 4),
+        "weighted_f1": round(float(f1_wt), 4),
+        "per_level_metrics": per_level_metrics,
         "distress_level_distribution": {
             "counts": level_counts,
             "percentages": level_pcts,
@@ -181,9 +207,15 @@ def evaluate_distress(
     print(f"Root Mean Squared Error (RMSE):   {report['rmse']:.4f}")
     print(f"Pearson Correlation (r):          {report['pearson_correlation']:.4f}")
     print(f"Threshold Accuracy:               {report['threshold_accuracy']:.4f} ({correct_matches}/{n})")
+    print(f"Macro F1 (Threshold Levels):      {report['macro_f1']:.4f} (Precision: {report['macro_precision']:.4f}, Recall: {report['macro_recall']:.4f})")
+    print(f"Weighted F1:                      {report['weighted_f1']:.4f}")
     print(f"Distress Level Distribution:      {level_counts}")
     print(f"Distress Level Percentages:       {level_pcts}")
-    print(f"Mean Distress Embedding Norm:     {report['mean_distress_embedding_norm']:.4f}")
+    print("\n--- Per-Level Metrics ---")
+    for lvl in levels_order:
+        plm = per_level_metrics[lvl]
+        print(f"  {lvl:<9} | Precision: {plm['precision']:.4f} | Recall: {plm['recall']:.4f} | F1: {plm['f1']:.4f} | Support: {plm['support']}")
+    print(f"\nMean Distress Embedding Norm:     {report['mean_distress_embedding_norm']:.4f}")
     print(f"Clinical Boundaries Enforced:     {report['clinical_boundaries_enforced']}")
     print("-" * 72)
     print("                     SMOKE-TEST EVALUATION NOTICE")

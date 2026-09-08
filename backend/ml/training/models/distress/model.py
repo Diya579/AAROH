@@ -523,6 +523,53 @@ class DynamicDistressModel:
 
         return result
 
+    def predict_distress_with_evidence(
+        self,
+        record: Union[DistressInputRecord, Dict[str, Any], Sequence[float]],
+        raw_text: Optional[str] = None,
+        emotion_probabilities: Optional[Dict[str, float]] = None,
+        previous_emotion_probabilities: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """Predicts distress and returns structured, machine-readable evidence grounded in inputs."""
+        from backend.ml.training.models.distress.explainability import generate_distress_evidence
+
+        base_result = self.predict_distress(record)
+
+        b_feats = None
+        e_feats = None
+        mod_weights = None
+        if isinstance(record, DistressInputRecord):
+            b_feats = record.behavioural_features
+            e_feats = record.engagement_features
+            mod_weights = record.modality_weights
+        elif isinstance(record, dict):
+            b_feats = record.get("behavioural_features")
+            e_feats = record.get("engagement_features")
+            mod_weights = record.get("modality_weights")
+
+        evidence = generate_distress_evidence(
+            distress_score=base_result["distress_score"],
+            distress_level=base_result["distress_level"],
+            thresholds=self.thresholds,
+            model_version=self.model_version,
+            raw_text=raw_text,
+            emotion_probabilities=emotion_probabilities,
+            previous_emotion_probabilities=previous_emotion_probabilities,
+            behavioural_features=b_feats,
+            engagement_features=e_feats,
+            modality_weights=mod_weights,
+        )
+
+        return {
+            "distress_score": base_result["distress_score"],
+            "distress_level": base_result["distress_level"],
+            "distress_embedding": base_result["distress_embedding"],
+            "model_version": base_result["model_version"],
+            "confidence": evidence.confidence,
+            "main_contributors": evidence.main_contributors,
+            "evidence": evidence.to_dict(),
+        }
+
     def save_checkpoint(
         self,
         path: Union[str, Path],
@@ -711,3 +758,43 @@ class DynamicDistressModel:
             "metrics": str(out_dir / "metrics.json"),
             "label_mapping": str(out_dir / "label_mapping.json"),
         }
+
+    @classmethod
+    def load_from_artifact(
+        cls,
+        artifact_dir: Union[str, Path],
+        device: Optional[str] = None,
+    ) -> "DynamicDistressModel":
+        """Loads a DynamicDistressModel entirely from an exported artifact directory.
+
+        Ensures fresh Python process compatibility with zero global variables.
+        """
+        art_dir = Path(artifact_dir)
+        if not art_dir.exists():
+            raise FileNotFoundError(f"Distress artifact directory not found: {art_dir}")
+
+        req_files = ["config.json", "metadata.json", "weights"]
+        missing = [f for f in req_files if not (art_dir / f).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required distress artifact files in {art_dir}: {missing}")
+
+        with open(art_dir / "config.json", "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+
+        with open(art_dir / "metadata.json", "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+        execution_mode = meta.get("execution_mode", cfg.get("execution_mode", EXECUTION_MODE_FALLBACK))
+        thresholds = cfg.get("thresholds", DEFAULT_THRESHOLDS)
+
+        model = cls(
+            model_version=cfg.get("model_version", DEFAULT_MODEL_VERSION),
+            thresholds=thresholds,
+            device=device,
+            seed=meta.get("hyperparameters", {}).get("seed", 42),
+            force_mode=execution_mode,
+        )
+
+        model.load_checkpoint(art_dir / "weights")
+        return model
+

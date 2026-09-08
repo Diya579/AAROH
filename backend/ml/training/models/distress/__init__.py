@@ -41,10 +41,19 @@ from backend.ml.training.models.distress.model import (
     load_thresholds_from_config,
 )
 
+from backend.ml.training.models.distress.explainability import (
+    DistressEvidence,
+    calculate_distress_confidence,
+    generate_distress_evidence,
+)
+
 __all__ = [
     "DynamicDistressModel",
     "DistressInputRecord",
     "DistressDataset",
+    "DistressEvidence",
+    "generate_distress_evidence",
+    "calculate_distress_confidence",
     "split_distress_records_by_case",
     "build_synthetic_distress_records",
     "compute_synthetic_distress_score",
