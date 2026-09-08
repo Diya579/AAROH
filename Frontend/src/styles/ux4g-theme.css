@@ -1,0 +1,317 @@
+/* ==========================================================================
+   UX4G DESIGN SYSTEM 3.0 — AAROH THEME & DESIGN TOKENS (REFINED)
+   Formal, Clean, Spacious, Elegant Government of India Aesthetic
+   ========================================================================== */
+
+:root {
+  /* Sovereign Royal Violet / Indigo (Primary Brand) */
+  --ux4g-violet-50: #FAF5FF;
+  --ux4g-violet-100: #F3E8FF;
+  --ux4g-violet-200: #E9D5FF;
+  --ux4g-violet-300: #D8B4FE;
+  --ux4g-violet-400: #C084FC;
+  --ux4g-violet-500: #A855F7;
+  --ux4g-violet-600: #9333EA;
+  --ux4g-violet-700: #6D28D9; /* Signature Sovereign Violet */
+  --ux4g-violet-800: #5B21B6;
+  --ux4g-violet-900: #4C1D95;
+  --ux4g-violet-950: #2E1065;
+
+  /* National Accent Saffron / Warm Amber */
+  --ux4g-saffron-50: #FFFBEB;
+  --ux4g-saffron-100: #FEF3C7;
+  --ux4g-saffron-400: #FBBF24;
+  --ux4g-saffron-500: #D97706;
+  --ux4g-saffron-600: #B45309;
+
+  /* Semantic State Tokens */
+  --ux4g-success: #059669;
+  --ux4g-success-bg: #F0FDF4;
+  --ux4g-success-border: #BBF7D0;
+  --ux4g-success-text: #166534;
+
+  --ux4g-warning: #D97706;
+  --ux4g-warning-bg: #FFFBEB;
+  --ux4g-warning-border: #FDE68A;
+  --ux4g-warning-text: #92400E;
+
+  --ux4g-danger: #DC2626;
+  --ux4g-danger-bg: #FEF2F2;
+  --ux4g-danger-border: #FECACA;
+  --ux4g-danger-text: #991B1B;
+
+  --ux4g-info: #0284C7;
+  --ux4g-info-bg: #F0F9FF;
+  --ux4g-info-border: #BAE6FD;
+  --ux4g-info-text: #075985;
+
+  /* Elegant Neutral & Surface Tokens */
+  --ux4g-bg: #F8FAFC;
+  --ux4g-bg-subtle: #F1F5F9;
+  --ux4g-surface: #FFFFFF;
+  --ux4g-surface-card: #FFFFFF;
+  --ux4g-border: #E2E8F0;
+  --ux4g-border-subtle: #F1F5F9;
+  --ux4g-border-focus: #6D28D9;
+  --ux4g-text-primary: #0F172A;
+  --ux4g-text-secondary: #475569;
+  --ux4g-text-muted: #64748B;
+  --ux4g-text-white: #FFFFFF;
+
+  /* Airy, Elegant Elevation System */
+  --elevation-1: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  --elevation-2: 0 4px 12px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.02);
+  --elevation-3: 0 10px 25px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.03);
+  --elevation-4: 0 20px 40px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.04);
+
+  /* Transitions & Spacing */
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-glide: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Dynamic Accessibility Font Scaling */
+  --font-scale: 1;
+}
+
+/* Accessibility: High Contrast Mode */
+[data-contrast="high"] {
+  --ux4g-bg: #FFFFFF;
+  --ux4g-surface: #FFFFFF;
+  --ux4g-text-primary: #000000;
+  --ux4g-text-secondary: #111111;
+  --ux4g-border: #000000;
+  --ux4g-violet-700: #000080;
+  --ux4g-violet-50: #EEEEEE;
+  --ux4g-border-subtle: #333333;
+}
+
+/* Accessibility: Universal Motion Toggle (Reduced Motion) */
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.0001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.0001ms !important;
+  scroll-behavior: auto !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.0001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.0001ms !important;
+    scroll-behavior: auto !important;
+    transform: none !important;
+  }
+}
+
+/* Base Reset & Typography */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: calc(16px * var(--font-scale));
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--ux4g-bg);
+  color: var(--ux4g-text-primary);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Headings with Dignified Government Hierarchy */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ux4g-violet-950);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+/* Clean Elevation Classes */
+.elevation-1 {
+  box-shadow: var(--elevation-1);
+  border: 1px solid var(--ux4g-border);
+}
+
+.elevation-2 {
+  box-shadow: var(--elevation-2);
+  border: 1px solid var(--ux4g-border);
+}
+
+.elevation-3 {
+  box-shadow: var(--elevation-3);
+  border: 1px solid var(--ux4g-border);
+}
+
+.elevation-4 {
+  box-shadow: var(--elevation-4);
+  border: 1px solid var(--ux4g-border);
+}
+
+.card-lift {
+  transition: var(--transition-smooth);
+  box-shadow: var(--elevation-1);
+  border: 1px solid var(--ux4g-border);
+  background-color: var(--ux4g-surface);
+}
+
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-2);
+  border-color: #CBD5E1;
+}
+
+/* Focus Mode Glow */
+.ux4g-focus-glow {
+  transition: var(--transition-fast);
+}
+
+.ux4g-focus-glow:focus,
+.ux4g-focus-glow:focus-within {
+  outline: none;
+  border-color: var(--ux4g-violet-700) !important;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.15) !important;
+}
+
+/* Collapsible Accordion */
+.ux4g-collapsible {
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+}
+
+.ux4g-collapsible.closed {
+  max-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ux4g-collapsible.open {
+  max-height: 800px;
+  opacity: 1;
+}
+
+/* Offcanvas Flyout */
+.ux4g-offcanvas-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+}
+
+.ux4g-offcanvas-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(440px, 92vw);
+  background-color: var(--ux4g-surface);
+  z-index: 1001;
+  box-shadow: var(--elevation-4);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ux4g-offcanvas-drawer.open {
+  transform: translateX(0);
+}
+
+/* National Tricolor Top Bar */
+.ux4g-tricolor-bar {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #FF9933 33.33%, #FFFFFF 33.33% 66.66%, #138808 66.66%);
+}
+
+/* Spacious Container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Badges — Formal Government Clean Standard */
+.ux4g-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  line-height: 1.3;
+}
+
+.ux4g-badge-low {
+  background-color: #F0FDF4;
+  color: #166534;
+  border: 1px solid #BBF7D0;
+}
+
+.ux4g-badge-medium {
+  background-color: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.ux4g-badge-high {
+  background-color: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid #FFEDD5;
+}
+
+.ux4g-badge-critical {
+  background-color: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.ux4g-badge-primary {
+  background-color: #EFF6FF;
+  color: #1E3A8A;
+  border: 1px solid #DBEAFE;
+}
+
+/* Responsive helpers */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
