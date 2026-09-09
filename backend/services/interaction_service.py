@@ -22,7 +22,7 @@ from backend.ml.contract import ProcessingStatus
 from backend.services.prediction_service import create_prediction, create_distress_state
 from backend.schemas.prediction import PredictionCreate
 from backend.schemas.distress import DistressStateCreate
-from backend.intervention_engine import create_intervention
+from backend.interventions.db_service import DatabaseOperationalService
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def create_interaction(db: Session, payload: InteractionCreate) -> Interaction:
             
             # Trigger intervention evaluation
             try:
-                create_intervention(payload.case_id)
+                DatabaseOperationalService().process_case_intervention(case_id=payload.case_id)
             except Exception as intervention_e:
                 logger.error(f"Failed to create intervention for case {payload.case_id}: {intervention_e}")
                 

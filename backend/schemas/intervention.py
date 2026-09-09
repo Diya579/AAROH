@@ -49,6 +49,10 @@ class InterventionResponse(BaseModel):
     assigned_to: Optional[str] = None
     backup_assigned_to: Optional[str] = None
     backup_assignee: Optional[str] = None
+    priority: Optional[str] = None
+    sla_due_at: Optional[datetime] = Field(None, validation_alias="due_at")
+    reason: Optional[dict] = None
+    assigned_role: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

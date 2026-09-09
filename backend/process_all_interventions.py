@@ -9,7 +9,7 @@ sys.path.append(
 
 from backend.database import SessionLocal
 from backend.models import Case
-from intervention_engine import create_intervention
+from backend.interventions.db_service import DatabaseOperationalService
 
 
 def main():
@@ -48,11 +48,13 @@ def main():
 
             try:
 
-                result = create_intervention(
-                    case.id
+                result = DatabaseOperationalService().process_case_intervention(
+                    db=db,
+                    case_id=case.id,
+                    auto_commit=True
                 )
 
-                if result.get("existing"):
+                if result.get("is_duplicate"):
 
                     existing += 1
                     action = "EXISTING"
