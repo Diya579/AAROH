@@ -249,9 +249,24 @@ class LongitudinalTrajectoryModel:
                 B, T, D = x.shape
                 proj_x = self.proj(x)  # [B, T, 128]
 
-                # Run through GRU
-                out, h_n = self.gru(proj_x)  # h_n: [1, B, 128]
-                h_last = h_n.squeeze(0)      # [B, 128]
+                # Compact valid observations before the GRU so left padding has no recurrent effect.
+                if padding_mask is not None:
+                    valid_lengths = (~padding_mask).sum(dim=1).clamp(min=1)
+                    compact = torch.zeros_like(proj_x)
+                    for batch_index in range(B):
+                        valid_steps = proj_x[batch_index][~padding_mask[batch_index]]
+                        if valid_steps.numel() > 0:
+                            compact[batch_index, : valid_steps.shape[0]] = valid_steps
+                    packed = nn.utils.rnn.pack_padded_sequence(
+                        compact,
+                        valid_lengths.detach().cpu(),
+                        batch_first=True,
+                        enforce_sorted=False,
+                    )
+                    _, h_n = self.gru(packed)
+                else:
+                    _, h_n = self.gru(proj_x)
+                h_last = h_n[-1]
 
                 # L2-normalize trajectory embedding
                 norm = torch.norm(h_last, p=2, dim=-1, keepdim=True).clamp(min=1e-8)
@@ -381,6 +396,15 @@ class LongitudinalTrajectoryModel:
         """Forward pass for a single windowed sequence."""
         if padding_mask is None:
             padding_mask = [False] * len(windowed_vectors)
+        if self.torch_model is not None:
+            import torch
+
+            self.torch_model.eval()
+            with torch.no_grad():
+                inputs = torch.tensor([windowed_vectors], dtype=torch.float32, device=self.device)
+                mask = torch.tensor([padding_mask], dtype=torch.bool, device=self.device)
+                embedding, probabilities = self.torch_model(inputs, padding_mask=mask)
+            return embedding[0].detach().cpu().tolist(), probabilities[0].detach().cpu().tolist()
         return self._fallback_forward_single(windowed_vectors, padding_mask)
 
     def train_step(self, batch: Dict[str, Any], lr: float = 1e-3) -> float:
@@ -528,17 +552,27 @@ class LongitudinalTrajectoryModel:
             for i in range(NUM_CLASSES)
         }
 
-        # Argmax discrete trajectory label
-        best_idx = max(range(NUM_CLASSES), key=lambda i: probs[i])
-        pred_label = ID_TO_LABEL[best_idx]
+        valid_count = sum(1 for m in mask if not m)
+        if valid_count <= 1:
+            pred_label = LABEL_STABLE
+            prob_dict = {
+                LABEL_STABLE: 0.85,
+                LABEL_IMPROVING: 0.05,
+                LABEL_WORSENING: 0.05,
+                LABEL_RAPIDLY_WORSENING: 0.05,
+            }
+            continuous_score = 0.0
+        else:
+            # Argmax discrete trajectory label
+            best_idx = max(range(NUM_CLASSES), key=lambda i: probs[i])
+            pred_label = ID_TO_LABEL[best_idx]
 
-        # Continuous Trajectory Score in [-1.0, 1.0]: computed from centralized TrajectoryLabel definitions
-        # trajectory_score = sum(P(label) * label.internal_score)
-        continuous_score = sum(
-            prob_dict.get(tl.value, 0.0) * tl.internal_score
-            for tl in TrajectoryLabel
-        )
-        continuous_score = round(max(-1.0, min(1.0, continuous_score)), 4)
+            # Continuous Trajectory Score in [-1.0, 1.0]: computed from centralized TrajectoryLabel definitions
+            continuous_score = sum(
+                prob_dict.get(tl.value, 0.0) * tl.internal_score
+                for tl in TrajectoryLabel
+            )
+            continuous_score = round(max(-1.0, min(1.0, continuous_score)), 4)
 
         result = {
             "trajectory_embedding": [round(float(v), 6) for v in h_emb],
@@ -563,6 +597,23 @@ class LongitudinalTrajectoryModel:
         """Saves model weights, history window, and state metadata."""
         out_path = Path(checkpoint_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if self.torch_model is not None:
+            import torch
+
+            torch.save(
+                {
+                    "model_type": "longitudinal_trajectory_model",
+                    "model_version": self.model_version,
+                    "history_window": self.history_window,
+                    "execution_mode": self.execution_mode,
+                    "epoch": epoch,
+                    "metrics": metrics or {},
+                    "model_state_dict": self.torch_model.state_dict(),
+                },
+                out_path,
+            )
+            return
 
         state = {
             "model_type": "longitudinal_trajectory_model",
@@ -591,11 +642,23 @@ class LongitudinalTrajectoryModel:
         if not in_path.exists():
             raise FileNotFoundError(f"Checkpoint not found at {in_path}")
 
-        with open(in_path, "r", encoding="utf-8") as f:
-            state = json.load(f)
+        try:
+            import torch
+
+            state = torch.load(in_path, map_location="cpu", weights_only=True)
+        except Exception:
+            with open(in_path, "r", encoding="utf-8") as f:
+                state = json.load(f)
 
         self.model_version = state.get("model_version", self.model_version)
         self.history_window = state.get("history_window", self.history_window)
+        if self.torch_model is not None and "model_state_dict" in state:
+            self.torch_model.load_state_dict(state["model_state_dict"])
+            self.torch_model.to(self.device).eval()
+            return {
+                "epoch": state.get("epoch", 1),
+                "metrics": state.get("metrics", {}),
+            }
         self.W_proj = state["W_proj"]
         self.b_proj = state["b_proj"]
         self.W_agg1 = state["W_agg1"]
@@ -637,6 +700,11 @@ class LongitudinalTrajectoryModel:
         }
         with open(weights_file, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
+
+        if self.torch_model is not None:
+            import torch
+
+            torch.save(self.torch_model.state_dict(), out_dir / "pytorch_model.bin")
 
         # 2. Config
         param_counts = self.get_parameter_counts()
@@ -735,10 +803,35 @@ class LongitudinalTrajectoryModel:
             model_version=self.model_version,
         )
 
+        # Synchronize discrete trajectory_label and continuous score with verified trajectory_state
+        state_to_label = {
+            "Improving": "IMPROVING",
+            "Recovering": "IMPROVING",
+            "Stable": "STABLE",
+            "Slowly worsening": "WORSENING",
+            "Rapidly worsening": "RAPIDLY_WORSENING",
+        }
+        canonical_label = state_to_label.get(evidence.trajectory_state, base_result["trajectory_label"])
+        evidence.trajectory_label = canonical_label
+
+        # Ensure continuous trajectory score aligns with direction when multi-turn history exists
+        final_score = base_result["trajectory_score"]
+        if len(records) >= 2:
+            if evidence.trajectory_state in ("Improving", "Recovering"):
+                final_score = round(min(-0.05, -abs(evidence.trend_velocity)), 4) if evidence.trend_velocity != 0 else -0.25
+            elif evidence.trajectory_state == "Rapidly worsening":
+                final_score = round(max(0.50, min(1.0, abs(evidence.trend_velocity))), 4)
+            elif evidence.trajectory_state == "Slowly worsening":
+                final_score = round(max(0.10, min(0.50, abs(evidence.trend_velocity))), 4)
+            elif evidence.trajectory_state == "Stable":
+                final_score = round(max(-0.05, min(0.05, evidence.trend_velocity)), 4)
+            final_score = round(max(-1.0, min(1.0, final_score)), 4)
+            evidence.trajectory_score = final_score
+
         return {
-            "trajectory_score": base_result["trajectory_score"],
+            "trajectory_score": final_score,
             "trajectory_state": evidence.trajectory_state,
-            "trajectory_label": base_result["trajectory_label"],
+            "trajectory_label": canonical_label,
             "confidence": evidence.confidence,
             "trend_velocity": evidence.trend_velocity,
             "trend_velocity_display": evidence.trend_velocity_display,
@@ -787,5 +880,11 @@ class LongitudinalTrajectoryModel:
         )
 
         model.load_checkpoint(art_dir / "weights")
+        if model.torch_model is not None and (art_dir / "pytorch_model.bin").exists():
+            import torch
+
+            state_dict = torch.load(art_dir / "pytorch_model.bin", map_location="cpu", weights_only=True)
+            model.torch_model.load_state_dict(state_dict)
+            model.torch_model.to(model.device).eval()
         return model
 

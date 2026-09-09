@@ -147,7 +147,10 @@ def evaluate_trajectory(
     print("-" * 74)
 
     # 1. Load Model
-    model = LongitudinalTrajectoryModel(history_window=history_window, seed=seed)
+    if (m_path / "pytorch_model.bin").exists():
+        model = LongitudinalTrajectoryModel.load_from_artifact(m_path, device="cpu")
+    else:
+        model = LongitudinalTrajectoryModel(history_window=history_window, seed=seed)
     weights_path = m_path / "weights"
     if weights_path.exists():
         with open(weights_path, "r", encoding="utf-8") as f:

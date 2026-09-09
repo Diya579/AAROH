@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unfreeze-backbone", action="store_true", help="Unfreeze pretrained backbones for training")
     parser.add_argument("--fp16", action="store_true", help="Enable FP16 mixed precision on GPU")
     parser.add_argument("--history-window", type=int, default=DEFAULT_HISTORY_WINDOW, help="Fixed history interaction window")
+    parser.add_argument("--execution-mode", choices=["PYTORCH_FROZEN", "PYTORCH_FINETUNE"], default="PYTORCH_FROZEN", help="GRU execution mode")
     return parser.parse_args()
 
 
@@ -116,6 +117,7 @@ def train_trajectory_model(args: argparse.Namespace) -> Dict[str, Any]:
         history_window=args.history_window,
         seed=args.seed,
         unfreeze_backbone=args.unfreeze_backbone,
+        force_mode=args.execution_mode,
     )
     param_counts = model.get_parameter_counts()
     print(f"Execution Mode:                {model.execution_mode}")
@@ -128,11 +130,34 @@ def train_trajectory_model(args: argparse.Namespace) -> Dict[str, Any]:
     print("\n[INFO] Executing trajectory gradient descent training loop...")
     loss_history: List[float] = []
 
+    import torch
+    import torch.nn.functional as F
+
+    if model.torch_model is None:
+        raise RuntimeError("Trajectory training requires the existing PyTorch GRU; use the Colab notebook")
+    device = torch.device(get_device())
+    model.torch_model.to(device)
+    trainable_params = [p for p in model.torch_model.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, weight_decay=0.01)
+    scaler = torch.cuda.amp.GradScaler(enabled=args.fp16 and device.type == "cuda")
+
     for epoch in range(1, epochs + 1):
         epoch_losses: List[float] = []
+        model.torch_model.train()
         for batch in train_ds.iterate_batches(batch_size=batch_size, shuffle=True, seed=args.seed + epoch):
-            loss = model.train_step(batch, lr=args.lr)
-            epoch_losses.append(loss)
+            inputs = torch.tensor(batch["inputs"], dtype=torch.float32, device=device)
+            masks = torch.tensor(batch["padding_masks"], dtype=torch.bool, device=device)
+            targets = torch.tensor(batch["targets"], dtype=torch.long, device=device)
+            optimizer.zero_grad()
+            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=args.fp16 and device.type == "cuda"):
+                _, probabilities = model.torch_model(inputs, padding_mask=masks)
+                loss = F.nll_loss(torch.log(probabilities.clamp_min(1e-8)), targets)
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(trainable_params, 1.0)
+            scaler.step(optimizer)
+            scaler.update()
+            epoch_losses.append(float(loss.detach().cpu()))
         avg_loss = float(sum(epoch_losses) / len(epoch_losses)) if epoch_losses else 0.0
         loss_history.append(avg_loss)
         print(f"  Epoch {epoch}/{epochs} — Mean Cross-Entropy Loss: {avg_loss:.4f}")
@@ -163,6 +188,7 @@ def train_trajectory_model(args: argparse.Namespace) -> Dict[str, Any]:
     reloaded_model = LongitudinalTrajectoryModel(
         history_window=args.history_window,
         seed=args.seed + 99,
+        force_mode=args.execution_mode,
     )
     reloaded_model.load_checkpoint(chk_file)
 

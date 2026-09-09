@@ -31,6 +31,7 @@ from backend.ml.training.models.distress.dataset import (
     ENGAGEMENT_COUNT,
     DistressInputRecord,
 )
+from backend.ml.features.distress import extract_distress_indicators
 from backend.ml.training.models.distress.inference import (
     _project_text_to_distress_fused_embedding,
 )
@@ -46,6 +47,14 @@ from backend.ml.training.models.trajectory.dataset import (
 from backend.ml.training.models.trajectory.model import (
     LongitudinalTrajectoryModel,
 )
+
+
+def _find_repo_root() -> Path:
+    cur = Path(__file__).resolve()
+    for parent in cur.parents:
+        if (parent / "models").exists() and (parent / "backend").exists():
+            return parent
+    return Path.cwd()
 
 
 def _format_iso(dt: datetime.datetime) -> str:
@@ -68,13 +77,18 @@ class TrajectoryInferencePipeline:
     ) -> None:
         self.device = device or "cpu"
         self.history_window = history_window
+        repo_root = _find_repo_root()
+
+        resolved_traj_dir = trajectory_artifact_dir or (repo_root / "models" / "trajectory")
+        resolved_dist_dir = distress_artifact_dir or (repo_root / "models" / "distress")
+        resolved_text_dir = text_artifact_dir or (repo_root / "models" / "text_emotion")
 
         # 1. Trajectory Model
         if trajectory_model is not None:
             self.trajectory_model = trajectory_model
-        elif trajectory_artifact_dir and Path(trajectory_artifact_dir).exists():
+        elif resolved_traj_dir and Path(resolved_traj_dir).exists():
             self.trajectory_model = LongitudinalTrajectoryModel.load_from_artifact(
-                trajectory_artifact_dir, device=self.device
+                resolved_traj_dir, device=self.device
             )
         else:
             self.trajectory_model = LongitudinalTrajectoryModel(
@@ -84,9 +98,9 @@ class TrajectoryInferencePipeline:
         # 2. Distress Model
         if distress_model is not None:
             self.distress_model = distress_model
-        elif distress_artifact_dir and Path(distress_artifact_dir).exists():
+        elif resolved_dist_dir and Path(resolved_dist_dir).exists():
             self.distress_model = DynamicDistressModel.load_from_artifact(
-                distress_artifact_dir, device=self.device
+                resolved_dist_dir, device=self.device
             )
         else:
             self.distress_model = DynamicDistressModel(device=self.device)
@@ -94,9 +108,9 @@ class TrajectoryInferencePipeline:
         # 3. Text Emotion Model
         if text_model is not None:
             self.text_model = text_model
-        elif text_artifact_dir and Path(text_artifact_dir).exists():
+        elif resolved_text_dir and Path(resolved_text_dir).exists():
             self.text_model = TextEmotionModel.load_from_artifact(
-                text_artifact_dir, device=self.device
+                resolved_text_dir, device=self.device
             )
         else:
             self.text_model = TextEmotionModel()
@@ -129,9 +143,17 @@ class TrajectoryInferencePipeline:
         fused_emb = _project_text_to_distress_fused_embedding(emotion_emb, emotion_probs)
 
         # 3. Dynamic Distress Forward
+        resolved_b = behavioural_features
+        if resolved_b is None:
+            indicators, _ = extract_distress_indicators(clean_text)
+            dist_val = max(indicators.hopelessness, indicators.helplessness, indicators.intimidation, indicators.sadness)
+            fear_val = max(indicators.fear, indicators.anxiety)
+            if dist_val > 0.0 or fear_val > 0.0:
+                resolved_b = [dist_val, 0.0, fear_val, 0.0, 0.0, 0.0, 0.0, 0.0]
+
         modality_weights = {
-            "tabular": 0.10 if (behavioural_features or engagement_features) else 0.0,
-            "text": 0.90 if clean_text else 0.0,
+            "tabular": 0.20 if (resolved_b or engagement_features) else 0.0,
+            "text": 0.80 if clean_text else 0.0,
             "audio": 0.0,
         }
         distress_rec = DistressInputRecord(
@@ -139,7 +161,7 @@ class TrajectoryInferencePipeline:
             interaction_date=ts[:10],
             fused_embedding=fused_emb,
             modality_weights=modality_weights,
-            behavioural_features=behavioural_features,
+            behavioural_features=resolved_b,
             engagement_features=engagement_features,
         )
         dist_out = self.distress_model.predict_distress(distress_rec)
