@@ -22,6 +22,8 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
+from backend.ml.inference.config import EXECUTION_MODE_PYTORCH_FINETUNE, EXECUTION_MODE_PYTORCH_FROZEN
+
 from backend.ml.training.models.common import (
     CheckpointManager,
     EarlyStopping,
@@ -58,6 +60,7 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--fp16", action="store_true", default=False, help="Enable fp16 mixed precision on CUDA.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     parser.add_argument("--smoke-test", action="store_true", default=False, help="Run rapid end-to-end smoke test.")
+    parser.add_argument("--execution-mode", choices=[EXECUTION_MODE_PYTORCH_FROZEN, EXECUTION_MODE_PYTORCH_FINETUNE], default=EXECUTION_MODE_PYTORCH_FROZEN)
     return parser.parse_args(args)
 
 
@@ -95,7 +98,11 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
     print(f"Loaded MindBridge records: {len(records)} samples.")
 
     # 2. Tokenizer loading
-    tokenizer = SimpleTokenizer.from_pretrained(args.model_name, max_length=128)
+    if args.execution_mode not in (EXECUTION_MODE_PYTORCH_FROZEN, EXECUTION_MODE_PYTORCH_FINETUNE):
+        raise RuntimeError("Mental Health training requires a PyTorch transformer execution mode")
+    from transformers import AutoTokenizer
+    import torch
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     tokenizer_loaded = tokenizer is not None
     print(f"Tokenizer loaded: {tokenizer_loaded}")
 
@@ -109,8 +116,8 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
     model = MentalHealthLanguageModel(
         backbone=args.model_name,
         embedding_dim=768,
+        execution_mode=args.execution_mode,
     )
-    model.tokenizer = tokenizer
 
     checkpoint_mgr = CheckpointManager(
         checkpoint_dir=args.checkpoint_dir,
@@ -124,16 +131,33 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
     final_loss: Optional[float] = None
     loss_decreased = False
 
-    # Execute training loop
+    # Execute real transformer training loop
     print("[INFO] Executing representation alignment gradient loop...")
     epoch_losses: list[float] = []
 
+    device_obj = torch.device(device)
+    model.torch_model.to(device_obj)
+    optimizer = torch.optim.AdamW(
+        [parameter for parameter in model.torch_model.parameters() if parameter.requires_grad],
+        lr=lr,
+        weight_decay=0.01,
+    )
     for epoch in range(1, epochs + 1):
         losses_this_epoch = []
         for batch in dataloader:
             b_texts = [item["text"] for item in batch]
             if len(b_texts) >= 2:
-                loss = model.train_step(b_texts, lr=lr)
+                inputs = tokenizer(b_texts, padding=True, truncation=True, max_length=128, return_tensors="pt")
+                inputs = {key: value.to(device_obj) for key, value in inputs.items()}
+                optimizer.zero_grad()
+                embeddings = model.torch_model(**inputs)["mental_health_embedding"]
+                similarity = embeddings @ embeddings.transpose(0, 1)
+                off_diagonal = similarity[~torch.eye(len(b_texts), dtype=torch.bool, device=device_obj)]
+                loss_tensor = (off_diagonal ** 2).mean()
+                loss_tensor.backward()
+                torch.nn.utils.clip_grad_norm_(model.torch_model.parameters(), 1.0)
+                optimizer.step()
+                loss = float(loss_tensor.detach().cpu())
                 forward_success = True
                 backward_success = True
                 optimizer_step_success = True
@@ -148,12 +172,14 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
         print(f"Representation Loss -> Initial: {initial_loss:.4f} | Final: {final_loss:.4f} (Decreased: {loss_decreased})")
 
     # 5. Checkpointing
-    ckpt_path = checkpoint_mgr.save_checkpoint(
-        epoch=1,
-        model_state=model.state_dict(),
-        metrics={"loss": final_loss or 0.0},
-        is_best=True,
-    )
+    ckpt_path = Path(args.checkpoint_dir) / "best_checkpoint.pt"
+    ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"epoch": epochs, "metrics": {"loss": final_loss or 0.0}, "model_state_dict": model.torch_model.state_dict()}, ckpt_path)
+    if args.drive_checkpoint_dir:
+        import shutil
+        drive_path = Path(args.drive_checkpoint_dir)
+        drive_path.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ckpt_path, drive_path / ckpt_path.name)
     checkpoint_saved = ckpt_path.exists() or ckpt_path.with_suffix(".json").exists()
     print(f"Checkpoint saved: {checkpoint_saved} ({ckpt_path})")
 
@@ -161,15 +187,16 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
     fresh_model = MentalHealthLanguageModel(
         backbone=args.model_name,
         embedding_dim=768,
+        execution_mode=args.execution_mode,
     )
-    loaded_ckpt = checkpoint_mgr.load_checkpoint(ckpt_path)
-    state_dict_payload = loaded_ckpt.get("model_state_dict", loaded_ckpt)
-    fresh_model.load_state_dict(state_dict_payload)
+    loaded_ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+    fresh_model.load_state_dict(loaded_ckpt["model_state_dict"])
+    fresh_model.torch_model.to(device_obj)
     checkpoint_reloaded = True
 
     # 7. Verify inference after reload
     test_phrase = ["Screening test sentence for alignment", "Another reflection text"]
-    fresh_preds = fresh_model.encode(test_phrase)
+    fresh_preds = fresh_model.encode(test_phrase, device=device)
     inference_after_reload_success = (
         len(fresh_preds["mental_health_embeddings"]) == len(test_phrase)
         and len(fresh_preds["mental_health_embeddings"][0]) == 768
@@ -180,7 +207,7 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
     texts = [r["text"] for r in records]
     categories = [r.get("category", "general_reflection") for r in records]
 
-    enc_res = fresh_model.encode(texts)
+    enc_res = fresh_model.encode(texts, device=device)
     embs = enc_res["mental_health_embeddings"]
 
     rep_metrics = compute_representation_metrics(embs, labels=categories)
@@ -207,6 +234,7 @@ def train_mental_health(args: argparse.Namespace) -> dict[str, Any]:
         output_dir=args.output_dir,
         metrics=eval_metrics,
         hyperparameters=hyperparams,
+        model_version="aaroh-mental-health-language-v1",
     )
     exported_successfully = Path(export_path).exists()
 

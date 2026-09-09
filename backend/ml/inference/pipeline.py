@@ -266,8 +266,7 @@ class MLInferencePipeline:
             self.registry.validate_metadata("fusion", fusion_meta, None)
             self._loaded_versions["fusion"] = fusion_meta.get("model_version", "1.0.0")
 
-            fusion_m = MultimodalFusionModel(seed=self.config.seed, force_mode=self.execution_mode)
-            fusion_m.load_checkpoint(fusion_dir / "weights")
+            fusion_m = MultimodalFusionModel.load_from_artifact(fusion_dir, device=self.device)
             self.fusion_model = fusion_m
             self.cache.put("model_fusion", fusion_m)
             self.cache.put("meta_fusion", fusion_meta)

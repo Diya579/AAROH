@@ -74,7 +74,7 @@ class MentalHealthLanguageModel:
         try:
             import torch
             import torch.nn as nn
-            from transformers import AutoModel
+            from transformers import AutoModel, AutoTokenizer
 
             class _TorchScreeningEncoder(nn.Module):
                 def __init__(self, encoder_name: str, emb_dim: int, drop: float):
@@ -98,6 +98,10 @@ class MentalHealthLanguageModel:
                     }
 
             self._torch_class = _TorchScreeningEncoder
+            self.torch_model = self._torch_class(self.backbone, self.embedding_dim, self.dropout_rate)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.backbone)
+            for parameter in self.torch_model.encoder.parameters():
+                parameter.requires_grad = False
         except (ImportError, Exception):
             self._torch_class = None
 
@@ -299,6 +303,7 @@ class MentalHealthLanguageModel:
             model_version=model_version,
             dataset_name="mindbridge",
             dataset_version=dataset_version,
+            execution_mode=self.execution_mode,
             hyperparameters=hyperparameters or {},
             backbone=self.backbone,
             embedding_dim=self.embedding_dim,
@@ -317,7 +322,7 @@ class MentalHealthLanguageModel:
         }
 
         weights_payload = self.torch_model if self.torch_model is not None else self.state_dict()
-        return ModelExportManager.save_model(
+        output_path = ModelExportManager.save_model(
             output_dir=output_dir,
             metadata=metadata,
             config=self.get_config(),
@@ -325,3 +330,36 @@ class MentalHealthLanguageModel:
             metrics=metrics or {},
             weights_data=weights_payload,
         )
+        if self.tokenizer is not None and hasattr(self.tokenizer, "save_pretrained"):
+            self.tokenizer.save_pretrained(output_path)
+        if self.torch_model is not None and hasattr(self.torch_model.encoder, "config"):
+            self.torch_model.encoder.config.to_json_file(output_path / "transformer_config.json")
+        return output_path
+
+    @classmethod
+    def load_from_artifact(cls, artifact_dir: Path | str, device: str = "cpu") -> "MentalHealthLanguageModel":
+        """Loads a self-contained neural or fallback representation artifact."""
+        art_path = Path(artifact_dir)
+        required = ["config.json", "metadata.json", "pytorch_model.bin"]
+        missing = [name for name in required if not (art_path / name).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required mental-health artifacts in {art_path}: {missing}")
+        with open(art_path / "config.json", "r", encoding="utf-8") as handle:
+            config = json.load(handle)
+        with open(art_path / "metadata.json", "r", encoding="utf-8") as handle:
+            metadata = json.load(handle)
+        model = cls(
+            backbone=config.get("backbone", DEFAULT_MENTAL_HEALTH_BACKBONE),
+            embedding_dim=config.get("embedding_dim", 768),
+            max_length=config.get("max_length", 128),
+            dropout_rate=config.get("dropout_rate", 0.1),
+            execution_mode=metadata.get("execution_mode", EXECUTION_MODE_FALLBACK),
+        )
+        try:
+            import torch
+            state = torch.load(art_path / "pytorch_model.bin", map_location="cpu", weights_only=True)
+            model.load_state_dict(state)
+            model.torch_model.to(device).eval()
+        except Exception as exc:
+            raise NeuralExecutionError(f"Failed to load mental-health artifact: {exc}") from exc
+        return model

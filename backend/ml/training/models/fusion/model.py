@@ -132,12 +132,8 @@ class MultimodalFusionModel:
                 self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE if self.unfreeze_backbone else EXECUTION_MODE_PYTORCH_FROZEN
             else:
                 self.execution_mode = force_mode
-        elif not self.is_torch_available:
-            self.execution_mode = EXECUTION_MODE_FALLBACK
-        elif self.unfreeze_backbone:
-            self.execution_mode = EXECUTION_MODE_PYTORCH_FINETUNE
         else:
-            self.execution_mode = EXECUTION_MODE_PYTORCH_FROZEN
+            self.execution_mode = EXECUTION_MODE_FALLBACK
 
         # Backbone references
         self.text_backbone = None
@@ -697,3 +693,27 @@ class MultimodalFusionModel:
             "metrics": str(out_dir / "metrics.json"),
             "modality_schema": str(out_dir / "modality_schema.json"),
         }
+
+    @classmethod
+    def load_from_artifact(cls, artifact_dir: Union[str, Path], device: Optional[str] = None) -> "MultimodalFusionModel":
+        """Loads the exported fusion head and its versioned schema."""
+        art_dir = Path(artifact_dir)
+        required = ["weights", "config.json", "metadata.json", "modality_schema.json"]
+        missing = [name for name in required if not (art_dir / name).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required fusion artifacts in {art_dir}: {missing}")
+        with open(art_dir / "config.json", "r", encoding="utf-8") as handle:
+            config = json.load(handle)
+        with open(art_dir / "weights", "r", encoding="utf-8") as handle:
+            state = json.load(handle)
+        model = cls(
+            fusion_dim=config.get("fusion_dim", FUSION_EMBEDDING_DIM),
+            device=device,
+            force_mode=EXECUTION_MODE_FALLBACK,
+        )
+        for name in (
+            "W_tab", "b_tab", "W_text", "b_text", "W_audio", "b_audio",
+            "W_gate", "b_gate", "W_fusion", "b_fusion", "W_recon", "b_recon",
+        ):
+            setattr(model, name, state[name])
+        return model
