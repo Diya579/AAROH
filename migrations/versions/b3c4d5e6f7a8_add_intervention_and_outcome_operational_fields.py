@@ -52,10 +52,16 @@ def upgrade() -> None:
         "interventions",
         sa.Column("completed_at", sa.DateTime(), nullable=True),
     )
-    op.add_column(
-        "interventions",
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
-    )
+
+    # Data preservation: Copy existing data from legacy backup_assignee if present
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_cols = {c["name"] for c in inspector.get_columns("interventions")}
+    if "backup_assignee" in existing_cols:
+        op.execute(
+            "UPDATE interventions SET backup_assigned_to = backup_assignee "
+            "WHERE backup_assigned_to IS NULL AND backup_assignee IS NOT NULL"
+        )
 
     op.create_index("ix_interventions_priority", "interventions", ["priority"])
     op.create_index("ix_interventions_due_at", "interventions", ["due_at"])
@@ -76,7 +82,6 @@ def downgrade() -> None:
     op.drop_index("ix_interventions_priority", table_name="interventions")
     op.drop_column("outcomes", "notes")
     op.drop_column("outcomes", "follow_up_required")
-    op.drop_column("interventions", "created_at")
     op.drop_column("interventions", "completed_at")
     op.drop_column("interventions", "due_at")
     op.drop_column("interventions", "acknowledged_at")
