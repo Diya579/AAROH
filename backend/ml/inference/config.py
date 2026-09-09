@@ -75,7 +75,7 @@ class PipelineConfig:
 
     pipeline_version: str = "aaroh-pipeline-v1"
     pipeline_build: str = "2026.09.06"
-    default_execution_mode: str = "FALLBACK"
+    default_execution_mode: str = "NEURAL"
     execution_mode: Any = _UNSET
     seed: int = 42
     warmup_on_load: bool = True

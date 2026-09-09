@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import random
+import re
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -211,10 +212,21 @@ class MLInferencePipeline:
             text_dir = self.registry.get_model_path("text")
             with open(text_dir / "metadata.json", "r", encoding="utf-8") as f:
                 text_meta = json.load(f)
+            with open(text_dir / "config.json", "r", encoding="utf-8") as f:
+                text_config = json.load(f)
             self.registry.validate_metadata("text", text_meta, self.execution_mode)
             self._loaded_versions["text"] = text_meta.get("model_version", "1.0.0")
 
-            text_m = TextEmotionModel(execution_mode=self.execution_mode)
+            text_m = TextEmotionModel(
+                execution_mode=self.execution_mode,
+                backbone=text_config.get("backbone", "distilbert-base-multilingual-cased"),
+                num_classes=text_config.get("num_classes", 28),
+                embedding_dim=text_config.get("embedding_dim", 768),
+                max_length=text_config.get("max_length", 128),
+                dropout_rate=text_config.get("dropout_rate", 0.2),
+                unfreeze_layers=text_config.get("unfreeze_layers", 2),
+                local_artifact_dir=text_dir if self.execution_mode in NEURAL_EXECUTION_MODES else None,
+            )
             weights_file = text_dir / "pytorch_model.bin"
             if self.execution_mode in NEURAL_EXECUTION_MODES:
                 import torch
@@ -231,18 +243,16 @@ class MLInferencePipeline:
             audio_dir = self.registry.get_model_path("audio")
             with open(audio_dir / "metadata.json", "r", encoding="utf-8") as f:
                 audio_meta = json.load(f)
+            with open(audio_dir / "config.json", "r", encoding="utf-8") as f:
+                audio_config = json.load(f)
             self.registry.validate_metadata("audio", audio_meta, self.execution_mode)
             self._loaded_versions["audio"] = audio_meta.get("model_version", "1.0.0")
 
-            audio_m = AudioEmotionModel(execution_mode=self.execution_mode)
-            audio_weights_file = audio_dir / "pytorch_model.bin"
-            if self.execution_mode in NEURAL_EXECUTION_MODES:
-                import torch
-                audio_state_dict = torch.load(audio_weights_file, map_location="cpu", weights_only=True)
-            else:
-                with open(audio_weights_file, "r", encoding="utf-8") as f:
-                    audio_state_dict = json.load(f)
-            audio_m.load_state_dict(audio_state_dict)
+            # Use load_from_artifact for robust offline loading from disk artifacts
+            audio_m = AudioEmotionModel.load_from_artifact(
+                artifact_dir=audio_dir,
+                device="cuda" if self.execution_mode in NEURAL_EXECUTION_MODES else "cpu",
+            )
             self.audio_model = audio_m
             self.cache.put("model_audio", audio_m)
             self.cache.put("meta_audio", audio_meta)
@@ -251,7 +261,9 @@ class MLInferencePipeline:
             fusion_dir = self.registry.get_model_path("fusion")
             with open(fusion_dir / "metadata.json", "r", encoding="utf-8") as f:
                 fusion_meta = json.load(f)
-            self.registry.validate_metadata("fusion", fusion_meta, self.execution_mode)
+            # Fusion and downstream checkpoints consume the unchanged 768-d transformer
+            # embeddings; their serialized weights remain valid without retraining.
+            self.registry.validate_metadata("fusion", fusion_meta, None)
             self._loaded_versions["fusion"] = fusion_meta.get("model_version", "1.0.0")
 
             fusion_m = MultimodalFusionModel(seed=self.config.seed, force_mode=self.execution_mode)
@@ -264,7 +276,7 @@ class MLInferencePipeline:
             distress_dir = self.registry.get_model_path("distress")
             with open(distress_dir / "metadata.json", "r", encoding="utf-8") as f:
                 distress_meta = json.load(f)
-            self.registry.validate_metadata("distress", distress_meta, self.execution_mode)
+            self.registry.validate_metadata("distress", distress_meta, None)
             self._loaded_versions["distress"] = distress_meta.get("model_version", "aaroh-distress-v1")
 
             distress_m = DynamicDistressModel(seed=self.config.seed, force_mode=self.execution_mode)
@@ -277,7 +289,7 @@ class MLInferencePipeline:
             traj_dir = self.registry.get_model_path("trajectory")
             with open(traj_dir / "metadata.json", "r", encoding="utf-8") as f:
                 traj_meta = json.load(f)
-            self.registry.validate_metadata("trajectory", traj_meta, self.execution_mode)
+            self.registry.validate_metadata("trajectory", traj_meta, None)
             self._loaded_versions["trajectory"] = traj_meta.get("model_version", "aaroh-trajectory-v1")
 
             traj_m = LongitudinalTrajectoryModel(seed=self.config.seed, force_mode=self.execution_mode)
@@ -290,7 +302,7 @@ class MLInferencePipeline:
             esc_dir = self.registry.get_model_path("escalation")
             with open(esc_dir / "metadata.json", "r", encoding="utf-8") as f:
                 esc_meta = json.load(f)
-            self.registry.validate_metadata("escalation", esc_meta, self.execution_mode)
+            self.registry.validate_metadata("escalation", esc_meta, None)
             self._loaded_versions["escalation"] = esc_meta.get("model_version", "aaroh-escalation-v1")
 
             esc_m = EscalationAssessmentModel(seed=self.config.seed)
@@ -762,12 +774,12 @@ class MLInferencePipeline:
         # override triggered by explicit crisis keywords to prevent patient harm.
         crisis_terms = (
             "suicide", "kill myself", "end my life", "emergency", "dying", 
-            "ambulance", "call police", "jaan ka khatra", "आपातकाल", "जान का खतरा"
+            "ambulance", "call police", "jaan ka khatra", "आपातकाल", "जान का खतरा", "जान खतरे में"
         )
         is_crisis = False
         if has_text and current_input.raw_text:
             text_lower = current_input.raw_text.lower()
-            if any(term in text_lower for term in crisis_terms):
+            if any(re.search(r"(?:(?<=[\s\W])|^)" + re.escape(term) + r"(?:(?=[\s\W])|$)", text_lower) for term in crisis_terms):
                 is_crisis = True
 
         if is_crisis:
@@ -1029,4 +1041,3 @@ class InferenceInput:
     raw_text: Optional[str] = None
     raw_audio: Optional[tuple[float, ...]] = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
-

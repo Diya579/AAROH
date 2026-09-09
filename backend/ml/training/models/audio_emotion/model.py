@@ -60,6 +60,7 @@ class AudioEmotionModel:
         frozen_backbone: bool = True,
         dropout_rate: float = 0.1,
         execution_mode: str = "FALLBACK",
+        local_artifact_dir: Optional[Path | str] = None,
     ) -> None:
         if execution_mode not in VALID_EXECUTION_MODES:
             raise ExecutionModeError(
@@ -71,6 +72,7 @@ class AudioEmotionModel:
         self.embedding_dim = embedding_dim
         self.frozen_backbone = frozen_backbone
         self.dropout_rate = dropout_rate
+        self.local_artifact_dir = Path(local_artifact_dir) if local_artifact_dir else None
 
         self.torch_model: Optional[Any] = None
         self.processor: Optional[Any] = None
@@ -86,12 +88,19 @@ class AudioEmotionModel:
         try:
             import torch
             import torch.nn as nn
-            from transformers import AutoProcessor, Wav2Vec2Model
+            from transformers import Wav2Vec2Config, Wav2Vec2Model, Wav2Vec2Processor
 
             class _TorchAudioHead(nn.Module):
-                def __init__(self, encoder_name: str, n_classes: int, emb_dim: int, freeze: bool, drop: float):
+                def __init__(self, encoder_name: str, n_classes: int, emb_dim: int, freeze: bool, drop: float, is_local: bool):
                     super().__init__()
-                    self.encoder = Wav2Vec2Model.from_pretrained(encoder_name)
+                    if is_local:
+                        config_path = Path(encoder_name) / "transformer_config.json"
+                        if config_path.exists():
+                            self.encoder = Wav2Vec2Model(Wav2Vec2Config.from_pretrained(config_path, local_files_only=True))
+                        else:
+                            self.encoder = Wav2Vec2Model.from_pretrained(encoder_name, local_files_only=True)
+                    else:
+                        self.encoder = Wav2Vec2Model.from_pretrained(encoder_name)
                     if freeze:
                         self.encoder.freeze_feature_encoder()
                         for param in self.encoder.parameters():
@@ -99,11 +108,15 @@ class AudioEmotionModel:
                     self.dropout = nn.Dropout(drop)
                     self.classifier = nn.Linear(emb_dim, n_classes)
 
-                def forward(self, input_values: torch.Tensor):
-                    outputs = self.encoder(input_values=input_values)
+                def forward(self, input_values: torch.Tensor, attention_mask: Optional[torch.Tensor] = None):
+                    outputs = self.encoder(input_values=input_values, attention_mask=attention_mask)
                     # Mean pooling over temporal sequence dimension
                     hidden_states = outputs.last_hidden_state  # (B, T, D)
-                    pooled = torch.mean(hidden_states, dim=1)  # (B, D)
+                    if attention_mask is None:
+                        pooled = torch.mean(hidden_states, dim=1)
+                    else:
+                        feature_mask = self.encoder._get_feature_vector_attention_mask(hidden_states.shape[1], attention_mask)
+                        pooled = (hidden_states * feature_mask.unsqueeze(-1)).sum(dim=1) / feature_mask.sum(dim=1, keepdim=True).clamp(min=1)
                     dropped = self.dropout(pooled)
                     logits = self.classifier(dropped)
                     probabilities = torch.softmax(logits, dim=-1)
@@ -114,8 +127,16 @@ class AudioEmotionModel:
                     }
 
             self._torch_class = _TorchAudioHead
-        except (ImportError, Exception):
+            is_local = self.local_artifact_dir is not None and self.local_artifact_dir.exists()
+            encoder_source = str(self.local_artifact_dir) if is_local else self.backbone
+            self.torch_model = self._torch_class(encoder_source, self.num_classes, self.embedding_dim, self.frozen_backbone, self.dropout_rate, is_local)
+            self.processor = Wav2Vec2Processor.from_pretrained(encoder_source, local_files_only=is_local)
+        except Exception as exc:
             self._torch_class = None
+            self.torch_model = None
+            self.processor = None
+            if self.execution_mode in NEURAL_EXECUTION_MODES:
+                raise NeuralExecutionError(f"Failed to initialize Wav2Vec2 backbone '{self.backbone}': {exc}") from exc
 
     @property
     def trainable_parameters_count(self) -> int:
@@ -129,6 +150,20 @@ class AudioEmotionModel:
             # Add backbone parameter representation (~95M for wav2vec2-base)
             return head_params + 94396416
         return head_params
+
+    @property
+    def frozen_parameters_count(self) -> int:
+        """Returns the total number of frozen (non-trainable) parameters."""
+        if self.execution_mode in NEURAL_EXECUTION_MODES:
+            if self.torch_model is not None:
+                return sum(p.numel() for p in self.torch_model.parameters() if not p.requires_grad)
+        return 0
+
+    def get_unfrozen_layer_names(self) -> list[str]:
+        """Returns list of layer parameter names that are trainable."""
+        if self.execution_mode in NEURAL_EXECUTION_MODES and self.torch_model is not None:
+            return [name for name, p in self.torch_model.named_parameters() if p.requires_grad]
+        return ["linear_head.W", "linear_head.b"]
 
     def _extract_latent_audio_embedding(self, waveform: Sequence[float]) -> list[float]:
         """Computes deterministic 768-dim latent audio representation from waveform."""
@@ -194,7 +229,6 @@ class AudioEmotionModel:
         if self.execution_mode in NEURAL_EXECUTION_MODES:
             try:
                 import torch
-                from transformers import AutoProcessor, Wav2Vec2Model
             except ImportError as err:
                 raise NeuralExecutionError(
                     f"Neural execution mode '{self.execution_mode}' requested for AudioEmotionModel, "
@@ -206,13 +240,16 @@ class AudioEmotionModel:
                     f"Neural execution mode '{self.execution_mode}' requested for AudioEmotionModel, "
                     f"but neural torch_model is not initialized or weights are missing."
                 )
+            if self.processor is None:
+                raise NeuralExecutionError("Wav2Vec2Processor is not initialized.")
 
             probabilities_list = []
             try:
                 self.torch_model.eval()
                 with torch.no_grad():
-                    tensor_inputs = torch.tensor(waveforms, dtype=torch.float32).to(device)
-                    outputs = self.torch_model(tensor_inputs)
+                    inputs = self.processor(list(waveforms), sampling_rate=DEFAULT_TARGET_SAMPLE_RATE, padding=True, return_tensors="pt")
+                    inputs = {k: v.to(device) for k, v in inputs.items()}
+                    outputs = self.torch_model(inputs["input_values"], inputs.get("attention_mask"))
                     probs_tensor = outputs["audio_emotion_probabilities"].cpu().tolist()
                     embs_tensor = outputs["audio_embedding"].cpu().tolist()
 
@@ -370,6 +407,7 @@ class AudioEmotionModel:
             model_version=model_version,
             dataset_name="ravdess",
             dataset_version=dataset_version,
+            execution_mode=self.execution_mode,
             hyperparameters={
                 **(hyperparameters or {}),
                 "training_mode": training_mode,
@@ -403,7 +441,7 @@ class AudioEmotionModel:
             json.dump(preprocessor_config, f, indent=2)
 
         weights_payload = self.torch_model if self.torch_model is not None else self.state_dict()
-        return ModelExportManager.save_model(
+        exported = ModelExportManager.save_model(
             output_dir=out_path,
             metadata=metadata,
             config=self.get_config(),
@@ -411,3 +449,70 @@ class AudioEmotionModel:
             metrics=metrics or {},
             weights_data=weights_payload,
         )
+        if self.processor is not None:
+            self.processor.save_pretrained(exported)
+        if self.torch_model is not None:
+            self.torch_model.encoder.config.to_json_file(exported / "transformer_config.json")
+        return exported
+
+    @classmethod
+    def load_from_artifact(cls, artifact_dir: Path | str, device: str = "cpu") -> "AudioEmotionModel":
+        """Loads a model directly from a self-contained artifact directory offline."""
+        art_path = Path(artifact_dir)
+        if not art_path.exists():
+            raise FileNotFoundError(f"Artifact directory not found: {art_path}")
+
+        req_files = ["config.json", "metadata.json", "pytorch_model.bin", "label_mapping.json"]
+        missing = [f for f in req_files if not (art_path / f).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required artifact files in {art_path}: {missing}")
+
+        with open(art_path / "config.json", "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        with open(art_path / "metadata.json", "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+        execution_mode = meta.get("execution_mode", EXECUTION_MODE_FALLBACK)
+        if execution_mode in NEURAL_EXECUTION_MODES:
+            neural_req = ["preprocessor_config.json", "processor_config.json"]
+            missing_neural = [f for f in neural_req if not (art_path / f).exists()]
+            if missing_neural:
+                raise FileNotFoundError(
+                    f"Missing required neural processor files in '{art_path}' under mode '{execution_mode}': {missing_neural}"
+                )
+
+        model = cls(
+            execution_mode=execution_mode,
+            backbone=cfg.get("backbone", DEFAULT_AUDIO_BACKBONE),
+            num_classes=cfg.get("num_classes", len(RAVDESS_EMOTIONS)),
+            embedding_dim=cfg.get("embedding_dim", 768),
+            frozen_backbone=cfg.get("frozen_backbone", True),
+            dropout_rate=cfg.get("dropout_rate", 0.1),
+            local_artifact_dir=art_path,
+        )
+
+        weights_path = art_path / "pytorch_model.bin"
+        weights = None
+        try:
+            import torch
+            try:
+                weights = torch.load(weights_path, map_location="cpu", weights_only=True)
+            except Exception:
+                try:
+                    weights = torch.load(weights_path, map_location="cpu", weights_only=False)
+                except Exception:
+                    weights = None
+        except ImportError:
+            weights = None
+
+        if weights is None:
+            # Fallback for JSON-encoded weights format
+            with open(weights_path, "r", encoding="utf-8") as f:
+                weights = json.load(f)
+
+        model.load_state_dict(weights)
+        if model.torch_model is not None:
+            if device != "cpu":
+                model.torch_model.to(device)
+            model.torch_model.eval()
+        return model
