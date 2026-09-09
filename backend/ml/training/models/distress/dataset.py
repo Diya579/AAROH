@@ -66,6 +66,7 @@ class DistressInputRecord:
 
     # 1. Slice 3.5 Fusion representations (current interaction only)
     fused_embedding: Sequence[float]  # 256-dim unit vector
+    raw_text: Optional[str] = None
     modality_weights: Dict[str, float] = field(
         default_factory=lambda: {"tabular": 0.3333, "text": 0.3333, "audio": 0.3334}
     )
@@ -209,6 +210,7 @@ class DistressInputRecord:
         return cls(
             case_id=record.case_id,
             interaction_date=record.interaction_date,
+            raw_text=record.text_response,
             fused_embedding=fused_emb,
             modality_weights=mod_weights,
             reconstructed_tabular=recon_tab,
@@ -296,8 +298,40 @@ def build_synthetic_distress_records(
     """
     multimodal_records = build_synthetic_multimodal_records(count=count, seed=seed)
     distress_records: List[DistressInputRecord] = []
+    rng = random.Random(seed)
 
     for rec in multimodal_records:
+        # Determine case severity tier deterministically from case_id
+        try:
+            case_num = int(rec.case_id.split("-")[-1])
+        except Exception:
+            case_num = hash(rec.case_id) % 20
+        tier = case_num % 4
+
+        # Modulate tabular behavioral features according to tier
+        if rec.tabular_features is not None:
+            new_tab = list(rec.tabular_features)
+            if tier == 0:
+                base_val = rng.uniform(0.02, 0.12)
+            elif tier == 1:
+                base_val = rng.uniform(0.30, 0.44)
+            elif tier == 2:
+                base_val = rng.uniform(0.60, 0.72)
+            else:
+                base_val = rng.uniform(0.82, 0.96)
+
+            # 18: safety_distress, 19: sleep_disturbance, 20: fear_intensity
+            if len(new_tab) > 18:
+                new_tab[18] = round(base_val + rng.uniform(-0.02, 0.02), 3)
+            if len(new_tab) > 19:
+                new_tab[19] = round(base_val + rng.uniform(-0.02, 0.02), 3)
+            if len(new_tab) > 20:
+                new_tab[20] = round(base_val + rng.uniform(-0.02, 0.02), 3)
+            # 33: engagement_drop
+            if len(new_tab) > 33:
+                new_tab[33] = round(base_val + rng.uniform(-0.02, 0.02), 3)
+            rec.tabular_features = new_tab
+
         d_rec = DistressInputRecord.from_multimodal_record(
             rec,
             fusion_model=fusion_model,
@@ -390,6 +424,7 @@ class DistressDataset:
             inputs: List[List[float]] = []
             targets: List[float] = []
             case_ids: List[str] = []
+            raw_texts: List[str] = []
 
             for r in batch_records:
                 inputs.append(r.to_feature_vector())
@@ -397,10 +432,12 @@ class DistressDataset:
                     r.synthetic_distress_score if r.synthetic_distress_score is not None else 0.5
                 )
                 case_ids.append(r.case_id)
+                raw_texts.append(r.raw_text or "")
 
             yield {
                 "inputs": inputs,
                 "targets": targets,
                 "case_ids": case_ids,
+                "raw_texts": raw_texts,
                 "batch_size": len(batch_records),
             }

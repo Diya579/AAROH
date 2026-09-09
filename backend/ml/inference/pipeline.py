@@ -630,7 +630,7 @@ class MLInferencePipeline:
                 engagement_features=e_features,
             )
             assert self.distress_model is not None
-            distress_out = self.distress_model.predict_distress(distress_rec)
+            distress_out = self.distress_model.predict_distress(distress_rec, raw_text=current_input.raw_text)
         if validate_stages:
             validate_distress_stage(distress_out)
         if logger_tracer:

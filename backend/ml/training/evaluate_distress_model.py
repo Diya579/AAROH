@@ -78,7 +78,10 @@ def evaluate_distress(
 
     # 1. Load model configuration & weights (reading versioned thresholds if present)
     cfg_file = m_path / "config.json" if (m_path / "config.json").exists() else (m_path / "thresholds.json" if (m_path / "thresholds.json").exists() else None)
-    model = DynamicDistressModel(seed=seed, config_path=cfg_file)
+    if (m_path / "pytorch_model.bin").exists():
+        model = DynamicDistressModel.load_from_artifact(m_path, device="cpu")
+    else:
+        model = DynamicDistressModel(seed=seed, config_path=cfg_file)
     weights_path = m_path / "weights"
     if weights_path.exists():
         with open(weights_path, "r", encoding="utf-8") as f:

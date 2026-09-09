@@ -42,6 +42,14 @@ from backend.ml.training.models.distress.model import (
 from backend.ml.training.models.text_emotion.model import TextEmotionModel
 
 
+def _find_repo_root() -> Path:
+    cur = Path(__file__).resolve()
+    for parent in cur.parents:
+        if (parent / "models").exists() and (parent / "backend").exists():
+            return parent
+    return Path.cwd()
+
+
 def _project_text_to_distress_fused_embedding(
     emotion_embedding: Sequence[float],  # 768-dim
     emotion_probabilities: Dict[str, float],
@@ -55,25 +63,31 @@ def _project_text_to_distress_fused_embedding(
 
     # 768-dim embedding -> 256-dim via structured stride projection
     fused = [0.0] * FUSED_EMBEDDING_DIM
-    emb_len = len(emotion_embedding)
+    emb_len = len(emotion_embedding) if emotion_embedding else 768
+    raw_emb = list(emotion_embedding) if emotion_embedding else [0.0] * 768
 
     for i in range(FUSED_EMBEDDING_DIM):
         # 3:1 stride pooling with emotion modulation
         idx1 = (i * 3) % emb_len
         idx2 = (i * 3 + 1) % emb_len
         idx3 = (i * 3 + 2) % emb_len
-        val = (emotion_embedding[idx1] + emotion_embedding[idx2] + emotion_embedding[idx3]) / 3.0
+        val = (raw_emb[idx1] + raw_emb[idx2] + raw_emb[idx3]) / 3.0
         fused[i] = val
 
     # Modulate top distress emotion signals into fused embedding
     fear_signal = float(emotion_probabilities.get("fear", 0.0))
     sad_signal = float(emotion_probabilities.get("sadness", 0.0))
     grief_signal = float(emotion_probabilities.get("grief", 0.0))
+    nervous_signal = float(emotion_probabilities.get("nervousness", 0.0))
     joy_signal = float(emotion_probabilities.get("joy", 0.0))
+    opt_signal = float(emotion_probabilities.get("optimism", 0.0))
 
-    emotion_factor = (fear_signal * 0.4 + sad_signal * 0.3 + grief_signal * 0.3) - (joy_signal * 0.3)
-    for i in range(min(32, FUSED_EMBEDDING_DIM)):
-        fused[i] += emotion_factor * 0.1
+    distress_load = (fear_signal * 0.35 + sad_signal * 0.25 + grief_signal * 0.25 + nervous_signal * 0.15)
+    protective_load = (joy_signal * 0.50 + opt_signal * 0.50)
+    net_factor = distress_load - protective_load
+
+    for i in range(FUSED_EMBEDDING_DIM):
+        fused[i] += net_factor * 0.20 * (((i % 8) + 1) / 8.0)
 
     # L2 normalize onto unit hypersphere
     norm = math.sqrt(sum(x * x for x in fused)) or 1e-8
@@ -92,20 +106,25 @@ class DistressInferencePipeline:
         device: Optional[str] = None,
     ) -> None:
         self.device = device or "cpu"
+        repo_root = _find_repo_root()
+
+        # Resolve default artifact directories if not provided
+        resolved_distress_dir = distress_artifact_dir or (repo_root / "models" / "distress")
+        resolved_text_dir = text_artifact_dir or (repo_root / "models" / "text_emotion")
 
         # 1. Initialize or load Distress Model
         if distress_model is not None:
             self.distress_model = distress_model
-        elif distress_artifact_dir and Path(distress_artifact_dir).exists():
-            self.distress_model = DynamicDistressModel.load_from_artifact(distress_artifact_dir, device=self.device)
+        elif resolved_distress_dir and Path(resolved_distress_dir).exists():
+            self.distress_model = DynamicDistressModel.load_from_artifact(resolved_distress_dir, device=self.device)
         else:
             self.distress_model = DynamicDistressModel(device=self.device)
 
         # 2. Initialize or load Text Emotion Model
         if text_model is not None:
             self.text_model = text_model
-        elif text_artifact_dir and Path(text_artifact_dir).exists():
-            self.text_model = TextEmotionModel.load_from_artifact(text_artifact_dir, device=self.device)
+        elif resolved_text_dir and Path(resolved_text_dir).exists():
+            self.text_model = TextEmotionModel.load_from_artifact(resolved_text_dir, device=self.device)
         else:
             # Fallback initialized text model
             self.text_model = TextEmotionModel()
@@ -144,6 +163,9 @@ class DistressInferencePipeline:
                 "evidence": empty_evidence.to_dict(),
             }
 
+        # Observable distress indicators extraction
+        indicators, matched_evidence = extract_distress_indicators(clean_text)
+
         # 1. Step 1: Text Emotion Model Forward
         text_out = self.text_model.encode_and_predict([clean_text], device=self.device)
         emotion_probs = text_out["emotion_probabilities"][0]
@@ -153,13 +175,21 @@ class DistressInferencePipeline:
         fused_emb = _project_text_to_distress_fused_embedding(emotion_emb, emotion_probs)
 
         # 3. Step 3: Build DistressInputRecord
-        modality_weights = {"tabular": 0.10 if (behavioural_features or engagement_features) else 0.0, "text": 0.90, "audio": 0.0}
+        resolved_b = behavioural_features
+        if resolved_b is None:
+            # Map observable text distress indicators to behavioural slots when tabular features absent
+            dist_val = max(indicators.hopelessness, indicators.helplessness, indicators.intimidation, indicators.sadness)
+            fear_val = max(indicators.fear, indicators.anxiety)
+            if dist_val > 0.0 or fear_val > 0.0:
+                resolved_b = [dist_val, 0.0, fear_val, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        modality_weights = {"tabular": 0.20 if (resolved_b or engagement_features) else 0.0, "text": 0.80, "audio": 0.0}
         record = DistressInputRecord(
             case_id=case_id,
             interaction_date=interaction_date or "2026-03-01",
             fused_embedding=fused_emb,
             modality_weights=modality_weights,
-            behavioural_features=behavioural_features,
+            behavioural_features=resolved_b,
             engagement_features=engagement_features,
         )
 

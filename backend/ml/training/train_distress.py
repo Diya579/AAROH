@@ -58,6 +58,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unfreeze-backbone", action="store_true", help="Unfreeze pretrained backbones for training")
     parser.add_argument("--fp16", action="store_true", help="Enable FP16 mixed precision on GPU")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1, help="Gradient accumulation steps")
+    parser.add_argument("--execution-mode", choices=["PYTORCH_FROZEN", "PYTORCH_FINETUNE"], default="PYTORCH_FROZEN")
+    parser.add_argument("--model-name", default="distilbert-base-multilingual-cased", help="Hugging Face transformer backbone")
+    parser.add_argument("--max-length", type=int, default=128, help="Maximum transformer sequence length")
     return parser.parse_args()
 
 
@@ -104,6 +107,9 @@ def train_distress_model(args: argparse.Namespace) -> Dict[str, Any]:
     model = DynamicDistressModel(
         seed=args.seed,
         unfreeze_backbone=args.unfreeze_backbone,
+        force_mode=args.execution_mode,
+        backbone=args.model_name,
+        max_length=args.max_length,
     )
     param_counts = model.get_parameter_counts()
     print(f"Execution Mode:                {model.execution_mode}")
@@ -115,13 +121,34 @@ def train_distress_model(args: argparse.Namespace) -> Dict[str, Any]:
     # 5. Training Loop
     print("\n[INFO] Executing dynamic distress gradient descent training loop...")
     loss_history: List[float] = []
+    if model.transformer_model is None or model.tokenizer is None:
+        raise RuntimeError("Distress training requires a real Hugging Face transformer and tokenizer")
+    import torch
+    import torch.nn.functional as F
 
+    device = torch.device(get_device())
+    model.transformer_model.to(device)
+    trainable = [p for p in model.transformer_model.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=0.01)
+    grad_steps = max(1, args.gradient_accumulation_steps)
     for epoch in range(1, epochs + 1):
+        model.transformer_model.train()
         epoch_losses: List[float] = []
-        for batch in train_ds.iterate_batches(batch_size=batch_size, shuffle=True, seed=args.seed + epoch):
-            loss = model.train_step(batch=batch, lr=args.lr)
-            epoch_losses.append(loss)
-
+        optimizer.zero_grad()
+        batches = list(train_ds.iterate_batches(batch_size=batch_size, shuffle=True, seed=args.seed + epoch))
+        for batch_idx, batch in enumerate(batches):
+            texts = batch["raw_texts"]
+            tokens = model.tokenizer(texts, max_length=args.max_length, padding=True, truncation=True, return_tensors="pt")
+            tokens = {key: value.to(device) for key, value in tokens.items()}
+            targets = torch.tensor(batch["targets"], dtype=torch.float32, device=device)
+            _, scores = model.transformer_model(**tokens)
+            loss = F.mse_loss(scores, targets) / grad_steps
+            loss.backward()
+            if ((batch_idx + 1) % grad_steps == 0) or (batch_idx + 1 == len(batches)):
+                torch.nn.utils.clip_grad_norm_(trainable, 1.0)
+                optimizer.step()
+                optimizer.zero_grad()
+            epoch_losses.append(float(loss.detach().cpu()) * grad_steps)
         avg_epoch_loss = sum(epoch_losses) / len(epoch_losses) if epoch_losses else 0.0
         loss_history.append(avg_epoch_loss)
         print(f"  Epoch {epoch}/{epochs} — Mean MSE Loss: {avg_epoch_loss:.4f}")
@@ -134,7 +161,11 @@ def train_distress_model(args: argparse.Namespace) -> Dict[str, Any]:
     # 6. Save Checkpoint
     chk_dir = Path(args.checkpoint_dir)
     chk_file = chk_dir / f"checkpoint_epoch_{epochs}.pt"
-    model.save_checkpoint(chk_file, epoch=epochs, metrics={"loss": final_loss})
+    if model.transformer_model is not None:
+        chk_dir.mkdir(parents=True, exist_ok=True)
+        torch.save({"epoch": epochs, "metrics": {"loss": final_loss}, "model_state_dict": model.transformer_model.state_dict()}, chk_file)
+    else:
+        model.save_checkpoint(chk_file, epoch=epochs, metrics={"loss": final_loss})
     print(f"Checkpoint saved: True ({chk_file})")
 
     if args.drive_checkpoint_dir:
@@ -147,10 +178,17 @@ def train_distress_model(args: argparse.Namespace) -> Dict[str, Any]:
             print(f"Warning: Could not copy checkpoint to Drive: {e}")
 
     # 7. Reload Checkpoint & Verify Public Inference Interface
-    reload_model = DynamicDistressModel(seed=args.seed)
-    reload_model.load_checkpoint(chk_file)
+    reload_model = DynamicDistressModel(
+        seed=args.seed,
+        force_mode=args.execution_mode,
+        backbone=args.model_name,
+        max_length=args.max_length,
+    )
+    checkpoint = torch.load(chk_file, map_location="cpu", weights_only=True)
+    reload_model.transformer_model.load_state_dict(checkpoint["model_state_dict"])
+    reload_model.transformer_model.eval()
     test_record = val_records[0]
-    inf_res = reload_model.predict_distress(test_record)
+    inf_res = reload_model.predict_distress(test_record, raw_text=test_record.raw_text)
 
     distress_emb = inf_res["distress_embedding"]
     norm = math.sqrt(sum(x * x for x in distress_emb))
@@ -173,7 +211,7 @@ def train_distress_model(args: argparse.Namespace) -> Dict[str, Any]:
     val_true_levels: List[str] = []
 
     for rec in val_records:
-        out = reload_model.predict_distress(rec)
+        out = reload_model.predict_distress(rec, raw_text=rec.raw_text)
         pred_score = out["distress_score"]
         pred_level = out["distress_level"]
         true_score = rec.synthetic_distress_score if rec.synthetic_distress_score is not None else 0.5

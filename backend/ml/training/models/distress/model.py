@@ -91,6 +91,7 @@ DEFAULT_THRESHOLDS = {
 }
 
 DEFAULT_MODEL_VERSION = "aaroh-distress-v1"
+DEFAULT_DISTRESS_BACKBONE = "distilbert-base-multilingual-cased"
 THRESHOLDS_FILENAME = "thresholds.json"
 
 LEVEL_LOW = "LOW"
@@ -165,11 +166,17 @@ class DynamicDistressModel:
         seed: int = 42,
         unfreeze_backbone: bool = False,
         force_mode: Optional[str] = None,
+        backbone: str = DEFAULT_DISTRESS_BACKBONE,
+        max_length: int = 128,
+        local_artifact_dir: Optional[Union[str, Path]] = None,
     ) -> None:
         self.model_version = model_version
         self.seed = seed
         self.device = device or get_device()
         self.unfreeze_backbone = unfreeze_backbone
+        self.backbone = backbone
+        self.max_length = max_length
+        self.local_artifact_dir = Path(local_artifact_dir) if local_artifact_dir else None
         set_seed(seed)
 
         # Configurable thresholds: resolve from argument, explicit config_path, default config.json, legacy thresholds.json, or fallback
@@ -188,6 +195,8 @@ class DynamicDistressModel:
         # Detect PyTorch availability
         self.is_torch_available = False
         self.torch_model = None
+        self.transformer_model = None
+        self.tokenizer = None
         try:
             import torch
             import torch.nn as nn
@@ -219,10 +228,79 @@ class DynamicDistressModel:
         if self.execution_mode in (EXECUTION_MODE_PYTORCH_FROZEN, EXECUTION_MODE_PYTORCH_FINETUNE):
             if self.is_torch_available:
                 self._init_pytorch_model()
+                self._init_transformer_model(self.local_artifact_dir)
             else:
                 self._init_pure_python_weights()
         else:
             self._init_pure_python_weights()
+
+    def _init_transformer_model(self, local_artifact_dir: Optional[Path] = None) -> None:
+        """Initializes the real multilingual transformer used by Colab training/inference."""
+        import torch.nn as nn
+        from transformers import AutoModel, AutoTokenizer
+
+        class _DistressTransformerHead(nn.Module):
+            def __init__(self, encoder: Any) -> None:
+                super().__init__()
+                self.encoder = encoder
+                hidden = int(encoder.config.hidden_size)
+                self.dropout = nn.Dropout(0.2)
+                self.embedding = nn.Linear(hidden, DISTRESS_EMBEDDING_DIM)
+                self.regression = nn.Sequential(
+                    nn.ReLU(),
+                    nn.Linear(DISTRESS_EMBEDDING_DIM, REGRESSION_HIDDEN_DIM),
+                    nn.ReLU(),
+                    nn.Linear(REGRESSION_HIDDEN_DIM, 1),
+                    nn.Sigmoid(),
+                )
+
+            def forward(self, input_ids: Any, attention_mask: Any, **_: Any) -> Tuple[Any, Any]:
+                outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+                hidden = outputs.last_hidden_state
+                mask = attention_mask.unsqueeze(-1).float()
+                pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-9)
+                embedding = self.embedding(self.dropout(pooled))
+                embedding = embedding / embedding.norm(p=2, dim=-1, keepdim=True).clamp(min=1e-8)
+                return embedding, self.regression(embedding).squeeze(-1)
+
+        source = str(local_artifact_dir) if local_artifact_dir and local_artifact_dir.exists() else self.backbone
+        if local_artifact_dir and (local_artifact_dir / "transformer_config.json").exists():
+            from transformers import AutoConfig
+            encoder = AutoModel.from_config(
+                AutoConfig.from_pretrained(local_artifact_dir / "transformer_config.json", local_files_only=True)
+            )
+        else:
+            encoder = AutoModel.from_pretrained(source, attn_implementation="eager")
+        self.transformer_model = _DistressTransformerHead(encoder)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            source, local_files_only=bool(local_artifact_dir and local_artifact_dir.exists())
+        )
+        if self.execution_mode == EXECUTION_MODE_PYTORCH_FROZEN:
+            for parameter in self.transformer_model.encoder.parameters():
+                parameter.requires_grad = False
+        elif self.execution_mode == EXECUTION_MODE_PYTORCH_FINETUNE:
+            for parameter in self.transformer_model.encoder.parameters():
+                parameter.requires_grad = False
+            layers = getattr(getattr(self.transformer_model.encoder, "transformer", None), "layer", [])
+            for layer in list(layers)[-2:]:
+                for parameter in layer.parameters():
+                    parameter.requires_grad = True
+
+    def encode_and_predict_text(self, texts: Sequence[str], device: Optional[str] = None) -> Dict[str, Any]:
+        """Runs genuine transformer inference for raw text in neural execution modes."""
+        if self.transformer_model is None or self.tokenizer is None:
+            raise NeuralExecutionError("Distress transformer artifacts are not initialized")
+        import torch
+        target = torch.device(device or self.device)
+        self.transformer_model.to(target).eval()
+        tokens = self.tokenizer(list(texts), max_length=self.max_length, padding=True, truncation=True, return_tensors="pt")
+        tokens = {key: value.to(target) for key, value in tokens.items()}
+        with torch.no_grad():
+            embeddings, scores = self.transformer_model(**tokens)
+        return {
+            "distress_embeddings": embeddings.detach().cpu().tolist(),
+            "distress_scores": scores.detach().cpu().tolist(),
+        }
 
     def _validate_thresholds(self) -> None:
         low = self.thresholds.get("low", DEFAULT_THRESHOLDS["low"])
@@ -458,6 +536,7 @@ class DynamicDistressModel:
     def predict_distress(
         self,
         record: Union[DistressInputRecord, Dict[str, Any], Sequence[float]],
+        raw_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Public Inference Interface for AAROH Dynamic Distress Model.
 
@@ -474,7 +553,9 @@ class DynamicDistressModel:
         # 1. Convert input to 301-dim vector
         if isinstance(record, DistressInputRecord):
             vec = record.to_feature_vector()
+            raw_text = raw_text if raw_text is not None else record.raw_text
         elif isinstance(record, dict):
+            raw_text = raw_text if raw_text is not None else record.get("raw_text")
             if "inputs" in record:
                 vec = list(record["inputs"])
             elif "fused_embedding" in record:
@@ -494,8 +575,13 @@ class DynamicDistressModel:
         else:
             raise TypeError(f"Unsupported record type for predict_distress: {type(record)}")
 
-        # 2. Forward pass
-        h_emb, score = self.forward(vec)
+        # 2. Use the exported transformer for text; retain vector compatibility for callers without text.
+        if raw_text and self.transformer_model is not None:
+            text_out = self.encode_and_predict_text([raw_text])
+            h_emb = text_out["distress_embeddings"][0]
+            score = float(text_out["distress_scores"][0])
+        else:
+            h_emb, score = self.forward(vec)
 
         # 3. Categorize score into discrete level
         level = self.map_score_to_level(score)
@@ -533,7 +619,7 @@ class DynamicDistressModel:
         """Predicts distress and returns structured, machine-readable evidence grounded in inputs."""
         from backend.ml.training.models.distress.explainability import generate_distress_evidence
 
-        base_result = self.predict_distress(record)
+        base_result = self.predict_distress(record, raw_text=raw_text)
 
         b_feats = None
         e_feats = None
@@ -677,6 +763,8 @@ class DynamicDistressModel:
             "distress_embedding_dim": DISTRESS_EMBEDDING_DIM,
             "regression_hidden_dim": REGRESSION_HIDDEN_DIM,
             "output_dim": OUTPUT_SCORE_DIM,
+            "backbone": self.backbone,
+            "max_length": self.max_length,
             "threshold_configuration": {
                 "version": "1.0",
                 "model_version": self.model_version,
@@ -751,6 +839,13 @@ class DynamicDistressModel:
         with open(out_dir / "label_mapping.json", "w", encoding="utf-8") as f:
             json.dump(label_mapping_data, f, indent=2)
 
+        if self.transformer_model is not None and self.tokenizer is not None:
+            import torch
+            torch.save(self.transformer_model.state_dict(), out_dir / "pytorch_model.bin")
+            self.tokenizer.save_pretrained(out_dir)
+            if hasattr(self.transformer_model.encoder, "config"):
+                self.transformer_model.encoder.config.to_json_file(out_dir / "transformer_config.json")
+
         return {
             "weights": str(weights_file),
             "config": str(out_dir / "config.json"),
@@ -793,8 +888,16 @@ class DynamicDistressModel:
             device=device,
             seed=meta.get("hyperparameters", {}).get("seed", 42),
             force_mode=execution_mode,
+            backbone=cfg.get("backbone", DEFAULT_DISTRESS_BACKBONE),
+            max_length=cfg.get("max_length", 128),
+            local_artifact_dir=art_dir if (art_dir / "pytorch_model.bin").exists() else None,
         )
 
         model.load_checkpoint(art_dir / "weights")
+        if model.transformer_model is not None and (art_dir / "pytorch_model.bin").exists():
+            import torch
+            state = torch.load(art_dir / "pytorch_model.bin", map_location="cpu", weights_only=True)
+            model.transformer_model.load_state_dict(state)
+            model.transformer_model.to(device).eval()
         return model
 
