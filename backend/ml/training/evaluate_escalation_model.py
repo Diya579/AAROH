@@ -193,9 +193,12 @@ def evaluate_escalation(
     print("-" * 74)
 
     # 1. Load Model
-    model = EscalationAssessmentModel(seed=seed)
+    if (m_path / "config.json").exists() and (m_path / "metadata.json").exists():
+        model = EscalationAssessmentModel.load_from_artifact(m_path)
+    else:
+        model = EscalationAssessmentModel(seed=seed)
     weights_path = m_path / "weights"
-    if weights_path.exists():
+    if weights_path.exists() and not (m_path / "config.json").exists():
         with open(weights_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         model.weights = data["weights"]

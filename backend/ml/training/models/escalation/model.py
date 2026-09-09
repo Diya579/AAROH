@@ -622,3 +622,46 @@ class EscalationAssessmentModel:
             "metrics": str(metrics_file),
             "label_mapping": str(label_file),
         }
+
+    @classmethod
+    def load_from_artifact(
+        cls,
+        artifact_dir: Union[str, Path],
+        device: Optional[str] = None,
+    ) -> "EscalationAssessmentModel":
+        """Loads a self-contained Escalation artifact with its versioned policy."""
+        art_dir = Path(artifact_dir)
+        if not art_dir.exists():
+            raise FileNotFoundError(f"Escalation artifact directory not found: {art_dir}")
+
+        required = ["config.json", "metadata.json", "weights", "label_mapping.json"]
+        missing = [name for name in required if not (art_dir / name).exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing required escalation artifact files in {art_dir}: {missing}")
+
+        with open(art_dir / "config.json", "r", encoding="utf-8") as handle:
+            config_data = json.load(handle)
+        with open(art_dir / "metadata.json", "r", encoding="utf-8") as handle:
+            metadata = json.load(handle)
+        with open(art_dir / "weights", "r", encoding="utf-8") as handle:
+            weights_data = json.load(handle)
+
+        config = EscalationConfig(
+            target_horizon_days=config_data.get("target_horizon_days", DEFAULT_TARGET_HORIZON_DAYS),
+            threshold_low_moderate=config_data.get("threshold_low_moderate", 0.40),
+            threshold_moderate_high=config_data.get("threshold_moderate_high", 0.75),
+            min_confidence_threshold=config_data.get("min_confidence_threshold", 0.25),
+            confidence_policy=ConfidencePolicyConfig.from_dict(config_data.get("confidence_policy")),
+            config_version=config_data.get("config_version", "1.0.0"),
+        )
+        model = cls(
+            config=config,
+            model_version=metadata.get("model_version", config_data.get("model_version", DEFAULT_MODEL_VERSION)),
+            seed=metadata.get("training_seed", 42),
+        )
+        model.weights = list(weights_data["weights"])
+        model.intercept = float(weights_data["intercept"])
+        model.feature_names = list(weights_data.get("feature_names", model.feature_names))
+        model.num_features = len(model.feature_names)
+        model.is_fitted = True
+        return model

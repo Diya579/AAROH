@@ -305,8 +305,7 @@ class MLInferencePipeline:
             self.registry.validate_metadata("escalation", esc_meta, None)
             self._loaded_versions["escalation"] = esc_meta.get("model_version", "aaroh-escalation-v1")
 
-            esc_m = EscalationAssessmentModel(seed=self.config.seed)
-            esc_m.load_checkpoint(esc_dir / "weights")
+            esc_m = EscalationAssessmentModel.load_from_artifact(esc_dir)
             self.escalation_model = esc_m
             self.cache.put("model_escalation", esc_m)
             self.cache.put("meta_escalation", esc_meta)
