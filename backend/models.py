@@ -305,6 +305,14 @@ class Intervention(Base):
             "case_id",
             "status"
         ),
+        Index(
+            "ix_interventions_priority",
+            "priority"
+        ),
+        Index(
+            "ix_interventions_due_at",
+            "due_at"
+        ),
     )
 
     id = Column(Integer, primary_key=True)
@@ -320,6 +328,26 @@ class Intervention(Base):
     status = Column(String(50))
 
     assigned_to = Column(String(100))
+
+    # Extended operational & SLA columns (Canonical Source: docs/DATABASE_EXTENSION_PROPOSAL.md)
+    priority = Column(String(20), default="ROUTINE", nullable=False)
+    reason = Column(Text, nullable=True)
+    assigned_role = Column(String(50), nullable=True)
+    backup_assigned_to = Column(String(100), nullable=True)
+    assigned_at = Column(DateTime, nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    due_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    @property
+    def backup_assignee(self):
+        """Compatibility alias for backup_assigned_to."""
+        return self.backup_assigned_to
+
+    @backup_assignee.setter
+    def backup_assignee(self, value):
+        self.backup_assigned_to = value
 
 
 class Outcome(Base):
@@ -351,6 +379,10 @@ class Outcome(Base):
     completed = Column(Boolean, default=False)
 
     recorded_at = Column(DateTime, default=datetime.utcnow)
+
+    # Extended operational outcome columns (Canonical Source: docs/DATABASE_EXTENSION_PROPOSAL.md)
+    follow_up_required = Column(Boolean, default=False, nullable=False)
+    notes = Column(Text, nullable=True)
 
 
 class ModelVersion(Base):

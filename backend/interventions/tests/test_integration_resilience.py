@@ -384,6 +384,58 @@ class TestIntegrationResilience(unittest.TestCase):
         self.assertEqual(sms_res["channel"], ChannelType.SMS.value)
         self.assertIsNotNone(sms_res["interaction_id"])
 
+    # 7. Reconciled Canonical Schema Verification
+    def test_canonical_schema_reconciliation(self) -> None:
+        """
+        Verifies that Intervention and Outcome models have all canonical columns,
+        backup_assignee property alias functions correctly, and API helpers return
+        all operational fields.
+        """
+        # 1. Model attribute checks
+        for attr in ("priority", "reason", "assigned_role", "backup_assigned_to",
+                     "assigned_at", "acknowledged_at", "due_at", "completed_at", "created_at"):
+            self.assertTrue(
+                hasattr(Intervention, attr),
+                f"Intervention model missing canonical column: {attr}",
+            )
+
+        for attr in ("follow_up_required", "notes"):
+            self.assertTrue(
+                hasattr(Outcome, attr),
+                f"Outcome model missing canonical column: {attr}",
+            )
+
+        # 2. backup_assignee property alias check
+        test_interv = Intervention(
+            case_id=1,
+            intervention_type="ROUTINE_MONITORING",
+            status="ASSIGNED",
+            assigned_to="OFFICER-1",
+            backup_assigned_to="BACKUP-OFFICER-2",
+        )
+        self.assertEqual(test_interv.backup_assignee, "BACKUP-OFFICER-2")
+        test_interv.backup_assignee = "NEW-BACKUP-3"
+        self.assertEqual(test_interv.backup_assigned_to, "NEW-BACKUP-3")
+
+        # 3. get_intervention returns canonical operational keys
+        if not self.Session:
+            self.skipTest("PostgreSQL not available")
+
+        db = self.Session()
+        try:
+            interv_row = db.query(Intervention).filter(Intervention.priority.isnot(None)).first()
+            if interv_row:
+                res = db_operational_service.get_intervention(db, interv_row.id)
+                self.assertIn("priority", res)
+                self.assertIn("assigned_role", res)
+                self.assertIn("backup_assigned_to", res)
+                self.assertIn("backup_assignee", res)
+                self.assertEqual(res["backup_assigned_to"], res["backup_assignee"])
+                self.assertIn("due_at", res)
+                self.assertIn("created_at", res)
+        finally:
+            db.close()
+
 
 if __name__ == "__main__":
     unittest.main()
