@@ -1,7 +1,7 @@
 from typing import Any, cast
 
-from database import SessionLocal
-from models import (
+from backend.database import SessionLocal
+from backend.models import (
     Case,
     Prediction,
     Consent,

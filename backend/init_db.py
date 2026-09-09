@@ -1,6 +1,5 @@
-from database import engine, Base
-
-import models
+from backend.database import engine, Base
+import backend.models as models
 
 
 print("Creating AAROH database tables...")

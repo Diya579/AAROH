@@ -9,14 +9,15 @@ sys.path.append(
     )
 )
 
-from database import SessionLocal
-
-from models import (
+from backend.database import SessionLocal
+from backend.models import (
+    Case,
+    Prediction,
+    DistressState,
     Interaction,
     TextFeature,
     VoiceFeature,
     EngagementFeature,
-    DistressState
 )
 
 from risk.risk_scoring import calculate_risk

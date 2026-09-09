@@ -1,10 +1,14 @@
 from datetime import datetime
 
-from database import SessionLocal
-from models import (
+from backend.database import SessionLocal
+from backend.models import (
+    Case,
     Interaction,
+    TextFeature,
+    VoiceFeature,
+    EngagementFeature,
     DistressState,
-    Prediction
+    Prediction,
 )
 
 

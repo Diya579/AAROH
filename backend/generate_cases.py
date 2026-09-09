@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from database import SessionLocal
-from models import Case, CaseEvent, Interaction, Consent
+from backend.database import SessionLocal
+from backend.models import Case, CaseEvent, Interaction, Consent
 
 
 random.seed(42)

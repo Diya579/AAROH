@@ -9,8 +9,8 @@ sys.path.append(
     )
 )
 
-from database import SessionLocal
-from models import (
+from backend.database import SessionLocal
+from backend.models import (
     Interaction,
     TextFeature,
     VoiceFeature,

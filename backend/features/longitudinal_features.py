@@ -9,8 +9,8 @@ sys.path.append(
     )
 )
 
-from database import SessionLocal
-from models import Interaction
+from backend.database import SessionLocal
+from backend.models import Interaction
 
 
 def normalize_1_to_5(value):

@@ -312,6 +312,9 @@ class Intervention(Base):
             "case_id",
             "status"
         ),
+        # PROVISIONAL: Added pending Preet's confirmation (from docs/DATABASE_EXTENSION_PROPOSAL.md)
+        Index("ix_interventions_priority", "priority"),
+        Index("ix_interventions_due_at", "due_at"),
     )
 
     id = Column(Integer, primary_key=True)
@@ -329,6 +332,25 @@ class Intervention(Base):
     assigned_to = Column(String(100))
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # PROVISIONAL: Added pending Preet's confirmation (from docs/DATABASE_EXTENSION_PROPOSAL.md)
+    priority = Column(String(20), server_default="ROUTINE", nullable=False)
+    reason = Column(Text, nullable=True)
+    assigned_role = Column(String(50), nullable=True)
+    backup_assigned_to = Column(String(100), nullable=True)
+    assigned_at = Column(DateTime, nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    due_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    @property
+    def backup_assignee(self):
+        """Compatibility alias for backup_assigned_to."""
+        return self.backup_assigned_to
+
+    @backup_assignee.setter
+    def backup_assignee(self, value):
+        self.backup_assigned_to = value
 
 
 class Outcome(Base):
@@ -360,6 +382,10 @@ class Outcome(Base):
     completed = Column(Boolean, default=False)
 
     recorded_at = Column(DateTime, default=datetime.utcnow)
+
+    # PROVISIONAL: Added pending Preet's confirmation (from docs/DATABASE_EXTENSION_PROPOSAL.md)
+    follow_up_required = Column(Boolean, server_default="0", nullable=False)
+    notes = Column(Text, nullable=True)
 
 
 class ModelVersion(Base):

@@ -22,6 +22,7 @@ from backend.ml.contract import ProcessingStatus
 from backend.services.prediction_service import create_prediction, create_distress_state
 from backend.schemas.prediction import PredictionCreate
 from backend.schemas.distress import DistressStateCreate
+from backend.intervention_engine import create_intervention
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,16 @@ def create_interaction(db: Session, payload: InteractionCreate) -> Interaction:
                     confidence=ml_result.distress.confidence
                 )
                 create_distress_state(db, distress_payload)
+            
+            # Commit the ML results so the intervention engine can read them
+            db.commit()
+            
+            # Trigger intervention evaluation
+            try:
+                create_intervention(payload.case_id)
+            except Exception as intervention_e:
+                logger.error(f"Failed to create intervention for case {payload.case_id}: {intervention_e}")
+                
         else:
             logger.warning(f"ML Pipeline did not return SUCCESS. Status: {ml_result.status}")
 

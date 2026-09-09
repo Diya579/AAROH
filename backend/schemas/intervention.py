@@ -18,12 +18,16 @@ class InterventionCreate(BaseModel):
     intervention_type: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = Field(None, max_length=50)
     assigned_to: Optional[str] = Field(None, max_length=100)
+    backup_assigned_to: Optional[str] = Field(None, max_length=100)
+    backup_assignee: Optional[str] = Field(None, max_length=100)
 
 
 class InterventionUpdate(BaseModel):
     intervention_type: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = Field(None, max_length=50)
     assigned_to: Optional[str] = Field(None, max_length=100)
+    backup_assigned_to: Optional[str] = Field(None, max_length=100)
+    backup_assignee: Optional[str] = Field(None, max_length=100)
 
 
 class OutcomeCreate(BaseModel):
@@ -40,9 +44,11 @@ class OutcomeCreate(BaseModel):
 class InterventionResponse(BaseModel):
     id: int
     case_id: int
-    intervention_type: Optional[str]
-    status: Optional[str]
-    assigned_to: Optional[str]
+    intervention_type: Optional[str] = None
+    status: Optional[str] = None
+    assigned_to: Optional[str] = None
+    backup_assigned_to: Optional[str] = None
+    backup_assignee: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

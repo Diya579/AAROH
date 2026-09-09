@@ -7,8 +7,8 @@ sys.path.append(
     )
 )
 
-from database import SessionLocal
-from models import Case
+from backend.database import SessionLocal
+from backend.models import Case
 from intervention_engine import create_intervention
 
 
