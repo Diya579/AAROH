@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useThemeAccessibility } from '../../context/ThemeAccessibilityContext';
 import { UX4GButton } from './UX4GButton';
 import { AshokaEmblem } from './AshokaEmblem';
+import { GoogleTranslateWidget } from '../../retro/components/GoogleTranslateWidget';
 
 export const UX4GHeader = () => {
   const { currentUser, isAuthenticated, signOut, getDashboardPath } = useAuth();
@@ -37,18 +38,18 @@ export const UX4GHeader = () => {
   };
 
   return (
-    <header style={{ position: 'sticky', top: 0, zIndex: 900, backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)' }}>
+    <header style={{ position: 'sticky', top: 0, zIndex: 900, backgroundColor: 'var(--ux4g-surface)', borderBottom: '1px solid var(--ux4g-border)', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)' }}>
       {/* UX4G National Tricolor Accent Bar */}
       <div className="ux4g-tricolor-bar" />
 
       {/* Top Accessibility & National Identity Strip */}
       <div
         style={{
-          backgroundColor: '#F8FAFC',
-          borderBottom: '1px solid #E2E8F0',
+          backgroundColor: 'var(--ux4g-bg-subtle)',
+          borderBottom: '1px solid var(--ux4g-border)',
           padding: '6px 0',
           fontSize: '0.78rem',
-          color: '#475569',
+          color: 'var(--ux4g-text-secondary)',
         }}
       >
         <div className="container flex-between" style={{ flexWrap: 'wrap', gap: '10px' }}>
@@ -85,6 +86,9 @@ export const UX4GHeader = () => {
               <PhoneCall size={11} />
               <span>Tele-MANAS: 14416 (24x7)</span>
             </button>
+
+            {/* Google Translate Language Selector */}
+            <GoogleTranslateWidget compact={true} />
 
             {/* Font Scaling */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1px', borderLeft: '1px solid #E2E8F0', paddingLeft: '10px' }}>

@@ -105,7 +105,7 @@ const CardUIPreview = ({ type, accentColor }) => {
         <div style={{
           width: '100%',
           maxWidth: '440px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--ux4g-surface)',
           borderRadius: '24px',
           padding: '24px',
           boxShadow: '0 16px 36px -8px rgba(109, 40, 217, 0.12), 0 0 0 1px rgba(221, 214, 254, 0.8)',
@@ -177,7 +177,7 @@ const CardUIPreview = ({ type, accentColor }) => {
         <div style={{
           width: '100%',
           maxWidth: '440px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--ux4g-surface)',
           borderRadius: '24px',
           padding: '24px',
           boxShadow: '0 16px 36px -8px rgba(79, 70, 229, 0.12), 0 0 0 1px rgba(199, 210, 254, 0.8)',
@@ -250,7 +250,7 @@ const CardUIPreview = ({ type, accentColor }) => {
               <div
                 key={i}
                 style={{
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--ux4g-surface)',
                   borderRadius: '999px',
                   padding: '10px 18px',
                   display: 'flex',

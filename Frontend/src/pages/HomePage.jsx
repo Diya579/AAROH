@@ -220,7 +220,7 @@ export const HomePage = () => {
       {/* =========================================================================
           STAGGERED BENTO GRID: REVOLUTIONARY SYSTEM CAPABILITIES
           ========================================================================= */}
-      <section id="about" style={{ padding: '72px 0', backgroundColor: '#FFFFFF' }}>
+      <section id="about" style={{ padding: '72px 0', backgroundColor: 'var(--ux4g-surface)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 48px' }}>
             <span style={{ color: 'var(--ux4g-violet-700)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>

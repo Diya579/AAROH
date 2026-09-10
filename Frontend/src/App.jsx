@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { UX4GHeader } from './components/common/UX4GHeader';
 import { UX4GFooter } from './components/common/UX4GFooter';
 import { GlobalOffcanvasDrawer } from './components/common/GlobalOffcanvasDrawer';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ScrollToTop } from './components/common/ScrollToTop';
-
-// Retro Newspaper Edition Components
-import { RetroApp } from './retro/RetroApp';
-import { RetroEditionToggle } from './retro/components/RetroEditionToggle';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -22,20 +18,6 @@ import { AdminDashboard } from './pages/dashboards/AdminDashboard';
 import { UnauthorizedPage, NotFoundPage } from './pages/dashboards/UnauthorizedPage';
 
 export const App = () => {
-  const [edition, setEdition] = useState(() => {
-    return localStorage.getItem('aaroh_edition') || 'gazette';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('aaroh_edition', edition);
-  }, [edition]);
-
-  // If Gazette Edition is selected (Default), render the Niccolò Miranda Retro Newspaper experience
-  if (edition === 'gazette') {
-    return <RetroApp onSwitchEdition={() => setEdition('classic')} />;
-  }
-
-  // Otherwise render Classic UX4G Gov Edition with floating toggle back to Gazette
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Universal Route Scroll Reset */}
@@ -112,9 +94,6 @@ export const App = () => {
 
       {/* UX4G GIGW 3.0 Standard Footer */}
       <UX4GFooter />
-
-      {/* Floating Seal to Switch Back to Gazette Edition */}
-      <RetroEditionToggle isGazette={false} onToggle={() => setEdition('gazette')} />
     </div>
   );
 };

@@ -58,7 +58,7 @@ export const KineticTiltCard = ({
         className={`ux4g-card elevation-${elevation} ${className}`}
         style={{
           borderRadius: 'var(--radius-lg)',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--ux4g-surface)',
           border: '1px solid var(--ux4g-border)',
           padding: '24px',
           ...style,
@@ -88,7 +88,7 @@ export const KineticTiltCard = ({
           rotateX,
           rotateY,
           transformStyle: 'preserve-3d',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--ux4g-surface)',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--ux4g-border)',
           boxShadow: isHovered ? 'var(--elevation-3)' : 'var(--elevation-1)',

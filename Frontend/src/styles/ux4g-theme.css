@@ -45,17 +45,17 @@
   --ux4g-info-border: #BAE6FD;
   --ux4g-info-text: #075985;
 
-  /* Elegant Neutral & Surface Tokens */
-  --ux4g-bg: #F8FAFC;
-  --ux4g-bg-subtle: #F1F5F9;
-  --ux4g-surface: #FFFFFF;
-  --ux4g-surface-card: #FFFFFF;
-  --ux4g-border: #E2E8F0;
-  --ux4g-border-subtle: #F1F5F9;
+  /* Cardboard Newspaper White Surface Tokens (Niccolò Miranda Paper Reference) */
+  --ux4g-bg: #EFE8DB;                /* Warm cardboard paper background */
+  --ux4g-bg-subtle: #E5DDD0;         /* Subtle secondary cardboard tone */
+  --ux4g-surface: #F8F3EA;           /* Cardboard-type white (Miranda paper white) */
+  --ux4g-surface-card: #F8F3EA;      /* Cardboard-type paper white for cards */
+  --ux4g-border: #D8CEBF;            /* Warm cardboard paper border */
+  --ux4g-border-subtle: #E2D8C9;
   --ux4g-border-focus: #6D28D9;
-  --ux4g-text-primary: #0F172A;
-  --ux4g-text-secondary: #475569;
-  --ux4g-text-muted: #64748B;
+  --ux4g-text-primary: #1E1B18;      /* Deep ink text */
+  --ux4g-text-secondary: #4A443D;    /* Warm ink secondary text */
+  --ux4g-text-muted: #6B6258;
   --ux4g-text-white: #FFFFFF;
 
   /* Airy, Elegant Elevation System */
@@ -315,3 +315,64 @@ h1, h2, h3, h4, h5, h6 {
     padding-right: 18px;
   }
 }
+
+/* ==========================================================================
+   NICCOLÒ MIRANDA PAPER / CARDBOARD WHITE ADAPTATIONS
+   Transforms all pure white surfaces into warm cardboard paper white (#F8F3EA)
+   with warm cardboard background (#EFE8DB)
+   ========================================================================== */
+
+body, html, #root {
+  background-color: var(--ux4g-bg) !important;
+  color: var(--ux4g-text-primary);
+}
+
+header {
+  background-color: var(--ux4g-surface) !important;
+  border-bottom: 1px solid var(--ux4g-border) !important;
+}
+
+/* Clean Google Translate styles */
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
+
+#goog-gt-tt, .goog-te-balloon-frame {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+.skiptranslate iframe {
+  display: none !important;
+}
+
+/* Force all white cards, surfaces, and sections to use cardboard-type paper white */
+.ux4g-card,
+.ux4g-card-surface,
+.ux4g-modal,
+.ux4g-table,
+.ux4g-offcanvas-drawer,
+div[style*="backgroundColor: '#FFFFFF'"],
+div[style*="backgroundColor: '#ffffff'"],
+div[style*="background-color: #FFFFFF"],
+div[style*="background-color: #ffffff"],
+div[style*="background: #FFFFFF"],
+div[style*="background: #ffffff"],
+section[style*="backgroundColor: '#FFFFFF'"],
+section[style*="backgroundColor: '#ffffff'"],
+section[style*="background: #FFFFFF"],
+section[style*="background: #ffffff"],
+footer[style*="backgroundColor: '#FFFFFF'"],
+footer[style*="backgroundColor: '#ffffff'"] {
+  background-color: var(--ux4g-surface) !important;
+  border-color: var(--ux4g-border) !important;
+}
+
