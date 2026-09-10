@@ -1,8 +1,1755 @@
 {
-  "accuracy": 0.0312,
-  "precision": 0.0357,
-  "recall": 0.0011,
-  "macro_f1": 0.0022,
-  "weighted_f1": 0.0606,
-  "val_samples_evaluated": 32
+  "validation_loss": 0.6723,
+  "exact_match_accuracy": 0.0,
+  "micro_precision": 0.019,
+  "micro_recall": 0.1818,
+  "micro_f1": 0.0344,
+  "macro_precision": 0.0127,
+  "macro_recall": 0.1667,
+  "macro_f1": 0.0231,
+  "mean_brier_score": 0.2396,
+  "best_macro_f1_threshold": 0.45,
+  "best_macro_f1_at_best_threshold": 0.0673,
+  "threshold_macro_f1_curve": {
+    "0.15": 0.0655,
+    "0.2": 0.0655,
+    "0.25": 0.0655,
+    "0.3": 0.0655,
+    "0.35": 0.0655,
+    "0.4": 0.0658,
+    "0.45": 0.0673,
+    "0.5": 0.0231,
+    "0.55": 0.0,
+    "0.6": 0.0
+  },
+  "val_samples_evaluated": 32,
+  "total_true_positives": 33,
+  "total_predicted_positives_at_05": 316,
+  "zero_recall_classes_count": 23,
+  "zero_recall_classes": [
+    "admiration",
+    "amusement",
+    "caring",
+    "confusion",
+    "curiosity",
+    "desire",
+    "disappointment",
+    "disapproval",
+    "disgust",
+    "embarrassment",
+    "excitement",
+    "fear",
+    "gratitude",
+    "grief",
+    "joy",
+    "optimism",
+    "pride",
+    "realization",
+    "relief",
+    "remorse",
+    "sadness",
+    "surprise",
+    "neutral"
+  ],
+  "per_class_metrics": {
+    "admiration": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 17
+    },
+    "amusement": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 3,
+      "predicted_positives": 2
+    },
+    "anger": {
+      "precision": 0.1111,
+      "recall": 0.6667,
+      "f1": 0.1905,
+      "support": 3,
+      "predicted_positives": 18
+    },
+    "annoyance": {
+      "precision": 0.0833,
+      "recall": 1.0,
+      "f1": 0.1538,
+      "support": 1,
+      "predicted_positives": 12
+    },
+    "approval": {
+      "precision": 0.0556,
+      "recall": 1.0,
+      "f1": 0.1053,
+      "support": 1,
+      "predicted_positives": 18
+    },
+    "caring": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 14
+    },
+    "confusion": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 1
+    },
+    "curiosity": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 24
+    },
+    "desire": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 5
+    },
+    "disappointment": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 10
+    },
+    "disapproval": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 10
+    },
+    "disgust": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 1
+    },
+    "embarrassment": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 15
+    },
+    "excitement": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 19
+    },
+    "fear": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 21
+    },
+    "gratitude": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 4
+    },
+    "grief": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 2
+    },
+    "joy": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 0
+    },
+    "love": {
+      "precision": 0.0588,
+      "recall": 1.0,
+      "f1": 0.1111,
+      "support": 1,
+      "predicted_positives": 17
+    },
+    "nervousness": {
+      "precision": 0.0455,
+      "recall": 1.0,
+      "f1": 0.087,
+      "support": 1,
+      "predicted_positives": 22
+    },
+    "optimism": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 3,
+      "predicted_positives": 4
+    },
+    "pride": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 23
+    },
+    "realization": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 2,
+      "predicted_positives": 3
+    },
+    "relief": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 11
+    },
+    "remorse": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 3
+    },
+    "sadness": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0,
+      "predicted_positives": 25
+    },
+    "surprise": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 1,
+      "predicted_positives": 14
+    },
+    "neutral": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 10,
+      "predicted_positives": 1
+    }
+  },
+  "confusion_matrix_summary": {
+    "admiration": {
+      "TP": 0,
+      "FP": 17,
+      "FN": 1,
+      "TN": 14
+    },
+    "amusement": {
+      "TP": 0,
+      "FP": 2,
+      "FN": 3,
+      "TN": 27
+    },
+    "anger": {
+      "TP": 2,
+      "FP": 16,
+      "FN": 1,
+      "TN": 13
+    },
+    "annoyance": {
+      "TP": 1,
+      "FP": 11,
+      "FN": 0,
+      "TN": 20
+    },
+    "approval": {
+      "TP": 1,
+      "FP": 17,
+      "FN": 0,
+      "TN": 14
+    },
+    "caring": {
+      "TP": 0,
+      "FP": 14,
+      "FN": 1,
+      "TN": 17
+    },
+    "confusion": {
+      "TP": 0,
+      "FP": 1,
+      "FN": 1,
+      "TN": 30
+    },
+    "curiosity": {
+      "TP": 0,
+      "FP": 24,
+      "FN": 1,
+      "TN": 7
+    },
+    "desire": {
+      "TP": 0,
+      "FP": 5,
+      "FN": 1,
+      "TN": 26
+    },
+    "disappointment": {
+      "TP": 0,
+      "FP": 10,
+      "FN": 0,
+      "TN": 22
+    },
+    "disapproval": {
+      "TP": 0,
+      "FP": 10,
+      "FN": 1,
+      "TN": 21
+    },
+    "disgust": {
+      "TP": 0,
+      "FP": 1,
+      "FN": 1,
+      "TN": 30
+    },
+    "embarrassment": {
+      "TP": 0,
+      "FP": 15,
+      "FN": 0,
+      "TN": 17
+    },
+    "excitement": {
+      "TP": 0,
+      "FP": 19,
+      "FN": 0,
+      "TN": 13
+    },
+    "fear": {
+      "TP": 0,
+      "FP": 21,
+      "FN": 0,
+      "TN": 11
+    },
+    "gratitude": {
+      "TP": 0,
+      "FP": 4,
+      "FN": 0,
+      "TN": 28
+    },
+    "grief": {
+      "TP": 0,
+      "FP": 2,
+      "FN": 0,
+      "TN": 30
+    },
+    "joy": {
+      "TP": 0,
+      "FP": 0,
+      "FN": 0,
+      "TN": 32
+    },
+    "love": {
+      "TP": 1,
+      "FP": 16,
+      "FN": 0,
+      "TN": 15
+    },
+    "nervousness": {
+      "TP": 1,
+      "FP": 21,
+      "FN": 0,
+      "TN": 10
+    },
+    "optimism": {
+      "TP": 0,
+      "FP": 4,
+      "FN": 3,
+      "TN": 25
+    },
+    "pride": {
+      "TP": 0,
+      "FP": 23,
+      "FN": 0,
+      "TN": 9
+    },
+    "realization": {
+      "TP": 0,
+      "FP": 3,
+      "FN": 2,
+      "TN": 27
+    },
+    "relief": {
+      "TP": 0,
+      "FP": 11,
+      "FN": 0,
+      "TN": 21
+    },
+    "remorse": {
+      "TP": 0,
+      "FP": 3,
+      "FN": 0,
+      "TN": 29
+    },
+    "sadness": {
+      "TP": 0,
+      "FP": 25,
+      "FN": 0,
+      "TN": 7
+    },
+    "surprise": {
+      "TP": 0,
+      "FP": 14,
+      "FN": 1,
+      "TN": 17
+    },
+    "neutral": {
+      "TP": 0,
+      "FP": 1,
+      "FN": 10,
+      "TN": 21
+    }
+  },
+  "language_specific": {
+    "english": {
+      "exact_match_accuracy": 0.0,
+      "micro_precision": 0.0278,
+      "micro_recall": 0.2353,
+      "micro_f1": 0.0497,
+      "macro_precision": 0.0132,
+      "macro_recall": 0.1071,
+      "macro_f1": 0.0233,
+      "mean_brier_score": 0.2376,
+      "samples_evaluated": 16,
+      "total_true_positives": 17,
+      "total_predicted_positives": 144,
+      "zero_recall_classes_count": 25,
+      "zero_recall_classes": [
+        "admiration",
+        "amusement",
+        "approval",
+        "caring",
+        "confusion",
+        "curiosity",
+        "desire",
+        "disappointment",
+        "disapproval",
+        "disgust",
+        "embarrassment",
+        "excitement",
+        "fear",
+        "gratitude",
+        "grief",
+        "joy",
+        "love",
+        "optimism",
+        "pride",
+        "realization",
+        "relief",
+        "remorse",
+        "sadness",
+        "surprise",
+        "neutral"
+      ],
+      "per_class_metrics": {
+        "admiration": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 15
+        },
+        "amusement": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 2
+        },
+        "anger": {
+          "precision": 0.1667,
+          "recall": 1.0,
+          "f1": 0.2857,
+          "support": 2,
+          "predicted_positives": 12
+        },
+        "annoyance": {
+          "precision": 0.1111,
+          "recall": 1.0,
+          "f1": 0.2,
+          "support": 1,
+          "predicted_positives": 9
+        },
+        "approval": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 3
+        },
+        "caring": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 0
+        },
+        "confusion": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 0
+        },
+        "curiosity": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 9
+        },
+        "desire": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 5
+        },
+        "disappointment": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 5
+        },
+        "disapproval": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 6
+        },
+        "disgust": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 1
+        },
+        "embarrassment": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 5
+        },
+        "excitement": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 7
+        },
+        "fear": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 7
+        },
+        "gratitude": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 3
+        },
+        "grief": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 1
+        },
+        "joy": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 0
+        },
+        "love": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 1
+        },
+        "nervousness": {
+          "precision": 0.0909,
+          "recall": 1.0,
+          "f1": 0.1667,
+          "support": 1,
+          "predicted_positives": 11
+        },
+        "optimism": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 4
+        },
+        "pride": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 12
+        },
+        "realization": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 2,
+          "predicted_positives": 3
+        },
+        "relief": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 1
+        },
+        "remorse": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 3
+        },
+        "sadness": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 9
+        },
+        "surprise": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 9
+        },
+        "neutral": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 4,
+          "predicted_positives": 1
+        }
+      },
+      "confusion_matrix_summary": {
+        "admiration": {
+          "TP": 0,
+          "FP": 15,
+          "FN": 0,
+          "TN": 1
+        },
+        "amusement": {
+          "TP": 0,
+          "FP": 2,
+          "FN": 0,
+          "TN": 14
+        },
+        "anger": {
+          "TP": 2,
+          "FP": 10,
+          "FN": 0,
+          "TN": 4
+        },
+        "annoyance": {
+          "TP": 1,
+          "FP": 8,
+          "FN": 0,
+          "TN": 7
+        },
+        "approval": {
+          "TP": 0,
+          "FP": 3,
+          "FN": 0,
+          "TN": 13
+        },
+        "caring": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 1,
+          "TN": 15
+        },
+        "confusion": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 1,
+          "TN": 15
+        },
+        "curiosity": {
+          "TP": 0,
+          "FP": 9,
+          "FN": 1,
+          "TN": 6
+        },
+        "desire": {
+          "TP": 0,
+          "FP": 5,
+          "FN": 0,
+          "TN": 11
+        },
+        "disappointment": {
+          "TP": 0,
+          "FP": 5,
+          "FN": 0,
+          "TN": 11
+        },
+        "disapproval": {
+          "TP": 0,
+          "FP": 6,
+          "FN": 1,
+          "TN": 9
+        },
+        "disgust": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 1,
+          "TN": 14
+        },
+        "embarrassment": {
+          "TP": 0,
+          "FP": 5,
+          "FN": 0,
+          "TN": 11
+        },
+        "excitement": {
+          "TP": 0,
+          "FP": 7,
+          "FN": 0,
+          "TN": 9
+        },
+        "fear": {
+          "TP": 0,
+          "FP": 7,
+          "FN": 0,
+          "TN": 9
+        },
+        "gratitude": {
+          "TP": 0,
+          "FP": 3,
+          "FN": 0,
+          "TN": 13
+        },
+        "grief": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 0,
+          "TN": 15
+        },
+        "joy": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 0,
+          "TN": 16
+        },
+        "love": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 0,
+          "TN": 15
+        },
+        "nervousness": {
+          "TP": 1,
+          "FP": 10,
+          "FN": 0,
+          "TN": 5
+        },
+        "optimism": {
+          "TP": 0,
+          "FP": 4,
+          "FN": 1,
+          "TN": 11
+        },
+        "pride": {
+          "TP": 0,
+          "FP": 12,
+          "FN": 0,
+          "TN": 4
+        },
+        "realization": {
+          "TP": 0,
+          "FP": 3,
+          "FN": 2,
+          "TN": 11
+        },
+        "relief": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 0,
+          "TN": 15
+        },
+        "remorse": {
+          "TP": 0,
+          "FP": 3,
+          "FN": 0,
+          "TN": 13
+        },
+        "sadness": {
+          "TP": 0,
+          "FP": 9,
+          "FN": 0,
+          "TN": 7
+        },
+        "surprise": {
+          "TP": 0,
+          "FP": 9,
+          "FN": 1,
+          "TN": 6
+        },
+        "neutral": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 4,
+          "TN": 11
+        }
+      }
+    },
+    "hindi": {
+      "exact_match_accuracy": 0.0,
+      "micro_precision": 0.0116,
+      "micro_recall": 0.125,
+      "micro_f1": 0.0213,
+      "macro_precision": 0.0046,
+      "macro_recall": 0.0714,
+      "macro_f1": 0.0087,
+      "mean_brier_score": 0.2416,
+      "samples_evaluated": 16,
+      "total_true_positives": 16,
+      "total_predicted_positives": 172,
+      "zero_recall_classes_count": 26,
+      "zero_recall_classes": [
+        "admiration",
+        "amusement",
+        "anger",
+        "annoyance",
+        "caring",
+        "confusion",
+        "curiosity",
+        "desire",
+        "disappointment",
+        "disapproval",
+        "disgust",
+        "embarrassment",
+        "excitement",
+        "fear",
+        "gratitude",
+        "grief",
+        "joy",
+        "nervousness",
+        "optimism",
+        "pride",
+        "realization",
+        "relief",
+        "remorse",
+        "sadness",
+        "surprise",
+        "neutral"
+      ],
+      "per_class_metrics": {
+        "admiration": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 2
+        },
+        "amusement": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 3,
+          "predicted_positives": 0
+        },
+        "anger": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 6
+        },
+        "annoyance": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 3
+        },
+        "approval": {
+          "precision": 0.0667,
+          "recall": 1.0,
+          "f1": 0.125,
+          "support": 1,
+          "predicted_positives": 15
+        },
+        "caring": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 14
+        },
+        "confusion": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 1
+        },
+        "curiosity": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 15
+        },
+        "desire": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1,
+          "predicted_positives": 0
+        },
+        "disappointment": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 5
+        },
+        "disapproval": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 4
+        },
+        "disgust": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 0
+        },
+        "embarrassment": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 10
+        },
+        "excitement": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 12
+        },
+        "fear": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 14
+        },
+        "gratitude": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 1
+        },
+        "grief": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 1
+        },
+        "joy": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 0
+        },
+        "love": {
+          "precision": 0.0625,
+          "recall": 1.0,
+          "f1": 0.1176,
+          "support": 1,
+          "predicted_positives": 16
+        },
+        "nervousness": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 11
+        },
+        "optimism": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 2,
+          "predicted_positives": 0
+        },
+        "pride": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 11
+        },
+        "realization": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 0
+        },
+        "relief": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 10
+        },
+        "remorse": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 0
+        },
+        "sadness": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 16
+        },
+        "surprise": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0,
+          "predicted_positives": 5
+        },
+        "neutral": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 6,
+          "predicted_positives": 0
+        }
+      },
+      "confusion_matrix_summary": {
+        "admiration": {
+          "TP": 0,
+          "FP": 2,
+          "FN": 1,
+          "TN": 13
+        },
+        "amusement": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 3,
+          "TN": 13
+        },
+        "anger": {
+          "TP": 0,
+          "FP": 6,
+          "FN": 1,
+          "TN": 9
+        },
+        "annoyance": {
+          "TP": 0,
+          "FP": 3,
+          "FN": 0,
+          "TN": 13
+        },
+        "approval": {
+          "TP": 1,
+          "FP": 14,
+          "FN": 0,
+          "TN": 1
+        },
+        "caring": {
+          "TP": 0,
+          "FP": 14,
+          "FN": 0,
+          "TN": 2
+        },
+        "confusion": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 0,
+          "TN": 15
+        },
+        "curiosity": {
+          "TP": 0,
+          "FP": 15,
+          "FN": 0,
+          "TN": 1
+        },
+        "desire": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 1,
+          "TN": 15
+        },
+        "disappointment": {
+          "TP": 0,
+          "FP": 5,
+          "FN": 0,
+          "TN": 11
+        },
+        "disapproval": {
+          "TP": 0,
+          "FP": 4,
+          "FN": 0,
+          "TN": 12
+        },
+        "disgust": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 0,
+          "TN": 16
+        },
+        "embarrassment": {
+          "TP": 0,
+          "FP": 10,
+          "FN": 0,
+          "TN": 6
+        },
+        "excitement": {
+          "TP": 0,
+          "FP": 12,
+          "FN": 0,
+          "TN": 4
+        },
+        "fear": {
+          "TP": 0,
+          "FP": 14,
+          "FN": 0,
+          "TN": 2
+        },
+        "gratitude": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 0,
+          "TN": 15
+        },
+        "grief": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 0,
+          "TN": 15
+        },
+        "joy": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 0,
+          "TN": 16
+        },
+        "love": {
+          "TP": 1,
+          "FP": 15,
+          "FN": 0,
+          "TN": 0
+        },
+        "nervousness": {
+          "TP": 0,
+          "FP": 11,
+          "FN": 0,
+          "TN": 5
+        },
+        "optimism": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 2,
+          "TN": 14
+        },
+        "pride": {
+          "TP": 0,
+          "FP": 11,
+          "FN": 0,
+          "TN": 5
+        },
+        "realization": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 0,
+          "TN": 16
+        },
+        "relief": {
+          "TP": 0,
+          "FP": 10,
+          "FN": 0,
+          "TN": 6
+        },
+        "remorse": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 0,
+          "TN": 16
+        },
+        "sadness": {
+          "TP": 0,
+          "FP": 16,
+          "FN": 0,
+          "TN": 0
+        },
+        "surprise": {
+          "TP": 0,
+          "FP": 5,
+          "FN": 0,
+          "TN": 11
+        },
+        "neutral": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 6,
+          "TN": 10
+        }
+      }
+    }
+  },
+  "sanity_cases": [
+    {
+      "id": "EN-Gratitude",
+      "text": "Thank you so much for your help and support!",
+      "expected": [
+        "gratitude",
+        "admiration"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.6105,
+      "top3": [
+        [
+          "nervousness",
+          0.6105
+        ],
+        [
+          "curiosity",
+          0.5693
+        ],
+        [
+          "anger",
+          0.5598
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "EN-Joy",
+      "text": "I am feeling so wonderful and happy today.",
+      "expected": [
+        "joy",
+        "optimism"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.5782,
+      "top3": [
+        [
+          "nervousness",
+          0.5782
+        ],
+        [
+          "admiration",
+          0.5747
+        ],
+        [
+          "curiosity",
+          0.5473
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "EN-Fear",
+      "text": "I am terrified and have no idea what will happen to me.",
+      "expected": [
+        "fear",
+        "nervousness"
+      ],
+      "top1": "anger",
+      "top1_prob": 0.5579,
+      "top3": [
+        [
+          "anger",
+          0.5579
+        ],
+        [
+          "nervousness",
+          0.5529
+        ],
+        [
+          "admiration",
+          0.5349
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "EN-Sadness",
+      "text": "I have lost all hope and feel completely alone.",
+      "expected": [
+        "sadness",
+        "grief"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.6038,
+      "top3": [
+        [
+          "nervousness",
+          0.6038
+        ],
+        [
+          "anger",
+          0.5574
+        ],
+        [
+          "disapproval",
+          0.5452
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "EN-Grief",
+      "text": "My heart is shattered, I miss them so much and cannot stop crying.",
+      "expected": [
+        "grief",
+        "sadness"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.5598,
+      "top3": [
+        [
+          "nervousness",
+          0.5598
+        ],
+        [
+          "disappointment",
+          0.5382
+        ],
+        [
+          "curiosity",
+          0.5347
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "EN-Anger",
+      "text": "Stop doing this to me right now, I hate it!",
+      "expected": [
+        "anger",
+        "annoyance"
+      ],
+      "top1": "curiosity",
+      "top1_prob": 0.6118,
+      "top3": [
+        [
+          "curiosity",
+          0.6118
+        ],
+        [
+          "nervousness",
+          0.5702
+        ],
+        [
+          "anger",
+          0.5448
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "EN-Nervousness",
+      "text": "My hands are shaking, I have a terrible feeling about tomorrow.",
+      "expected": [
+        "nervousness",
+        "fear"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.5555,
+      "top3": [
+        [
+          "nervousness",
+          0.5555
+        ],
+        [
+          "curiosity",
+          0.5452
+        ],
+        [
+          "pride",
+          0.5297
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "EN-Optimism",
+      "text": "I truly believe things will get better soon.",
+      "expected": [
+        "optimism",
+        "joy"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.5764,
+      "top3": [
+        [
+          "nervousness",
+          0.5764
+        ],
+        [
+          "anger",
+          0.563
+        ],
+        [
+          "disapproval",
+          0.549
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "EN-Neutral",
+      "text": "The meeting is scheduled for tomorrow at 3 pm.",
+      "expected": [
+        "neutral"
+      ],
+      "top1": "nervousness",
+      "top1_prob": 0.6014,
+      "top3": [
+        [
+          "nervousness",
+          0.6014
+        ],
+        [
+          "sadness",
+          0.5805
+        ],
+        [
+          "admiration",
+          0.554
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "HI-Gratitude",
+      "text": "\u0906\u092a\u0915\u0940 \u092e\u0926\u0926 \u0915\u0947 \u0932\u093f\u090f \u092c\u0939\u0941\u0924-\u092c\u0939\u0941\u0924 \u0927\u0928\u094d\u092f\u0935\u093e\u0926!",
+      "expected": [
+        "gratitude",
+        "admiration"
+      ],
+      "top1": "approval",
+      "top1_prob": 0.6055,
+      "top3": [
+        [
+          "approval",
+          0.6055
+        ],
+        [
+          "curiosity",
+          0.5672
+        ],
+        [
+          "sadness",
+          0.5476
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "HI-Joy",
+      "text": "\u0906\u091c \u092e\u0948\u0902 \u092c\u0939\u0941\u0924 \u0916\u0941\u0936 \u0939\u0942\u0901 \u0914\u0930 \u0938\u092c \u0915\u0941\u091b \u0905\u091a\u094d\u091b\u093e \u0932\u0917 \u0930\u0939\u093e \u0939\u0948\u0964",
+      "expected": [
+        "joy",
+        "optimism"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5846,
+      "top3": [
+        [
+          "sadness",
+          0.5846
+        ],
+        [
+          "embarrassment",
+          0.5483
+        ],
+        [
+          "approval",
+          0.5449
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "HI-Fear",
+      "text": "\u092e\u0941\u091d\u0947 \u092c\u0939\u0941\u0924 \u0921\u0930 \u0932\u0917 \u0930\u0939\u093e \u0939\u0948, \u0915\u0941\u091b \u0938\u092e\u091d \u0928\u0939\u0940\u0902 \u0906 \u0930\u0939\u093e\u0964",
+      "expected": [
+        "fear",
+        "nervousness"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5672,
+      "top3": [
+        [
+          "sadness",
+          0.5672
+        ],
+        [
+          "fear",
+          0.5661
+        ],
+        [
+          "love",
+          0.5534
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "HI-Sadness",
+      "text": "\u092e\u0947\u0930\u0940 \u0938\u093e\u0930\u0940 \u0909\u092e\u094d\u092e\u0940\u0926 \u0916\u0924\u094d\u092e \u0939\u094b \u091a\u0941\u0915\u0940 \u0939\u0948, \u092c\u0939\u0941\u0924 \u0905\u0915\u0947\u0932\u093e \u092e\u0939\u0938\u0942\u0938 \u0915\u0930 \u0930\u0939\u093e \u0939\u0942\u0901\u0964",
+      "expected": [
+        "sadness",
+        "grief"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5858,
+      "top3": [
+        [
+          "sadness",
+          0.5858
+        ],
+        [
+          "approval",
+          0.5665
+        ],
+        [
+          "curiosity",
+          0.539
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "HI-Grief",
+      "text": "\u092e\u0947\u0930\u093e \u0926\u093f\u0932 \u091f\u0942\u091f \u0917\u092f\u093e \u0939\u0948, \u0909\u0928\u0915\u093e \u091c\u093e\u0928\u093e \u0938\u0939\u0928 \u0928\u0939\u0940\u0902 \u0939\u094b \u0930\u0939\u093e\u0964",
+      "expected": [
+        "grief",
+        "sadness"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5743,
+      "top3": [
+        [
+          "sadness",
+          0.5743
+        ],
+        [
+          "love",
+          0.5459
+        ],
+        [
+          "fear",
+          0.5392
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "HI-Anger",
+      "text": "\u092e\u0941\u091d\u0947 \u0907\u0938 \u092c\u093e\u0924 \u092a\u0930 \u092c\u0939\u0941\u0924 \u0917\u0941\u0938\u094d\u0938\u093e \u0906 \u0930\u0939\u093e \u0939\u0948!",
+      "expected": [
+        "anger",
+        "annoyance"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.6028,
+      "top3": [
+        [
+          "sadness",
+          0.6028
+        ],
+        [
+          "approval",
+          0.5825
+        ],
+        [
+          "curiosity",
+          0.5385
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "HI-Nervousness",
+      "text": "\u092e\u0941\u091d\u0947 \u092c\u0939\u0941\u0924 \u0918\u092c\u0930\u093e\u0939\u091f \u0939\u094b \u0930\u0939\u0940 \u0939\u0948 \u0914\u0930 \u092c\u0947\u091a\u0948\u0928\u0940 \u0932\u0917 \u0930\u0939\u0940 \u0939\u0948\u0964",
+      "expected": [
+        "nervousness",
+        "fear"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5752,
+      "top3": [
+        [
+          "sadness",
+          0.5752
+        ],
+        [
+          "approval",
+          0.5666
+        ],
+        [
+          "fear",
+          0.5545
+        ]
+      ],
+      "matched_top3": true
+    },
+    {
+      "id": "HI-Optimism",
+      "text": "\u092e\u0941\u091d\u0947 \u092d\u0930\u094b\u0938\u093e \u0939\u0948 \u0915\u093f \u0938\u092c \u0915\u0941\u091b \u0920\u0940\u0915 \u0939\u094b \u091c\u093e\u090f\u0917\u093e\u0964",
+      "expected": [
+        "optimism",
+        "joy"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5929,
+      "top3": [
+        [
+          "sadness",
+          0.5929
+        ],
+        [
+          "love",
+          0.5541
+        ],
+        [
+          "fear",
+          0.5407
+        ]
+      ],
+      "matched_top3": false
+    },
+    {
+      "id": "HI-Neutral",
+      "text": "\u0915\u0932 \u0926\u094b\u092a\u0939\u0930 \u0924\u0940\u0928 \u092c\u091c\u0947 \u090f\u0915 \u0938\u093e\u0927\u093e\u0930\u0923 \u092c\u0948\u0920\u0915 \u0939\u0948\u0964",
+      "expected": [
+        "neutral"
+      ],
+      "top1": "sadness",
+      "top1_prob": 0.5784,
+      "top3": [
+        [
+          "sadness",
+          0.5784
+        ],
+        [
+          "approval",
+          0.5604
+        ],
+        [
+          "love",
+          0.5478
+        ]
+      ],
+      "matched_top3": false
+    }
+  ],
+  "acceptance_gates": {
+    "gate_micro_f1_ge_0_40": {
+      "target": 0.4,
+      "actual": 0.0344,
+      "passed": false
+    },
+    "gate_macro_f1_ge_0_30": {
+      "target": 0.3,
+      "actual": 0.0231,
+      "passed": false
+    },
+    "gate_zero_recall_classes_le_12": {
+      "target": 12,
+      "actual": 23,
+      "passed": false
+    },
+    "gate_en_micro_ge_0_35": {
+      "target": 0.35,
+      "actual": 0.0497,
+      "passed": false
+    },
+    "gate_hi_micro_ge_0_35": {
+      "target": 0.35,
+      "actual": 0.0213,
+      "passed": false
+    },
+    "gate_sanity_cases_ge_12": {
+      "target": 12,
+      "actual": 7,
+      "passed": false
+    },
+    "verdict": "NO-GO"
+  },
+  "epoch_trajectories": [
+    {
+      "epoch": 1,
+      "train_loss": 0.7751,
+      "val_loss": 0.759,
+      "val_micro_precision": 0.019,
+      "val_micro_recall": 0.1818,
+      "val_micro_f1": 0.0344,
+      "val_macro_precision": 0.0127,
+      "val_macro_recall": 0.1667,
+      "val_macro_f1": 0.0231
+    }
+  ],
+  "before_frozen_baseline": {
+    "execution_mode": "PYTORCH_FROZEN",
+    "train_samples": 6000,
+    "val_samples": 1000,
+    "validation_loss": 0.4278,
+    "micro_precision": 0.5325,
+    "micro_recall": 0.0707,
+    "micro_f1": 0.1248,
+    "macro_precision": 0.0953,
+    "macro_recall": 0.0129,
+    "macro_f1": 0.0199,
+    "mean_brier_score": 0.046,
+    "best_macro_f1_threshold": 0.25,
+    "best_macro_f1_at_best_threshold": 0.1148,
+    "zero_recall_classes_at_05": 24
+  }
 }
