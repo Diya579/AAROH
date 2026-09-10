@@ -37,6 +37,8 @@ class OutcomeCreate(BaseModel):
     outcome_type: Optional[str] = Field(None, max_length=100)
     completed: Optional[bool] = False
     recorded_at: Optional[datetime] = None
+    follow_up_required: Optional[bool] = False
+    notes: Optional[str] = None
 
 
 # --- Response schemas -------------------------------------------------------
@@ -64,5 +66,7 @@ class OutcomeResponse(BaseModel):
     outcome_type: Optional[str]
     completed: Optional[bool]
     recorded_at: Optional[datetime]
+    follow_up_required: Optional[bool] = None
+    notes: Optional[str] = None
 
     model_config = {"from_attributes": True}

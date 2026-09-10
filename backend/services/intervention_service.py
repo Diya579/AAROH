@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from backend.models import Intervention, Outcome
+from backend.models import Intervention
 from backend.core.security import apply_scope_filter
-from backend.schemas.intervention import InterventionCreate, InterventionUpdate, OutcomeCreate
+from backend.schemas.intervention import InterventionCreate, InterventionUpdate
 
 
 def create_intervention(db: Session, payload: InterventionCreate) -> Intervention:
@@ -37,17 +37,4 @@ def update_intervention(db: Session, intervention_id: int, payload: Intervention
     return db_obj
 
 
-def create_outcome(db: Session, payload: OutcomeCreate) -> Outcome:
-    db_obj = Outcome(**payload.model_dump())
-    db.add(db_obj)
-    db.flush()
-    db.refresh(db_obj)
-    return db_obj
 
-
-def get_outcomes(db: Session, user, case_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[Outcome]:
-    query = db.query(Outcome)
-    query = apply_scope_filter(query, Outcome, user)
-    if case_id:
-        query = query.filter(Outcome.case_id == case_id)
-    return query.order_by(Outcome.recorded_at.desc()).offset(skip).limit(limit).all()

@@ -493,3 +493,17 @@ class TestMutationCrossScope:
             f"VICTIM for case 1 must not create outcomes for case 2. "
             f"Got {r.status_code}: {r.text}"
         )
+
+    def test_district_official_cannot_record_outcome_for_out_of_district_case(self, seeded_cases):
+        """DISTRICT_OFFICIAL from Pune attempts POST /outcomes for Mumbai case 2 — must get 403."""
+        _as_role("DISTRICT_OFFICIAL", district=seeded_cases["c1_district"])
+        r = client.post("/api/v1/outcomes", json={
+            "case_id": seeded_cases["c2_db_id"],
+            "outcome_type": "RESOLVED",
+            "completed": True
+        })
+        _restore_admin()
+        assert r.status_code == 403, (
+            f"DISTRICT_OFFICIAL for Pune must not record outcomes on a Mumbai case. "
+            f"Got {r.status_code}: {r.text}"
+        )

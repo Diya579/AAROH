@@ -3,6 +3,9 @@ AAROH — Intervention API Endpoints
 """
 
 from typing import List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 from backend.schemas.error import common_responses
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Header, Response
@@ -20,6 +23,10 @@ from backend.schemas.intervention import (
     OutcomeResponse,
 )
 from backend.services import intervention_service
+from backend.models import Outcome
+from backend.core.security import apply_scope_filter
+from backend.interventions.db_service import DatabaseOperationalService
+from backend.interventions.outcomes import OutcomeType
 
 router = APIRouter(tags=["Interventions"])
 
@@ -120,7 +127,7 @@ def update_intervention(
     "/outcomes", responses=common_responses,
     response_model=OutcomeResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("SYSTEM_SERVICE", "ADMIN", "COUNSELLOR"))],
+    dependencies=[Depends(require_role("CASE_OFFICER", "COUNSELLOR", "DESIGNATED_OFFICER", "DISTRICT_OFFICIAL", "DISTRICT_AUTHORITY", "STATE_OFFICIAL", "STATE_AUTHORITY", "NATIONAL_OFFICIAL", "NATIONAL_AUTHORITY", "ADMIN", "SYSTEM_SERVICE"))],
 )
 def create_outcome(
     payload: OutcomeCreate,
@@ -133,8 +140,23 @@ def create_outcome(
     def _create():
         verify_case_id_access(payload.case_id, user, db)
         try:
-            return intervention_service.create_outcome(db, payload)
-        except Exception:
+            op_service = DatabaseOperationalService()
+            out_enum = OutcomeType(payload.outcome_type) if payload.outcome_type else OutcomeType.OTHER
+            return op_service.record_outcome(
+                db=db,
+                case_id=payload.case_id,
+                intervention_id=payload.intervention_id,
+                outcome_type=out_enum.value,
+                completed=payload.completed,
+                recorded_at=payload.recorded_at,
+                follow_up_required=payload.follow_up_required,
+                notes=payload.notes,
+                officer_id=user.id,
+                officer_role=user.role,
+                officer_district=user.district,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create outcome for case {payload.case_id}: {e}")
             db.rollback()
             raise_unprocessable("OUTCOME_INVALID", "Failed to create outcome.")
 
@@ -162,4 +184,8 @@ def get_outcomes(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    return intervention_service.get_outcomes(db, user=user, case_id=case_id, skip=skip, limit=limit)
+    query = db.query(Outcome)
+    query = apply_scope_filter(query, Outcome, user)
+    if case_id:
+        query = query.filter(Outcome.case_id == case_id)
+    return query.order_by(Outcome.recorded_at.desc()).offset(skip).limit(limit).all()

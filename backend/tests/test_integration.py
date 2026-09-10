@@ -285,3 +285,56 @@ def test_ml_failure_error_handling(monkeypatch):
         assert "ML pipeline failed" in preds[0].explanation["message"]
     finally:
         db.close()
+
+
+def test_api_outcome_recording_end_to_end():
+    from backend.tests.test_integration import client, as_role
+    import uuid
+
+    # 1. Create a case
+    case_payload = {
+        "case_id": "CASE-TEST-OUTCOME-" + uuid.uuid4().hex[:8],
+        "language": "en",
+        "district_type": "urban",
+        "district": "Pune",
+        "state": "Maharashtra",
+        "priority_use_case": "dv",
+        "current_stage": "intake"
+    }
+    c_res = client.post("/api/v1/cases", json=case_payload)
+    assert c_res.status_code == 201
+    case_id_int = c_res.json()["id"]
+
+    # 2. Create an intervention manually to have an intervention_id
+    with as_role("ADMIN"):
+        inv_res = client.post("/api/v1/interventions", json={
+            "case_id": case_id_int,
+            "intervention_type": "ROUTINE_MONITORING",
+            "status": "IN_PROGRESS"
+        })
+        assert inv_res.status_code == 201
+        inv_id_int = inv_res.json()["id"]
+
+    # 3. Record an outcome using the API
+    with as_role("ADMIN"):
+        out_res = client.post("/api/v1/outcomes", json={
+            "case_id": case_id_int,
+            "intervention_id": inv_id_int,
+            "outcome_type": "CONTACTED",
+            "completed": True,
+            "follow_up_required": True,
+            "notes": "Spoke to victim. Needs follow up tomorrow."
+        })
+        assert out_res.status_code == 201
+        out_json = out_res.json()
+        assert out_json["outcome_type"] == "CONTACTED"
+        assert out_json["completed"] is True
+        assert out_json["follow_up_required"] is True
+        assert out_json["notes"] == "Spoke to victim. Needs follow up tomorrow."
+
+    # 4. Verify no downstream interventions were created (demonstrating the gap)
+    with as_role("ADMIN"):
+        invs_res = client.get(f"/api/v1/interventions?case_id={case_id_int}")
+        assert invs_res.status_code == 200
+        invs = invs_res.json()
+        assert len(invs) == 1, "follow_up_required=True incorrectly spawned a new intervention"
