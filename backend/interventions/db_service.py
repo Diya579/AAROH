@@ -642,6 +642,36 @@ class DatabaseOperationalService:
             else:
                 db.flush()
 
+            # Pre-intervention baseline distress state for closed-loop observation
+            prev_state = (
+                db.query(DistressState)
+                .filter(DistressState.case_id == case.id)
+                .order_by(DistressState.observation_date.desc(), DistressState.id.desc())
+                .first()
+            )
+            pre_score = prev_state.distress_score if prev_state and prev_state.distress_score is not None else 0.5
+            pre_traj = prev_state.trajectory if prev_state and prev_state.trajectory else "STABLE"
+
+            cl_obs = ClosedLoopObservation(
+                case_id=case.case_id,
+                intervention_id=interv.id,
+                outcome_type=out_enum,
+                pre_distress_score=pre_score,
+                pre_trajectory=pre_traj,
+            )
+
+            # If follow-up required, log CaseEvent audit
+            if follow_up_required:
+                db.add(CaseEvent(
+                    case_id=case.id,
+                    event_type="FOLLOW_UP_SCHEDULED",
+                    event_date=rec_time,
+                    description=f"Follow-up monitoring scheduled following outcome '{out_enum.value}' for intervention {interv.id}.",
+                    case_stage=case.current_stage or "FOLLOW_UP",
+                ))
+                if auto_commit:
+                    db.commit()
+
             # Notify official
             if interv.assigned_to:
                 notification_service.notify(
@@ -699,6 +729,7 @@ class DatabaseOperationalService:
                 "intervention_status": interv.status,
                 "follow_up_required": follow_up_required,
                 "notes": notes,
+                "closed_loop_observation": cl_obs.to_dict(),
             }
         finally:
             if close_session:
@@ -817,6 +848,63 @@ class DatabaseOperationalService:
                     "created_at": getattr(i, "created_at", None).isoformat() if getattr(i, "created_at", None) else None,
                     "latest_outcome": latest_outcome.outcome_type if latest_outcome else None,
                     "completed": latest_outcome.completed if latest_outcome else (i.status == "COMPLETED"),
+                })
+            return results
+        finally:
+            if close_session:
+                db.close()
+
+    def get_outcomes(
+        self,
+        db: Optional[Session] = None,
+        case_id: Optional[int | str] = None,
+        intervention_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100,
+        user_role: Optional[str] = None,
+        user_district: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves recorded outcomes with optional case, intervention, and RBAC district filtering.
+        Directly satisfies GET /api/v1/outcomes.
+        """
+        db, close_session = self._acquire_session(db)
+        try:
+            query = db.query(Outcome)
+
+            if case_id is not None:
+                case = self._get_case(db, case_id)
+                query = query.filter(Outcome.case_id == case.id)
+
+            if intervention_id is not None:
+                query = query.filter(Outcome.intervention_id == intervention_id)
+
+            # RBAC district filtering for caseworkers
+            if user_role and user_role.upper() in ("CASE_OFFICER", "COUNSELLOR", "DISTRICT_OFFICIAL") and user_district:
+                query = query.join(Case, Outcome.case_id == Case.id).filter(Case.district == user_district)
+
+            outcomes = (
+                query.order_by(Outcome.recorded_at.desc(), Outcome.id.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+
+            results = []
+            for o in outcomes:
+                c = db.query(Case).filter(Case.id == o.case_id).first()
+                cid_str = c.case_id if c else str(o.case_id)
+                results.append({
+                    "id": o.id,
+                    "outcome_id": o.id,
+                    "case_id": o.case_id,
+                    "case_string_id": cid_str,
+                    "intervention_id": o.intervention_id,
+                    "outcome_type": o.outcome_type,
+                    "completed": o.completed,
+                    "follow_up_required": getattr(o, "follow_up_required", False),
+                    "notes": getattr(o, "notes", None),
+                    "recorded_at": o.recorded_at.isoformat() if o.recorded_at else None,
                 })
             return results
         finally:
@@ -1055,6 +1143,37 @@ class DatabaseOperationalService:
             else:
                 observed_shift = "SUBSEQUENT_STABLE"
 
+            # Lookup latest intervention and outcome to link ClosedLoopObservation
+            latest_interv = (
+                db.query(Intervention)
+                .filter(Intervention.case_id == case.id)
+                .order_by(Intervention.id.desc())
+                .first()
+            )
+            interv_id = latest_interv.id if latest_interv else 0
+            out_enum = OutcomeType.COUNSELLING_PROVIDED
+            if latest_interv:
+                latest_out = (
+                    db.query(Outcome)
+                    .filter(Outcome.intervention_id == latest_interv.id)
+                    .order_by(Outcome.recorded_at.desc(), Outcome.id.desc())
+                    .first()
+                )
+                if latest_out:
+                    try:
+                        out_enum = OutcomeType(latest_out.outcome_type)
+                    except Exception:
+                        pass
+
+            cl_obs = ClosedLoopObservation(
+                case_id=case.case_id,
+                intervention_id=interv_id,
+                outcome_type=out_enum,
+                pre_distress_score=pre_score,
+                pre_trajectory=pre_traj,
+            )
+            cl_obs.evaluate_shift(round(new_distress_score, 4), new_trajectory)
+
             return {
                 "case_id": case.case_id,
                 "new_observation_id": new_state.id,
@@ -1064,6 +1183,7 @@ class DatabaseOperationalService:
                 "post_trajectory": new_trajectory,
                 "distress_difference": diff,
                 "observed_shift": observed_shift,
+                "closed_loop_observation": cl_obs.to_dict(),
                 "disclaimer": "Observed temporal correlation only. No causal clinical claim.",
             }
         finally:

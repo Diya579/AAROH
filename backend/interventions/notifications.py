@@ -114,6 +114,10 @@ class NotificationService:
     def __init__(self) -> None:
         self._notification_log: List[NotificationMessage] = []
 
+    def clear_log(self) -> None:
+        """Clears the in-memory notification log (useful for tests and cache flushes)."""
+        self._notification_log.clear()
+
     @staticmethod
     def sanitize_for_victim(title: str, message: str) -> tuple[str, str]:
         """

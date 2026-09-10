@@ -839,6 +839,21 @@ class ChannelWorkflowService:
             db.add(pred)
             db.flush()
 
+            # Document intake attempt as an interaction
+            interaction = Interaction(
+                case_id=case.id,
+                interaction_date=now_utc.replace(tzinfo=None),
+                channel=attempted_channel,
+                language=case.language or "en",
+                text_response=f"UNSAFE: {reason}",
+                voice_available=False,
+                response_completed=False,
+                help_requested=True,
+                data_quality="unsafe",
+            )
+            db.add(interaction)
+            db.flush()
+
             intervention_res = self.intervention_service.process_case_intervention(
                 db=db,
                 case_id=case.id,
@@ -849,6 +864,7 @@ class ChannelWorkflowService:
             return {
                 "channel": attempted_channel,
                 "event_type": ChannelEventType.UNSAFE_CHANNEL_DETECTED.value,
+                "interaction_id": interaction.id,
                 "case_id": case.id,
                 "case_string_id": case.case_id,
                 "attempted_channel": attempted_channel,

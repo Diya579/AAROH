@@ -135,7 +135,12 @@ class TestNotificationPersistenceAndTriggers(unittest.TestCase):
             .first()
         )
         if not interv:
-            self.skipTest("No active intervention found")
+            res = db_operational_service.process_case_intervention(
+                db=self.db,
+                case_id=1,
+                auto_commit=True,
+            )
+            interv = self.db.query(Intervention).filter(Intervention.id == res["intervention_id"]).first()
 
         interv.status = "IN_PROGRESS"
         self.db.commit()
