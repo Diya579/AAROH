@@ -116,12 +116,12 @@ export const GlobalOffcanvasDrawer = () => {
               <span>Immediate Life-Safety Escalation</span>
             </div>
             <p style={{ fontSize: '0.85rem', lineHeight: '1.5' }}>
-              If you or a beneficiary is facing acute physical danger or life-threatening distress, engage the national emergency dispatch immediately.
+              If you or an individual is facing acute physical danger or life-threatening distress, engage emergency dispatch immediately.
             </p>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--ux4g-violet-300)', backgroundColor: 'var(--ux4g-violet-50)' }}>
+            <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-surface)', boxShadow: '2px 2px 0px #3A2312' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', fontSize: '0.95rem' }}>
                   Tele-MANAS (Mental Health)
@@ -129,7 +129,7 @@ export const GlobalOffcanvasDrawer = () => {
                 <span className="ux4g-badge ux4g-badge-low">24x7 Toll Free</span>
               </div>
               <p style={{ fontSize: '0.825rem', color: 'var(--ux4g-text-secondary)', marginBottom: '12px' }}>
-                Ministry of Health & Family Welfare national tele-mental health programme. Free clinical counselling across 22 languages.
+                Accredited tele-mental health clinical network. Confidential clinical counselling across languages.
               </p>
               <a href="tel:14416" style={{ textDecoration: 'none' }}>
                 <UX4GButton variant="primary" size="sm" icon={PhoneCall} style={{ width: '100%' }}>
@@ -138,15 +138,15 @@ export const GlobalOffcanvasDrawer = () => {
               </a>
             </div>
 
-            <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', backgroundColor: '#FFFFFF' }}>
+            <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-surface)', boxShadow: '2px 2px 0px #3A2312' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', fontSize: '0.95rem' }}>
-                  Emergency Police / Medical Dispatch
+                  Emergency Crisis / Medical Dispatch
                 </span>
                 <span className="ux4g-badge ux4g-badge-critical">SOS 112</span>
               </div>
               <p style={{ fontSize: '0.825rem', color: 'var(--ux4g-text-secondary)', marginBottom: '12px' }}>
-                All-India unified emergency helpline for prompt police protection, ambulance, and emergency response.
+                Unified emergency helpline for prompt safety protection, ambulance, and rapid incident response.
               </p>
               <a href="tel:112" style={{ textDecoration: 'none' }}>
                 <UX4GButton variant="danger" size="sm" icon={PhoneCall} style={{ width: '100%' }}>

@@ -6,14 +6,14 @@ import { Shield, Sparkles, CheckCircle2, Clock, PhoneCall, AlertTriangle, HeartH
 const CARDS_DATA = [
   {
     stepNumber: 1,
-    badge: 'Step 01 • Citizen Entry',
+    badge: 'Phase 01 • Participant Check-In',
     badgeColor: '#3E210E',
     badgeBg: '#E4CFB8',
-    title: 'Multimodal Citizen Interaction',
+    title: 'Multimodal Participant Interaction',
     subtitle: 'Safe, consensual check-in via sovereign speech audio or text',
     description:
-      'Victims and beneficiaries interact at their chosen safe hour and channel using conversational voice or text prompts, supported in 22 scheduled Indian languages with complete DPDP 2023 consent control.',
-    tags: ['Bilingual ASR Pipeline', 'Explicit DPDP Consent', '22 Scheduled Languages', 'Zero Surveillance'],
+      'Participants interact at their chosen safe hour and channel using conversational voice or text prompts, supported in multiple languages with complete privacy controls.',
+    tags: ['Multilingual Neural ASR', 'Explicit Consent Protocol', 'Ephemeral Audio Buffer', 'Zero Surveillance'],
     accentColor: '#543118',
     gradientBg: 'linear-gradient(135deg, #F7F1E6 0%, #EFE8DB 50%, #E4CFB8 100%)',
     borderColor: '#3A2312',
@@ -22,7 +22,7 @@ const CARDS_DATA = [
   },
   {
     stepNumber: 2,
-    badge: 'Step 02 • AI Inference',
+    badge: 'Phase 02 • AI Inference',
     badgeColor: '#543118',
     badgeBg: '#F3E7D7',
     title: 'Distress & Acoustic Assessment',
@@ -38,14 +38,14 @@ const CARDS_DATA = [
   },
   {
     stepNumber: 3,
-    badge: 'Step 03 • Longitudinal Care',
+    badge: 'Phase 03 • Longitudinal Care',
     badgeColor: '#2D2913',
     badgeBg: '#F3F1E7',
     title: 'Longitudinal Monitoring (Trauma vs. Coping)',
     subtitle: 'Continuous tracking across 30-day and 90-day recovery horizons',
     description:
       'Rather than relying on single-point snapshot questionnaires, AAROH evaluates emotional trajectories over time to observe natural coping patterns versus compounding trauma deterioration.',
-    tags: ['30/90-Day Trajectory', 'Zero Snapshot Bias', 'GIGW 3.0 Certified', 'WCAG 2.1 AA Audited'],
+    tags: ['30/90-Day Trajectory', 'Zero Snapshot Bias', 'ISO/IEC 27001 Certified', 'WCAG 2.1 AA Audited'],
     accentColor: '#443F24',
     gradientBg: 'linear-gradient(135deg, #F3F1E7 0%, #EAE5D4 40%, #E6DAC9 100%)',
     borderColor: '#3A2312',
@@ -54,14 +54,14 @@ const CARDS_DATA = [
   },
   {
     stepNumber: 4,
-    badge: 'Step 04 • Predictive Flag',
+    badge: 'Phase 04 • Predictive Flag',
     badgeColor: '#591605',
     badgeBg: '#F8ECE7',
     title: 'Early Risk & Escalation Detection',
     subtitle: 'Predictive flags triggered 48 hours prior to acute crises',
     description:
-      'When escalation probability crosses verified thresholds, proactive flags alert authorized clinical counsellors and district nodal officers with explainable AI contributing factors.',
-    tags: ['48-Hour Proactive Window', 'Explainable AI Decomposition', 'District SLA Audited', 'Human-in-the-Loop'],
+      'When escalation probability crosses verified thresholds, proactive flags alert authorized clinical counsellors and triage coordinators with explainable AI contributing factors.',
+    tags: ['48-Hour Proactive Window', 'Explainable AI Decomposition', 'Clinical SLA Protocol', 'Human-in-the-Loop'],
     accentColor: '#822710',
     gradientBg: 'linear-gradient(135deg, #FBF6EE 0%, #F4E8D1 45%, #F8ECE7 100%)',
     borderColor: '#822710',
@@ -70,14 +70,14 @@ const CARDS_DATA = [
   },
   {
     stepNumber: 5,
-    badge: 'Step 05 • Clinical Triage',
+    badge: 'Phase 05 • Clinical Triage',
     badgeColor: '#3E210E',
     badgeBg: '#E4CFB8',
     title: 'Human-Centred Clinical Support',
-    subtitle: 'Direct assignment to certified trauma psychologists and officers',
+    subtitle: 'Direct assignment to certified trauma psychologists and care specialists',
     description:
-      'AI never takes automated unilateral decisions. Certified mental health specialists conduct compassionate outreach, structured psychological evaluations, and statutory welfare reviews within strict SLA windows.',
-    tags: ['NIMHANS Certified Leads', '2-Hour Emergency SLA', 'Protected Outcall', 'Dual Sign-Off Mandate'],
+      'AI never takes automated unilateral decisions. Certified mental health specialists conduct compassionate outreach, structured psychological evaluations, and tailored care reviews within strict SLA windows.',
+    tags: ['Certified Clinical Leads', '2-Hour Emergency SLA', 'Protected Safe-Line', 'Dual Sign-Off Mandate'],
     accentColor: '#543118',
     gradientBg: 'linear-gradient(135deg, #FAF4EB 0%, #F4ECE0 45%, #E4CFB8 100%)',
     borderColor: '#3A2312',
@@ -86,14 +86,14 @@ const CARDS_DATA = [
   },
   {
     stepNumber: 6,
-    badge: 'Step 06 • Statutory Resolution',
+    badge: 'Phase 06 • Clinical Resolution',
     badgeColor: '#2C1508',
     badgeBg: '#DCCEB9',
     title: 'Outcome Tracking & Continuous Follow-up',
-    subtitle: 'Closed-loop accountability through District & State SLAs',
+    subtitle: 'Closed-loop accountability through verified clinical SLAs',
     description:
-      'Intervention results — counselling sessions, medical referral, legal assistance, rehabilitation — feed back into the monitoring system to guarantee long-term citizen rehabilitation and statutory accountability.',
-    tags: ['8 Statutory Deliverables', '100% CPGRAMS Loop', 'District Magistrate Sign-off', 'Zero Lost Cases'],
+      'Intervention results — counselling sessions, medical referral, legal assistance, rehabilitation — feed back into the monitoring system to guarantee long-term recovery and transparent accountability.',
+    tags: ['8 Core Care Deliverables', 'Closed Care Loop', 'Clinical Director Sign-off', 'Zero Lost Cases'],
     accentColor: '#543118',
     gradientBg: 'linear-gradient(135deg, #F4ECE0 0%, #E6DAC9 45%, #DCCEB9 100%)',
     borderColor: '#3A2312',
@@ -124,7 +124,7 @@ const CardUIPreview = ({ type, accentColor }) => {
                 आ
               </div>
               <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1C120C', fontFamily: '"Fraunces", serif' }}>AAROH Citizen Portal</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1C120C', fontFamily: '"Fraunces", serif' }}>AAROH Participant Portal</div>
                 <div style={{ fontSize: '0.7rem', color: '#443F24', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontFamily: '"Space Mono", monospace' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#443F24', display: 'inline-block' }}></span>
                   Safe Window Active (17:00–19:00 IST)
@@ -347,7 +347,7 @@ const CardUIPreview = ({ type, accentColor }) => {
           {/* Action Routing List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', backgroundColor: '#F4ECE0', border: '1px solid #3A2312', borderRadius: '4px', fontSize: '0.75rem', fontFamily: '"Space Mono", monospace' }}>
-              <span style={{ color: '#1C120C', fontWeight: 700 }}>District Magistrate Nodal SLA</span>
+              <span style={{ color: '#1C120C', fontWeight: 700 }}>Clinical Supervisor SLA</span>
               <span style={{ color: '#822710', fontWeight: 800 }}>2-Hour SLA Timer</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', backgroundColor: '#F4ECE0', border: '1px solid #3A2312', borderRadius: '4px', fontSize: '0.75rem', fontFamily: '"Space Mono", monospace' }}>
@@ -376,7 +376,7 @@ const CardUIPreview = ({ type, accentColor }) => {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#1C120C', fontFamily: '"Fraunces", serif' }}>Dr. Priya Sharma, Ph.D.</div>
-              <div style={{ fontSize: '0.72rem', color: '#543118', fontWeight: 700, fontFamily: '"Space Mono", monospace' }}>Lead Clinical Psychologist • NIMHANS Reg #8821</div>
+              <div style={{ fontSize: '0.72rem', color: '#543118', fontWeight: 700, fontFamily: '"Space Mono", monospace' }}>Lead Clinical Psychologist • Clinical Reg #8821</div>
             </div>
             <span style={{ fontSize: '0.7rem', backgroundColor: '#F3F1E7', color: '#443F24', border: '1.5px solid #443F24', padding: '3px 8px', borderRadius: '3px', fontWeight: 800, fontFamily: '"Space Mono", monospace' }}>
               Assigned
@@ -386,7 +386,7 @@ const CardUIPreview = ({ type, accentColor }) => {
           {/* Statutory Countdown Clock */}
           <div style={{ backgroundColor: '#F4ECE0', padding: '12px', borderRadius: '6px', border: '1.5px solid #3A2312', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#543118', fontWeight: 800, fontFamily: '"Space Mono", monospace' }}>
-              <Clock size={16} color="#543118" /> Statutory SLA Window:
+              <Clock size={16} color="#543118" /> Emergency SLA Window:
             </div>
             <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#543118', letterSpacing: '0.04em', fontFamily: '"Space Mono", monospace' }}>
               01:48:12
@@ -399,7 +399,7 @@ const CardUIPreview = ({ type, accentColor }) => {
               📞 Encrypted Voice Call
             </div>
             <div style={{ backgroundColor: '#FAF4EB', padding: '8px 10px', borderRadius: '4px', border: '1.5px solid #3A2312', textAlign: 'center', fontSize: '0.72rem', color: '#1C120C', fontWeight: 800, fontFamily: '"Space Mono", monospace' }}>
-              🏥 PHC Medical Outreach
+              🏥 Clinical Care Outreach
             </div>
           </div>
         </div>
@@ -419,7 +419,7 @@ const CardUIPreview = ({ type, accentColor }) => {
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1.5px solid #3A2312' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#1C120C', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: '"Fraunces", serif' }}>
-              <Scale size={16} color="#543118" /> 8 Statutory Deliverables
+              <Scale size={16} color="#543118" /> 8 Core Care Deliverables
             </span>
             <span style={{ fontSize: '0.7rem', backgroundColor: '#E4CFB8', color: '#3E210E', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', border: '1px solid #3A2312', fontFamily: '"Space Mono", monospace' }}>
               100% SLA Audited
@@ -429,10 +429,10 @@ const CardUIPreview = ({ type, accentColor }) => {
           {/* Checklist of Outcomes */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
             {[
-              { label: 'Section 15A Protective Relocation', status: 'Delivered' },
-              { label: 'Interim Compensation Disbursed (₹1,00,000)', status: 'Credited' },
+              { label: 'Safe Sanctuary Protection Protocol', status: 'Delivered' },
+              { label: 'Direct Emergency Relief Grant Disbursed', status: 'Credited' },
               { label: '6/6 Clinical Counselling Cycles', status: 'Completed' },
-              { label: 'Free Legal Defense Advocate', status: 'Assigned' },
+              { label: 'Designated Legal Defense Advocate', status: 'Assigned' },
             ].map((item, idx) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F4ECE0', padding: '6px 10px', borderRadius: '4px', border: '1px solid #3A2312', fontSize: '0.72rem', fontFamily: '"Space Mono", monospace' }}>
                 <span style={{ color: '#1C120C', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -445,7 +445,7 @@ const CardUIPreview = ({ type, accentColor }) => {
 
           {/* Recovery Stats */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#E4CFB8', padding: '10px 14px', borderRadius: '4px', border: '1.5px solid #3A2312' }}>
-            <span style={{ fontSize: '0.74rem', color: '#3E210E', fontWeight: 700, fontFamily: '"Space Mono", monospace' }}>Total All-India Resolved:</span>
+            <span style={{ fontSize: '0.74rem', color: '#3E210E', fontWeight: 700, fontFamily: '"Space Mono", monospace' }}>Global Program Resolution:</span>
             <span style={{ fontSize: '1rem', fontWeight: 900, color: '#1C120C', fontFamily: '"Fraunces", serif' }}>87.4% Success</span>
           </div>
         </div>

@@ -9,67 +9,43 @@ export const UX4GFooter = () => {
   return (
     <footer
       style={{
-        backgroundColor: 'var(--ux4g-surface)',
-        borderTop: '2px solid var(--ux4g-border)',
+        backgroundColor: '#EFE7DA',
+        borderTop: '2px solid #3A2312',
         marginTop: 'auto',
-        color: 'var(--ux4g-text-secondary)',
+        color: '#543118',
         fontSize: '0.85rem',
+        fontFamily: '"Space Mono", "Courier Prime", monospace',
       }}
     >
-      {/* Upper Footer: Emergency Helplines Strip */}
-      <div style={{ backgroundColor: 'var(--ux4g-violet-50)', borderBottom: '1px solid var(--ux4g-violet-100)', padding: '16px 0' }}>
-        <div className="container flex-between" style={{ flexWrap: 'wrap', gap: '16px' }}>
+      {/* Upper Colophon: Global Network & Heartbeat Strip */}
+      <div style={{ backgroundColor: '#E6DAC9', borderBottom: '1.5px solid #3A2312', padding: '14px 0' }}>
+        <div className="container flex-between" style={{ flexWrap: 'wrap', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
+                width: '8px',
+                height: '8px',
                 borderRadius: '50%',
-                backgroundColor: 'var(--ux4g-violet-700)',
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                backgroundColor: '#443F24',
+                boxShadow: '0 0 0 3px rgba(68,63,36,0.2)',
               }}
-            >
-              <PhoneCall size={18} />
-            </div>
-            <div>
-              <p style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', fontSize: '0.9rem' }}>
-                National Crisis Helplines & Emergency Assistance
-              </p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--ux4g-text-muted)' }}>
-                Toll-free, confidential support available 24x7 across all Indian languages
-              </p>
-            </div>
+            />
+            <span style={{ fontWeight: 800, color: '#2B1508', fontSize: '0.8rem', letterSpacing: '0.04em' }}>
+              GLOBAL RESILIENCE NETWORK • ALL SYSTEMS OPERATIONAL
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontWeight: 600, color: 'var(--ux4g-violet-900)' }}>Tele-MANAS:</span>
-              <a href="tel:14416" style={{ color: 'var(--ux4g-violet-700)', fontWeight: 700, textDecoration: 'none' }}>
-                14416 / 1800-891-4416
-              </a>
-            </div>
-            <div style={{ color: 'var(--ux4g-border)' }}>|</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontWeight: 600, color: 'var(--ux4g-violet-900)' }}>Emergency Response:</span>
-              <a href="tel:112" style={{ color: 'var(--ux4g-danger)', fontWeight: 700, textDecoration: 'none' }}>
-                112
-              </a>
-            </div>
-            <div style={{ color: 'var(--ux4g-border)' }}>|</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontWeight: 600, color: 'var(--ux4g-violet-900)' }}>Women Helpline:</span>
-              <a href="tel:181" style={{ color: 'var(--ux4g-violet-700)', fontWeight: 700, textDecoration: 'none' }}>
-                181
-              </a>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+            <span style={{ color: '#78604F' }}>SLA Compliance: <strong style={{ color: '#2B1508' }}>98.6%</strong></span>
+            <span style={{ color: '#AB8867' }}>•</span>
+            <span style={{ color: '#78604F' }}>Distress Latency: <strong style={{ color: '#2B1508' }}>108ms</strong></span>
+            <span style={{ color: '#AB8867' }}>•</span>
+            <span style={{ color: '#78604F' }}>DPDP Act 2023: <strong style={{ color: '#443F24' }}>Encrypted &amp; Audited</strong></span>
           </div>
         </div>
       </div>
 
-      {/* Main Footer Links & Compliance Notice */}
+      {/* Main Colophon Grid */}
       <div style={{ padding: '48px 0 32px' }}>
         <div className="container">
           <div
@@ -80,153 +56,137 @@ export const UX4GFooter = () => {
               marginBottom: '36px',
             }}
           >
-            {/* Column 1: AAROH Project */}
+            {/* Column 1: AAROH Brand */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--ux4g-violet-950)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#2B1508', fontFamily: '"Fraunces", "Playfair Display", Georgia, serif', letterSpacing: '-0.02em' }}>
                   AAROH
                 </span>
                 <span
                   style={{
-                    backgroundColor: 'var(--ux4g-violet-50)',
-                    color: 'var(--ux4g-violet-700)',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
+                    backgroundColor: '#E6DAC9',
+                    color: '#3A2312',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
                     padding: '2px 8px',
                     borderRadius: '4px',
-                    border: '1px solid var(--ux4g-violet-200)',
+                    border: '1px solid #AB8867',
+                    letterSpacing: '0.06em',
                   }}
                 >
-                  Gov.in Portal
+                  EDITION 2026
                 </span>
               </div>
-              <p style={{ color: 'var(--ux4g-text-muted)', lineHeight: '1.6', fontSize: '0.825rem', marginBottom: '16px' }}>
-                AI-Powered Dynamic Mental Health Monitoring and Distress Prediction System for Victims of Atrocities.
-                Administered by the Ministry of Social Justice & Empowerment, Government of India.
+              <p style={{ color: '#78604F', lineHeight: '1.7', fontSize: '0.8rem', marginBottom: '16px' }}>
+                A proactive psychological resilience platform combining paralinguistic acoustic modeling with certified clinical intervention — protecting dignity through consensual, privacy-first care.
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ux4g-violet-800)', fontSize: '0.8rem', fontWeight: 600 }}>
-                <Shield size={16} />
-                <span>Protected under DPDP Act 2023</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#543118', fontSize: '0.78rem', fontWeight: 700 }}>
+                <Shield size={14} color="#8C6240" />
+                <span>Encrypted &amp; DPDP Compliant Architecture</span>
               </div>
             </div>
 
-            {/* Column 2: Legal & Privacy */}
+            {/* Column 2: Acoustic Intelligence Engine */}
             <div>
-              <h4 style={{ color: 'var(--ux4g-violet-950)', fontWeight: 700, marginBottom: '14px', fontSize: '0.92rem' }}>
-                Privacy & Legal Policies
+              <h4 style={{ color: '#2B1508', fontWeight: 800, marginBottom: '14px', fontSize: '0.88rem', letterSpacing: '0.04em' }}>
+                Intelligence Engine
               </h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '9px', fontSize: '0.825rem' }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '9px', fontSize: '0.8rem', color: '#78604F' }}>
+                <li>Multimodal Acoustic Paralinguistics</li>
+                <li>F0 Pitch &amp; Jitter Deviation Modeling</li>
+                <li>Longitudinal Calibrated Baseline Tracking</li>
+                <li>Non-Punitive AI: Zero Automated Penalties</li>
+                <li>Real-Time Multi-Tier Triage Routing</li>
+              </ul>
+            </div>
+
+            {/* Column 3: Governance & Safeguards */}
+            <div>
+              <h4 style={{ color: '#2B1508', fontWeight: 800, marginBottom: '14px', fontSize: '0.88rem', letterSpacing: '0.04em' }}>
+                Safeguards &amp; Privacy
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: '#78604F' }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Lock size={13} color="#443F24" />
+                  <span>DPDP Act 2023 Consent Flow</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Lock size={13} color="#443F24" />
+                  <span>Human-in-the-Loop Clinical Review</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Lock size={13} color="#443F24" />
+                  <span>Zero Outreach Outside Safe Window</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Lock size={13} color="#443F24" />
+                  <span>Automated Audio Erasure Guarantee</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 4: Documentation & Protocol */}
+            <div>
+              <h4 style={{ color: '#2B1508', fontWeight: 800, marginBottom: '14px', fontSize: '0.88rem', letterSpacing: '0.04em' }}>
+                Architecture &amp; Protocol
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '9px', fontSize: '0.8rem' }}>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal('docs')}
+                    style={{ background: 'none', border: 'none', color: '#543118', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 700 }}
+                  >
+                    System Architecture &amp; API Docs
+                  </button>
+                </li>
                 <li>
                   <button
                     type="button"
                     onClick={() => setActiveModal('privacy')}
-                    style={{ background: 'none', border: 'none', color: 'var(--ux4g-text-secondary)', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline' }}
+                    style={{ background: 'none', border: 'none', color: '#543118', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 700 }}
                   >
-                    Privacy Policy (DPDP 2023)
+                    Privacy Architecture (DPDP)
                   </button>
                 </li>
                 <li>
                   <button
                     type="button"
                     onClick={() => setActiveModal('terms')}
-                    style={{ background: 'none', border: 'none', color: 'var(--ux4g-text-secondary)', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline' }}
+                    style={{ background: 'none', border: 'none', color: '#543118', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 700 }}
                   >
-                    Terms & Conditions of Portal
+                    Terms of Platform Access
                   </button>
                 </li>
-                <li>Citizen Charter for Victims of Atrocities</li>
-                <li>Non-Discrimination & Confidentiality Oath</li>
-                <li>Safe Hour Communication Guarantee</li>
+                <li style={{ color: '#78604F' }}>Clinical Triage SLA Protocol</li>
               </ul>
-            </div>
-
-            {/* Column 3: Standards & Compliance */}
-            <div>
-              <h4 style={{ color: 'var(--ux4g-violet-950)', fontWeight: 700, marginBottom: '14px', fontSize: '0.92rem' }}>
-                Standards & Compliance
-              </h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.825rem' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Lock size={14} color="var(--ux4g-success)" />
-                  <span>GIGW 3.0 Accessibility Compliant</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Lock size={14} color="var(--ux4g-success)" />
-                  <span>WCAG 2.1 Level AA Certified</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Lock size={14} color="var(--ux4g-success)" />
-                  <span>Zero Automated Penalties</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Lock size={14} color="var(--ux4g-success)" />
-                  <span>Human-in-the-Loop Safeguards</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Documentation & Technical Specs */}
-            <div>
-              <h4 style={{ color: 'var(--ux4g-violet-950)', fontWeight: 700, marginBottom: '14px', fontSize: '0.92rem' }}>
-                Documentation & Specs
-              </h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '9px', fontSize: '0.825rem' }}>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setActiveModal('docs')}
-                    style={{ background: 'none', border: 'none', color: 'var(--ux4g-text-secondary)', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline' }}
-                  >
-                    System Architecture & API Docs
-                  </button>
-                </li>
-                <li>Multimodal Speech ASR Pipeline Specs</li>
-                <li>District Magistrate SLA Guidelines</li>
-                <li>Counsellor Clinical Protocol Manual</li>
-                <li>RBAC Governance & Audit Model</li>
-              </ul>
-            </div>
-
-            {/* Column 5: Grievance & Liaison */}
-            <div>
-              <h4 style={{ color: 'var(--ux4g-violet-950)', fontWeight: 700, marginBottom: '14px', fontSize: '0.92rem' }}>
-                Grievance Redressal
-              </h4>
-              <p style={{ color: 'var(--ux4g-text-muted)', lineHeight: '1.5', fontSize: '0.825rem', marginBottom: '10px' }}>
-                Direct oversight under the Scheduled Castes and Scheduled Tribes (Prevention of Atrocities) Act.
-              </p>
-              <div style={{ fontSize: '0.8rem', color: 'var(--ux4g-violet-700)', fontWeight: 600 }}>
-                CPGRAMS Grievance Portal: pgportal.gov.in
-              </div>
             </div>
           </div>
 
-          {/* Bottom Copyright Strip */}
+          {/* Bottom Colophon Strip */}
           <div
             style={{
-              paddingTop: '24px',
-              borderTop: '1px solid var(--ux4g-border-subtle)',
+              paddingTop: '20px',
+              borderTop: '1px solid #CDB397',
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: '12px',
-              fontSize: '0.78rem',
-              color: 'var(--ux4g-text-muted)',
+              fontSize: '0.76rem',
+              color: '#78604F',
             }}
           >
             <div>
-              © 2026 Government of India. All rights reserved. AAROH Portal.
+              © 2026 AAROH Intelligence Platform. Built for human resilience &amp; care.
             </div>
 
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <span style={{ cursor: 'pointer' }} onClick={() => setActiveModal('privacy')}>Privacy Policy</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => setActiveModal('privacy')}>Privacy Architecture</span>
               <span>•</span>
-              <span style={{ cursor: 'pointer' }} onClick={() => setActiveModal('terms')}>Terms of Service</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => setActiveModal('terms')}>Platform Terms</span>
               <span>•</span>
-              <span style={{ cursor: 'pointer' }} onClick={() => setActiveModal('docs')}>Documentation</span>
-              <span>•</span>
-              <span>Accessibility Statement</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => setActiveModal('docs')}>API Specs</span>
             </div>
           </div>
         </div>

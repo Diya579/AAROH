@@ -38,418 +38,327 @@ export const UX4GHeader = () => {
   };
 
   return (
-    <header style={{ position: 'sticky', top: 0, zIndex: 900, backgroundColor: 'var(--ux4g-surface)', borderBottom: '1px solid var(--ux4g-border)', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)' }}>
-      {/* UX4G National Tricolor Accent Bar */}
-      <div className="ux4g-tricolor-bar" />
-
-      {/* Top Accessibility & National Identity Strip */}
+    <header
+      style={{
+        position: 'sticky',
+        top: '16px',
+        zIndex: 1000,
+        margin: '0 auto',
+        maxWidth: '1240px',
+        padding: '0 20px',
+      }}
+    >
+      {/* Floating Editorial Pill Navbar */}
       <div
         style={{
-          backgroundColor: 'var(--ux4g-bg-subtle)',
-          borderBottom: '1px solid var(--ux4g-border)',
-          padding: '6px 0',
-          fontSize: '0.78rem',
-          color: 'var(--ux4g-text-secondary)',
+          backgroundColor: 'rgba(247, 241, 230, 0.94)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '2px solid #3A2312',
+          boxShadow: '4px 4px 0px #3A2312',
+          borderRadius: '16px',
+          padding: '10px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
         }}
       >
-        <div className="container flex-between" style={{ flexWrap: 'wrap', gap: '10px' }}>
-          {/* Government of India Official Header Text */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', letterSpacing: '0.03em', fontSize: '0.76rem' }}>
-              भारत सरकार | GOVERNMENT OF INDIA
-            </span>
-            <span style={{ color: 'var(--ux4g-violet-300)' }}>•</span>
-            <span style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.76rem' }}>Ministry of Social Justice & Empowerment</span>
-          </div>
-
-          {/* Accessibility & Helpline Strip */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            {/* Helpline Link */}
-            <button
-              type="button"
-              onClick={openEmergencyHelp}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                background: 'var(--ux4g-danger-bg)',
-                color: 'var(--ux4g-danger-text)',
-                border: '1px solid var(--ux4g-danger-border)',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-              aria-label="24x7 Emergency Mental Health Helpline"
-            >
-              <PhoneCall size={11} />
-              <span>Tele-MANAS: 14416 (24x7)</span>
-            </button>
-
-            {/* Google Translate Language Selector */}
-            <GoogleTranslateWidget compact={true} />
-
-            {/* Font Scaling */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1px', borderLeft: '1px solid var(--ux4g-violet-300)', paddingLeft: '10px' }}>
-              <button
-                type="button"
-                onClick={() => adjustFontScale(0.9)}
-                title="Decrease font size"
+        {/* Left: Brand Monogram & Wordmark */}
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <AshokaEmblem height={38} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
                 style={{
-                  background: fontScale === 0.9 ? 'var(--ux4g-violet-200)' : 'transparent',
-                  border: 'none',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  fontWeight: fontScale === 0.9 ? 700 : 500,
-                  fontSize: '0.72rem',
-                  color: 'var(--ux4g-violet-900)'
+                  fontSize: '1.35rem',
+                  fontWeight: 900,
+                  color: '#2B1508',
+                  letterSpacing: '-0.02em',
+                  fontFamily: '"Fraunces", "Playfair Display", Georgia, serif',
+                  lineHeight: 1,
                 }}
               >
-                A-
-              </button>
-              <button
-                type="button"
-                onClick={() => adjustFontScale(1.0)}
-                title="Normal font size"
+                AAROH
+              </span>
+              <span
                 style={{
-                  background: fontScale === 1.0 ? 'var(--ux4g-violet-200)' : 'transparent',
-                  border: 'none',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  fontWeight: fontScale === 1.0 ? 700 : 500,
-                  fontSize: '0.72rem',
-                  color: 'var(--ux4g-violet-900)'
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                  backgroundColor: '#E6DAC9',
+                  color: '#543118',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  border: '1px solid #AB8867',
+                  letterSpacing: '0.06em',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
                 }}
               >
-                A
-              </button>
-              <button
-                type="button"
-                onClick={() => adjustFontScale(1.15)}
-                title="Increase font size"
-                style={{
-                  background: fontScale === 1.15 ? 'var(--ux4g-violet-200)' : 'transparent',
-                  border: 'none',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  fontWeight: fontScale === 1.15 ? 700 : 500,
-                  fontSize: '0.72rem',
-                  color: 'var(--ux4g-violet-900)'
-                }}
-              >
-                A+
-              </button>
+                v2.4 / AI CARE
+              </span>
             </div>
-
-            {/* High Contrast */}
-            <button
-              type="button"
-              onClick={toggleHighContrast}
-              title="Toggle High Contrast Mode"
+            <p
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: highContrast ? 'var(--ux4g-violet-950)' : 'transparent',
-                color: highContrast ? 'var(--ux4g-surface)' : 'var(--ux4g-text-secondary)',
-                border: '1px solid var(--ux4g-violet-300)',
-                padding: '2px 7px',
-                borderRadius: '4px',
                 fontSize: '0.72rem',
-                cursor: 'pointer',
+                color: '#78604F',
+                margin: '2px 0 0',
+                fontFamily: '"Space Mono", "Courier Prime", monospace',
+                letterSpacing: '0.01em',
               }}
             >
-              <Eye size={11} />
-              <span>{highContrast ? 'Standard' : 'Contrast'}</span>
-            </button>
-
-            {/* Motion */}
-            <button
-              type="button"
-              onClick={toggleReducedMotion}
-              title="Toggle UI animations"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: reducedMotion ? 'var(--ux4g-violet-800)' : 'transparent',
-                color: reducedMotion ? '#FAF4EB' : 'var(--ux4g-violet-800)',
-                border: '1px solid var(--ux4g-violet-300)',
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              <Sparkles size={11} />
-              <span>Motion: {reducedMotion ? 'Off' : 'On'}</span>
-            </button>
+              Distress Intelligence &amp; Care Orchestration
+            </p>
           </div>
-        </div>
-      </div>
+        </Link>
 
-      {/* Main Navigation Bar (Clean, Formal, Spacious) */}
-      <div style={{ padding: '14px 0' }}>
-        <div className="container flex-between">
-          {/* Logo & National Identity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <AshokaEmblem height={46} />
+        {/* Center: Editorial Navigation Links */}
+        <nav style={{ display: 'none', alignItems: 'center', gap: '22px' }} className="desktop-links">
+          {isAuthenticated ? (
+            <Link
+              to={getDashboardPath(currentUser?.role)}
+              style={{
+                textDecoration: 'none',
+                color: '#2B1508',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                backgroundColor: '#E6DAC9',
+                border: '1.5px solid #3A2312',
+                fontFamily: '"Space Mono", "Courier Prime", monospace',
+              }}
+            >
+              <LayoutDashboard size={15} />
+              <span>
+                {(currentUser?.role === 'CITIZEN' || currentUser?.role === 'VICTIM')
+                  ? 'Care Space'
+                  : currentUser?.role === 'COUNSELLOR'
+                  ? 'Clinical Console'
+                  : currentUser?.role === 'DISTRICT'
+                  ? 'District Oversight'
+                  : currentUser?.role === 'STATE'
+                  ? 'State Overview'
+                  : currentUser?.role === 'NATIONAL'
+                  ? 'National Triage'
+                  : 'System Authority'}
+              </span>
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/"
+                style={{
+                  textDecoration: 'none',
+                  color: location.pathname === '/' ? '#2B1508' : '#78604F',
+                  fontWeight: location.pathname === '/' ? 800 : 600,
+                  fontSize: '0.84rem',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
+                  letterSpacing: '0.02em',
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                Platform
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  if (location.pathname === '/') {
+                    const el = document.getElementById('workflow');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    navigate('/#workflow');
+                  }
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#78604F',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
+                  letterSpacing: '0.02em',
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#2B1508')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#78604F')}
+              >
+                Acoustic AI
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (location.pathname === '/') {
+                    const el = document.getElementById('about');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    navigate('/#about');
+                  }
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#78604F',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
+                  letterSpacing: '0.02em',
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#2B1508')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#78604F')}
+              >
+                Architecture
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (location.pathname === '/') {
+                    const el = document.getElementById('safety');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    else openEmergencyHelp();
+                  } else {
+                    navigate('/#safety');
+                  }
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#78604F',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
+                  letterSpacing: '0.02em',
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#2B1508')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#78604F')}
+              >
+                Safe Care
+              </button>
+            </>
+          )}
+        </nav>
 
+        {/* Right: Controls & Portal Access */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Discreet Crisis Hotline Pill */}
+          <button
+            type="button"
+            onClick={openEmergencyHelp}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#F5EBE7',
+              color: '#822710',
+              border: '1.5px solid #822710',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: '"Space Mono", "Courier Prime", monospace',
+              transition: 'all 0.15s ease',
+            }}
+            aria-label="24x7 Emergency Helpline"
+          >
+            <PhoneCall size={12} />
+            <span style={{ display: 'none' }} className="helpline-text">Crisis Line</span>
+          </button>
+
+          {/* Minimalist Google Translate Selector */}
+          <GoogleTranslateWidget compact={true} />
+
+          {/* Auth Button */}
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div
                 style={{
-                  width: '1px',
-                  height: '34px',
-                  backgroundColor: 'var(--ux4g-violet-300)',
-                  margin: '0 2px',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#3A2312',
+                  color: '#F7F1E6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
+                  border: '1px solid #2B1508',
                 }}
-                aria-hidden="true"
-              />
-
-              {/* Title & Subtitle */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', letterSpacing: '-0.02em' }}>
-                    AAROH
-                  </span>
-                  <span style={{ fontSize: '0.7rem', backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-900)', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--ux4g-violet-300)' }}>
-                    PORTAL
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-secondary)', lineHeight: 1.2, marginTop: '2px' }}>
-                  Mental Health Monitoring & Distress Prediction System
-                </p>
+                title={currentUser.name}
+              >
+                {currentUser.avatar}
               </div>
+
+              <UX4GButton
+                variant="ghost"
+                size="sm"
+                icon={LogOut}
+                onClick={() => {
+                  signOut();
+                  navigate('/signin');
+                }}
+                ariaLabel="Sign out of system"
+              >
+                Sign Out
+              </UX4GButton>
+            </div>
+          ) : (
+            <Link to="/signin" style={{ textDecoration: 'none' }}>
+              <button
+                type="button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: '#3A2312',
+                  color: '#F7F1E6',
+                  border: '1.5px solid #1C1108',
+                  boxShadow: '2px 2px 0px #1C1108',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
+                  letterSpacing: '0.02em',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translate(-1px, -1px)';
+                  e.currentTarget.style.boxShadow = '3px 3px 0px #1C1108';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '2px 2px 0px #1C1108';
+                }}
+              >
+                <UserCheck size={14} />
+                <span>Portal Access</span>
+              </button>
             </Link>
-          </div>
-
-          {/* Navigation Links (Spacious, Formal) */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-            <div style={{ display: 'none', gap: '24px', alignItems: 'center' }} className="desktop-links">
-              {isAuthenticated ? (
-                <Link
-                  to={getDashboardPath(currentUser?.role)}
-                  style={{
-                    textDecoration: 'none',
-                    color: location.pathname.startsWith('/dashboard') ? 'var(--ux4g-violet-800)' : 'var(--ux4g-text-secondary)',
-                    fontWeight: 700,
-                    fontSize: '0.9rem',
-                    letterSpacing: '-0.01em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    backgroundColor: location.pathname.startsWith('/dashboard') ? 'var(--ux4g-violet-100)' : 'transparent',
-                    border: location.pathname.startsWith('/dashboard') ? '1px solid var(--ux4g-violet-300)' : '1px solid transparent',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!location.pathname.startsWith('/dashboard')) e.currentTarget.style.color = 'var(--ux4g-violet-800)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!location.pathname.startsWith('/dashboard')) e.currentTarget.style.color = 'var(--ux4g-text-secondary)';
-                  }}
-                >
-                  <LayoutDashboard size={16} />
-                  <span>
-                    {(currentUser?.role === 'CITIZEN' || currentUser?.role === 'VICTIM')
-                      ? 'Citizen Dashboard'
-                      : currentUser?.role === 'COUNSELLOR'
-                      ? 'Counsellor Dashboard'
-                      : currentUser?.role === 'DISTRICT'
-                      ? 'District Dashboard'
-                      : currentUser?.role === 'STATE'
-                      ? 'State Dashboard'
-                      : currentUser?.role === 'NATIONAL'
-                      ? 'National Dashboard'
-                      : currentUser?.role === 'ADMIN'
-                      ? 'System Authority Dashboard'
-                      : 'Dashboard'}
-                  </span>
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/"
-                    style={{
-                      textDecoration: 'none',
-                      color: location.pathname === '/' ? 'var(--ux4g-violet-900)' : 'var(--ux4g-text-secondary)',
-                      fontWeight: location.pathname === '/' ? 800 : 600,
-                      fontSize: '0.9rem',
-                      letterSpacing: '-0.01em',
-                      transition: 'color 0.15s ease',
-                    }}
-                  >
-                    Home
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (location.pathname === '/') {
-                        const el = document.getElementById('about');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      } else {
-                        navigate('/#about');
-                      }
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      color: 'var(--ux4g-text-secondary)',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      letterSpacing: '-0.01em',
-                      fontFamily: 'inherit',
-                      transition: 'color 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ux4g-violet-900)'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--ux4g-text-secondary)'}
-                  >
-                    About AAROH
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (location.pathname === '/') {
-                        const el = document.getElementById('workflow');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      } else {
-                        navigate('/#workflow');
-                      }
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      color: 'var(--ux4g-text-secondary)',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      letterSpacing: '-0.01em',
-                      fontFamily: 'inherit',
-                      transition: 'color 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ux4g-violet-900)'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--ux4g-text-secondary)'}
-                  >
-                    Workflow
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (location.pathname === '/') {
-                        const el = document.getElementById('safety');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                        else openEmergencyHelp();
-                      } else {
-                        navigate('/#safety');
-                      }
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      color: 'var(--ux4g-text-secondary)',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      letterSpacing: '-0.01em',
-                      fontFamily: 'inherit',
-                      transition: 'color 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ux4g-violet-900)'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--ux4g-text-secondary)'}
-                  >
-                    Safety & Support
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Auth Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {isAuthenticated ? (
-                <>
-                  <Link to={getDashboardPath(currentUser.role)} style={{ textDecoration: 'none' }}>
-                    <UX4GButton variant="secondary" size="sm" icon={LayoutDashboard}>
-                      {currentUser.role} Portal
-                    </UX4GButton>
-                  </Link>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '4px 10px',
-                      backgroundColor: 'var(--ux4g-bg-subtle)',
-                      borderRadius: '6px',
-                      border: '1px solid var(--ux4g-border)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '26px',
-                        height: '26px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--ux4g-violet-700)',
-                        color: '#FAF4EB',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {currentUser.avatar}
-                    </div>
-                    <div style={{ display: 'none' }} className="user-text-pill">
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
-                        {currentUser.name}
-                      </span>
-                    </div>
-                  </div>
-
-                  <UX4GButton
-                    variant="ghost"
-                    size="sm"
-                    icon={LogOut}
-                    onClick={() => {
-                      signOut();
-                      navigate('/signin');
-                    }}
-                    ariaLabel="Sign out of system"
-                  >
-                    Sign Out
-                  </UX4GButton>
-                </>
-              ) : (
-                <Link to="/signin" style={{ textDecoration: 'none' }}>
-                  <UX4GButton variant="primary" size="md" icon={UserCheck}>
-                    Authorized Sign In
-                  </UX4GButton>
-                </Link>
-              )}
-            </div>
-          </nav>
+          )}
         </div>
       </div>
 
       <style>{`
-        @media (min-width: 900px) {
+        @media (min-width: 860px) {
           .desktop-links {
             display: flex !important;
           }
-          .user-text-pill {
-            display: block !important;
+          .helpline-text {
+            display: inline !important;
           }
         }
       `}</style>

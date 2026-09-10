@@ -78,28 +78,29 @@ export const SignInPage = () => {
               Authorized Portal Sign In
             </h2>
             <p style={{ fontSize: '0.88rem', color: 'var(--ux4g-text-muted)', marginTop: '6px' }}>
-              AAROH Mental Health Monitoring & Distress Prediction System
+              AAROH Paralinguistic Distress Modeling & Resilience Platform
             </p>
           </div>
 
-          {/* Critical Architecture Rule: NO Public Registration Notice */}
+          {/* Critical Architecture Rule: Restricted Access Notice */}
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               backgroundColor: 'var(--ux4g-violet-50)',
               borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--ux4g-violet-200)',
+              border: '1.5px solid #3A2312',
               fontSize: '0.8rem',
               color: 'var(--ux4g-violet-900)',
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
               marginBottom: '20px',
+              boxShadow: '2px 2px 0px #3A2312',
             }}
           >
             <Info size={18} color="var(--ux4g-violet-700)" style={{ flexShrink: 0 }} />
             <div>
-              <strong>Authorized Access Only:</strong> Beneficiary and official accounts are provisioned exclusively through authorized government departments. <em>No public registration is permitted.</em>
+              <strong>Restricted Access:</strong> Participant and specialist accounts are provisioned exclusively through accredited care networks. <em>Self-registration is disabled for privacy & protection.</em>
             </div>
           </div>
 
@@ -118,10 +119,10 @@ export const SignInPage = () => {
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
-              placeholder="e.g. meera.s@citizen or official@nic.in"
+              placeholder="e.g. meera.s@citizen or dr.rajesh@aaroh.gov.in"
               leadingIcon={User}
               required
-              helperText="Assigned by District Welfare Officer or Ministry Authority"
+              helperText="Provisioned by Clinical Care Director or System Administrator"
             />
 
             <UX4GInput
@@ -150,6 +151,48 @@ export const SignInPage = () => {
               </UX4GButton>
             </div>
           </form>
+
+          {/* Quick Demo Persona Fillers */}
+          <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1.5px dashed #3A2312' }}>
+            <div style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--ux4g-violet-800)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '12px', textAlign: 'center' }}>
+              ✦ Demo Evaluation Credentials (Click to Autofill)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {[
+                { label: 'Participant', id: 'meera.s@citizen' },
+                { label: 'Counsellor', id: 'dr.rajesh@aaroh.gov.in' },
+                { label: 'Regional Lead', id: 'ananya.sen@ias.nic.in' },
+                { label: 'State Director', id: 'k.ramanathan@delhi.gov.in' },
+                { label: 'Global Lead', id: 'p.venkat@socialjustice.gov.in' },
+                { label: 'Security Admin', id: 'sysadmin@aaroh.nic.in' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setUserId(p.id);
+                    setPassword('password123');
+                    setValidationError('');
+                    setError('');
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    backgroundColor: userId === p.id ? 'var(--ux4g-violet-700)' : '#FAF4EB',
+                    color: userId === p.id ? '#FAF4EB' : '#1C120C',
+                    border: '1.5px solid #3A2312',
+                    borderRadius: '4px',
+                    boxShadow: '2px 2px 0px #3A2312',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </UX4GCard>
       </div>
     </div>

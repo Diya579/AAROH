@@ -59,10 +59,10 @@ export const HomePage = () => {
       content: (
         <div>
           <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', marginBottom: '8px' }}>
-            Victims and beneficiaries interact at their chosen safe hour and channel using conversational voice or text prompts, supported in multiple regional languages without intrusive surveillance.
+            Participants interact at their chosen safe hour and channel using conversational voice or text prompts, supported in multiple languages without intrusive surveillance.
           </p>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="ux4g-badge ux4g-badge-primary">Bilingual ASR Pipeline</span>
+            <span className="ux4g-badge ux4g-badge-primary">Multilingual ASR Pipeline</span>
             <span className="ux4g-badge ux4g-badge-low">Explicit Consent Verified</span>
           </div>
         </div>
@@ -106,7 +106,7 @@ export const HomePage = () => {
       content: (
         <div>
           <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', marginBottom: '8px' }}>
-            When escalation probability passes verified thresholds, proactive flags alert authorized clinical counsellors and district nodal officers with explainable contributing factors.
+            When escalation probability passes verified thresholds, proactive flags alert authorized clinical counsellors and regional directors with explainable contributing factors.
           </p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
             <RiskBadge level="High" size="sm" />
@@ -136,7 +136,7 @@ export const HomePage = () => {
     {
       stepNumber: 6,
       title: 'Outcome Tracking & Continuous Follow-up',
-      subtitle: 'Closed-loop accountability through District & State SLAs',
+      subtitle: 'Closed-loop accountability through verified clinical SLAs',
       content: (
         <div>
           <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', marginBottom: '8px' }}>
@@ -155,31 +155,31 @@ export const HomePage = () => {
   const faqItems = [
     {
       id: 'faq-1',
-      title: 'How does AAROH protect victim privacy under the DPDP Act 2023?',
-      subtitle: 'Statutory citizen privacy rights & cryptographic security',
+      title: 'How does AAROH ensure privacy and data sovereignty?',
+      subtitle: 'Strict privacy standards & cryptographic security',
       content: (
         <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', lineHeight: '1.65' }}>
-          All citizen interactions require unambiguous, revocable consent. Data is encrypted using AES-256 at rest and stored exclusively in sovereign Indian government servers. Audio files are processed through a confidential pipeline with de-identification so that only authorized trauma counsellors assigned to your specific case can access records.
+          All participant interactions require unambiguous, revocable consent. Data is encrypted using AES-256 at rest and stored in sovereign, isolated cloud enclaves. Audio telemetry is processed through an ephemeral pipeline with zero-knowledge de-identification, ensuring only authorized clinical specialists assigned to your case can ever review records.
         </p>
       ),
     },
     {
       id: 'faq-2',
-      title: 'Can the AI take punitive or legal decisions on its own?',
+      title: 'Can the AI take punitive or automated care decisions?',
       subtitle: 'Human-in-the-loop ethical AI guarantee',
       content: (
         <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', lineHeight: '1.65' }}>
-          <strong>No, strictly never.</strong> Under Section 23 of the AAROH mandate, artificial intelligence is strictly assistive. It flags potential distress shifts to human officials. All decisions regarding compensation, protective relocation, clinical diagnoses, and legal aid are made exclusively by licensed psychologists, magistrates, and welfare authorities.
+          <strong>No, strictly never.</strong> Under AAROH's ethical AI charter, artificial intelligence is strictly assistive. It flags potential distress shifts to accredited specialists. All decisions regarding restitution, protective sanctuary, clinical diagnoses, and legal advocacy are made exclusively by licensed psychologists, legal ombudsmen, and certified care supervisors.
         </p>
       ),
     },
     {
       id: 'faq-3',
-      title: 'What happens if a beneficiary misses a scheduled check-in?',
-      subtitle: 'Non-punitive welfare protocols',
+      title: 'What happens if a participant misses a scheduled check-in?',
+      subtitle: 'Non-punitive care protocols',
       content: (
         <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', lineHeight: '1.65' }}>
-          Missing a check-in is never treated as a penalty or violation. The system respects personal space. If multiple consecutive check-ins are missed during a high-risk recovery phase, the assigned counsellor gently reaches out during the beneficiary's registered "safe hours" to ensure their safety and well-being.
+          Missing a check-in is never treated as a penalty or violation. The platform respects personal autonomy. If consecutive check-ins are missed during an elevated recovery phase, the assigned specialist gently reaches out during the participant's registered "safe hours" to ensure their safety and well-being.
         </p>
       ),
     },
@@ -189,17 +189,17 @@ export const HomePage = () => {
       subtitle: 'Dynamic baseline deviation vs. surveillance',
       content: (
         <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', lineHeight: '1.65' }}>
-          AAROH does not perform general social monitoring or tracking. It only evaluates consensual check-in sessions. Acoustic pitch variance, speaking rate, and linguistic emotional markers are compared against the beneficiary's own self-established baseline, allowing gentle tracking without intrusive device access.
+          AAROH does not perform surveillance or background tracking. It only evaluates consensual check-in sessions. Acoustic pitch variance, speaking cadence, and linguistic emotional markers are calibrated against the participant's own self-established baseline, allowing longitudinal tracking without intrusive device permissions.
         </p>
       ),
     },
     {
       id: 'faq-5',
-      title: 'Who has access to my case records?',
+      title: 'Who has access to active case telemetry?',
       subtitle: 'Role-Based Access Control (RBAC) boundaries',
       content: (
         <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.9rem', lineHeight: '1.65' }}>
-          Access is strictly compartmentalized. Only your assigned clinical counsellor and the designated District Nodal Officer have visibility into your active case details. State and National directorates only view anonymized, aggregated statistics to monitor overall welfare performance.
+          Access is strictly compartmentalized via Role-Based Access Control. Only your assigned clinical counsellor and designated regional supervisor have visibility into active case records. Executive leadership only views anonymized, aggregate metrics to monitor platform health and resilience.
         </p>
       ),
     },
@@ -232,7 +232,7 @@ export const HomePage = () => {
               style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', marginTop: '8px', marginBottom: '14px' }}
             />
             <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '1rem', lineHeight: '1.6' }}>
-              The technological pillars that make AAROH a sovereign, trustworthy platform.
+              The technological architecture powering AAROH's acoustic distress modeling and human-first resilience.
             </p>
           </div>
 
@@ -266,13 +266,13 @@ export const HomePage = () => {
                     <Volume2 size={24} />
                   </div>
                   <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
-                    Multimodal Speech ASR
+                    Multimodal Acoustic ASR
                   </h3>
                   <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.85rem', lineHeight: '1.6' }}>
-                    Inclusive spoken voice check-ins for citizens across diverse educational backgrounds and dialects.
+                    Inclusive spoken voice check-ins with paralinguistic jitter, pitch, and shiver analysis across dialects.
                   </p>
                 </div>
-                <span className="ux4g-badge" style={{ backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-800)', border: '1.5px solid #3A2312' }}>22 Indian Languages</span>
+                <span className="ux4g-badge" style={{ backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-800)', border: '1.5px solid #3A2312' }}>Multilingual Neural ASR</span>
               </KineticTiltCard>
             </BentoItem>
 
@@ -302,10 +302,10 @@ export const HomePage = () => {
                     <Users size={24} />
                   </div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
-                    Statutory District & State Governance
+                    Multi-Tier Clinical & Crisis Coordination
                   </h3>
                   <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.92rem', lineHeight: '1.65', marginBottom: '16px' }}>
-                    Connects District Magistrates, Social Justice Commissioners, and the Central Ministry in a single unified dashboard, guaranteeing swift caseworker allocation and statutory SLA adherence.
+                    Connects clinical directors, emergency crisis coordinators, and specialized caseworkers into a synchronized command center, guaranteeing rapid case allocation and sub-120ms response SLAs.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -319,21 +319,21 @@ export const HomePage = () => {
       </section>
 
       {/* =========================================================================
-          NEW SECTION 1: STATUTORY 4-PILLAR REHABILITATION FRAMEWORK
+          CARE ARCHITECTURE: 4 DIMENSIONS OF RESILIENCE & CRISIS LIAISON
           ========================================================================= */}
       <section id="safety" style={{ padding: '68px 0', backgroundColor: 'var(--ux4g-bg)', borderTop: '1px solid var(--ux4g-border)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 44px' }}>
             <span style={{ color: 'var(--ux4g-violet-700)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Statutory Welfare Model
+              Care Architecture
             </span>
             <TextMaskReveal
               as="h2"
-              lines={["The 4 Pillars of Atrocity Relief & Recovery"]}
+              lines={["The 4 Dimensions of Trauma Rehabilitation & Justice Liaison"]}
               style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', marginTop: '8px', marginBottom: '12px' }}
             />
             <p style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.98rem' }}>
-              A holistic ecosystem connecting psychological stabilization with physical safety, legal justice, and economic rehabilitation.
+              A synchronized framework bridging clinical psychological stabilization with physical sanctuary, judicial advocacy, and economic rehabilitation.
             </p>
           </div>
 
@@ -344,10 +344,10 @@ export const HomePage = () => {
                 <Heart size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
-                1. Psychological Trauma Relief
+                1. Clinical Trauma Mitigation
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-text-secondary)', lineHeight: 1.6 }}>
-                Integration with the national Tele-MANAS network, trauma-informed clinical psychologists, and compassionate individual counseling.
+                Continuous linkage to certified trauma psychologists, tele-mental health networks, and compassionate individual cognitive therapy.
               </p>
             </KineticTiltCard>
 
@@ -357,10 +357,10 @@ export const HomePage = () => {
                 <Shield size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
-                2. Witness & Physical Security
+                2. Sanctuary & Rapid Crisis Routing
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-text-secondary)', lineHeight: 1.6 }}>
-                Direct linkage to District Magistrate protection protocols, safe housing shelter routing, and emergency escalation to 112 services.
+                Protocols for safe housing shelter routing, emergency dispatch integration, and proactive sanctuary security during safe windows.
               </p>
             </KineticTiltCard>
 
@@ -370,10 +370,10 @@ export const HomePage = () => {
                 <Landmark size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
-                3. Compensation & Relief Funds
+                3. Emergency Relief & Restitution
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-text-secondary)', lineHeight: 1.6 }}>
-                Tracking of statutory compensation disbursements under the SC/ST Prevention of Atrocities rules directly to citizen bank accounts.
+                Direct ledger tracking of emergency restitution funds, clinical grants, and livelihood support disbursed with zero bureaucratic latency.
               </p>
             </KineticTiltCard>
 
@@ -383,10 +383,10 @@ export const HomePage = () => {
                 <Scale size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
-                4. Judicial Legal Aid Liaison
+                4. Human Rights & Legal Advocacy
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-text-secondary)', lineHeight: 1.6 }}>
-                Fast-track court psychosocial assessment reporting and representation assistance through National Legal Services Authority (NALSA).
+                Objective psychosocial assessment dossiers and expedited representation through dedicated legal defense partners.
               </p>
             </KineticTiltCard>
           </div>

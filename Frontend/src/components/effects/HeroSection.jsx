@@ -11,25 +11,26 @@ import { useThemeAccessibility } from '../../context/ThemeAccessibilityContext';
 import { useAuth } from '../../context/AuthContext';
 
 /* ─── Operational Framework Card content ────────────────────────────────── */
+/* ─── Operational Framework Card content ────────────────────────────────── */
 const OperationalCardContent = () => {
   const features = [
     {
       icon: <Brain size={20} />,
-      bg: 'rgba(84,49,24,0.1)', color: '#543118',
-      title: 'AI Distress Modeling',
-      desc: 'Multimodal speech & linguistic feature analysis with individualized baseline deviation scoring.',
+      bg: 'rgba(84,49,24,0.12)', color: '#543118',
+      title: 'Acoustic Distress AI',
+      desc: 'Multimodal vocal pitch variance & linguistic indicators calibrated to individual baselines.',
     },
     {
       icon: <HeartHandshake size={20} />,
-      bg: 'rgba(68,63,36,0.12)', color: '#443F24',
-      title: 'Human-Centered Care',
-      desc: 'Certified clinical counsellors and district social justice authorities take all final care actions.',
+      bg: 'rgba(68,63,36,0.14)', color: '#443F24',
+      title: 'Human Clinical Care',
+      desc: 'Certified psychologists and designated authorities take all final care actions.',
     },
     {
       icon: <Shield size={20} />,
-      bg: 'rgba(162,104,41,0.12)', color: '#804F18',
+      bg: 'rgba(162,104,41,0.14)', color: '#804F18',
       title: 'SLA-Bound Interventions',
-      desc: 'Transparent escalation routing across District, State, and National tiers with strict audit logging.',
+      desc: 'Transparent triage dispatch across district and legal aid tiers with full cryptographic audit.',
     },
   ];
 
@@ -38,34 +39,67 @@ const OperationalCardContent = () => {
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: '18px', paddingBottom: '12px',
-        borderBottom: '1px solid var(--ux4g-border-subtle)',
+        marginBottom: '16px', paddingBottom: '12px',
+        borderBottom: '1.5px solid #3A2312',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{
             width: '9px', height: '9px', borderRadius: '50%',
-            backgroundColor: '#8C6240',
-            boxShadow: '0 0 0 2px rgba(140,98,64,0.25)',
+            backgroundColor: '#822710',
+            boxShadow: '0 0 0 2px rgba(130,39,16,0.25)',
           }} />
           <span style={{
             fontSize: '0.8rem', fontWeight: 800,
-            color: 'var(--ux4g-violet-950)',
+            color: '#2B1508',
             textTransform: 'uppercase', letterSpacing: '0.06em',
             fontFamily: '"Space Mono", "Courier Prime", monospace',
           }}>
-            Operational Framework
+            Paralinguistic Engine
           </span>
         </div>
         <span style={{
           fontSize: '0.68rem', fontWeight: 800,
-          background: '#E4CFB8', color: '#3E210E',
-          border: '1px solid #AB8867',
+          background: '#E6DAC9', color: '#3A2312',
+          border: '1.5px solid #3A2312',
           padding: '2px 9px', borderRadius: '4px',
           letterSpacing: '0.06em',
           fontFamily: '"Space Mono", "Courier Prime", monospace',
         }}>
-          LIVE
+          ACTIVE • v2.4
         </span>
+      </div>
+
+      {/* Real-time Simulated Acoustic Waveform Strip */}
+      <div style={{
+        padding: '12px 14px',
+        backgroundColor: '#E6DAC9',
+        borderRadius: '8px',
+        border: '1.5px solid #3A2312',
+        marginBottom: '16px',
+        boxShadow: '2px 2px 0px #3A2312',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#2B1508', fontFamily: '"Space Mono", monospace' }}>
+            SPECTROGRAM STREAM
+          </span>
+          <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#822710', fontFamily: '"Space Mono", monospace' }}>
+            F0: 194Hz • Jitter 0.38%
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '32px', justifyContent: 'center' }}>
+          {[14, 26, 10, 32, 20, 12, 34, 16, 24, 30, 14, 28, 18, 12, 30, 16, 22, 28, 16, 10].map((h, idx) => (
+            <div
+              key={idx}
+              style={{
+                width: '6px',
+                height: `${h}px`,
+                backgroundColor: idx % 4 === 0 ? '#822710' : '#543118',
+                borderRadius: '3px',
+                opacity: 0.9,
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Feature rows */}
@@ -75,23 +109,23 @@ const OperationalCardContent = () => {
             key={i}
             style={{
               display: 'flex', gap: '12px', alignItems: 'flex-start',
-              padding: '10px 12px', borderRadius: '12px',
-              backgroundColor: 'var(--ux4g-bg)',
-              border: '1px solid var(--ux4g-border-subtle)',
+              padding: '10px 12px', borderRadius: '8px',
+              backgroundColor: 'var(--ux4g-surface)',
+              border: '1px solid #CDB397',
             }}
           >
             <div style={{
-              width: '34px', height: '34px', borderRadius: '8px',
+              width: '32px', height: '32px', borderRadius: '6px',
               background: f.bg, color: f.color,
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
               {f.icon}
             </div>
             <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#2B1508', fontFamily: '"Space Mono", monospace' }}>
                 {f.title}
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-secondary)', marginTop: '2px', lineHeight: '1.5' }}>
+              <div style={{ fontSize: '0.76rem', color: '#78604F', marginTop: '2px', lineHeight: '1.4' }}>
                 {f.desc}
               </div>
             </div>
@@ -165,7 +199,7 @@ export const HeroSection = () => {
       </div>
 
       <div className="container" style={{ position: 'relative', zIndex: 2 }}>
-        {/* Trust badges */}
+        {/* Editorial Trust Badges */}
         <motion.div
           initial="hidden" animate="show" variants={fadeUp}
           transition={{ duration: 0.45 }}
@@ -173,26 +207,27 @@ export const HeroSection = () => {
         >
           <span style={{
             backgroundColor: 'var(--ux4g-surface)',
-            color: 'var(--ux4g-violet-800)',
-            fontSize: '0.78rem', fontWeight: 700,
-            padding: '5px 14px', borderRadius: '999px',
-            border: '1px solid var(--ux4g-violet-200)',
+            color: '#2B1508',
+            fontSize: '0.76rem', fontWeight: 700,
+            padding: '5px 14px', borderRadius: '8px',
+            border: '1.5px solid #3A2312',
+            boxShadow: '2px 2px 0px #3A2312',
             display: 'inline-flex', alignItems: 'center', gap: '6px',
-            boxShadow: 'var(--elevation-1)',
+            fontFamily: '"Space Mono", "Courier Prime", monospace',
           }}>
-            <Shield size={13} color="var(--ux4g-violet-700)" />
-            National Welfare & Mental Health Initiative
+            ✦ Autonomous Paralinguistic AI &amp; Human Care
           </span>
           <span style={{
             backgroundColor: 'var(--ux4g-success-bg)',
-            color: 'var(--ux4g-success-text)',
-            fontSize: '0.78rem', fontWeight: 700,
-            padding: '5px 12px', borderRadius: '999px',
-            border: '1px solid var(--ux4g-success-border)',
+            color: 'var(--ux4g-success)',
+            fontSize: '0.76rem', fontWeight: 700,
+            padding: '5px 12px', borderRadius: '8px',
+            border: '1.5px solid var(--ux4g-success-border)',
             display: 'inline-flex', alignItems: 'center', gap: '5px',
+            fontFamily: '"Space Mono", "Courier Prime", monospace',
           }}>
             <CheckCircle2 size={12} />
-            DPDP Act 2023 Compliant
+            Privacy-Preserving DPDP Standard
           </span>
         </motion.div>
 
@@ -205,54 +240,45 @@ export const HeroSection = () => {
         }}>
           {/* ── LEFT ── */}
           <div>
-            {/* Pop headline — 3 individually staggered lines */}
+            {/* Editorial Serif Headline */}
             <h1 style={{
-              fontSize: 'clamp(2.3rem, 4.6vw, 3.8rem)',
+              fontSize: 'clamp(2.4rem, 4.8vw, 4.2rem)',
               fontWeight: 900,
-              lineHeight: '1.08',
-              letterSpacing: '-0.02em',
-              marginBottom: '20px',
+              lineHeight: '1.06',
+              letterSpacing: '-0.025em',
+              marginBottom: '22px',
               fontFamily: '"Fraunces", "Playfair Display", Georgia, serif',
               overflow: 'hidden',
             }}>
-              {/* Line 1 — scale + translateY pop */}
               <motion.span
-                style={{ display: 'block', color: 'var(--ux4g-violet-950)' }}
+                style={{ display: 'block', color: '#1C1108', fontStyle: 'italic' }}
                 initial="hidden"
                 animate="show"
                 variants={lineVariant}
                 transition={lineTransition(0.08)}
               >
-                AAROH Platform
+                Intelligent
               </motion.span>
-
-              {/* Line 2 — gradient pop, delayed */}
               <motion.span
                 style={{
                   display: 'block',
-                  background: 'linear-gradient(92deg, #543118 0%, #8C6240 50%, #3E210E 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  filter: reducedMotion ? 'none' : 'drop-shadow(0 2px 10px rgba(84,49,24,0.25))',
+                  color: '#543118',
                 }}
                 initial="hidden"
                 animate="show"
                 variants={lineVariant}
                 transition={lineTransition(0.18)}
               >
-                AI-Powered Dynamic Mental Health
+                Distress Modeling.
               </motion.span>
-
-              {/* Line 3 — solid dark, most delayed */}
               <motion.span
-                style={{ display: 'block', color: 'var(--ux4g-violet-950)' }}
+                style={{ display: 'block', color: '#1C1108' }}
                 initial="hidden"
                 animate="show"
                 variants={lineVariant}
                 transition={lineTransition(0.28)}
               >
-                Monitoring &amp; Distress Prediction
+                Human-First Care.
               </motion.span>
             </h1>
 
@@ -260,14 +286,15 @@ export const HeroSection = () => {
               initial="hidden" animate="show" variants={fadeUp}
               transition={{ duration: 0.6, delay: 0.2 }}
               style={{
-                fontSize: '1.04rem',
-                color: 'var(--ux4g-text-secondary)',
+                fontSize: '1.05rem',
+                color: '#543118',
                 lineHeight: '1.7',
                 marginBottom: '32px',
                 maxWidth: '540px',
+                fontFamily: '"Space Mono", "Courier Prime", monospace',
               }}
             >
-              A proactive, government-grade psychological support infrastructure built to identify escalating distress in victims of atrocities through consensual multimodal interactions, enabling timely human intervention and holistic rehabilitation.
+              A proactive psychological resilience platform combining paralinguistic acoustic modeling with certified clinical intervention — detecting longitudinal distress deviations and mobilizing rapid relief with zero automated penalties.
             </motion.p>
 
             {/* CTA buttons */}
@@ -288,7 +315,7 @@ export const HeroSection = () => {
                         : 'linear-gradient(90deg, #543118, #3E210E)',
                       color: '#FAF4EB',
                       border: '2px solid #2B180D',
-                      padding: '13px 26px', borderRadius: '6px',
+                      padding: '13px 26px', borderRadius: '8px',
                       fontSize: '0.92rem', fontWeight: 800, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: '8px',
                       boxShadow: btnHover === 'primary'
@@ -316,7 +343,7 @@ export const HeroSection = () => {
                         : 'linear-gradient(90deg, #543118, #3E210E)',
                       color: '#FAF4EB',
                       border: '2px solid #2B180D',
-                      padding: '13px 26px', borderRadius: '6px',
+                      padding: '13px 26px', borderRadius: '8px',
                       fontSize: '0.92rem', fontWeight: 800, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: '8px',
                       boxShadow: btnHover === 'primary'
@@ -329,7 +356,7 @@ export const HeroSection = () => {
                       fontFamily: '"Space Mono", "Courier Prime", monospace',
                     }}
                   >
-                    Sign In to Authorized Portal <ArrowRight size={18} />
+                    Access Care Portal <ArrowRight size={18} />
                   </button>
                 </Link>
               )}
@@ -339,15 +366,15 @@ export const HeroSection = () => {
                 onMouseEnter={() => setBtnHover('crisis')}
                 onMouseLeave={() => setBtnHover(null)}
                 onClick={() => openOffcanvas({
-                  title: 'AAROH Rapid Emergency Support',
-                  subtitle: '24x7 crisis intervention and victim helpline contacts',
+                  title: 'AAROH Rapid Support Safe-Line',
+                  subtitle: '24x7 crisis intervention and confidential support',
                   type: 'emergency',
                 })}
                 style={{
                   backgroundColor: btnHover === 'crisis' ? '#F8ECE7' : 'var(--ux4g-surface)',
                   color: 'var(--ux4g-danger)',
                   border: '2px solid var(--ux4g-danger)',
-                  padding: '13px 22px', borderRadius: '4px',
+                  padding: '13px 22px', borderRadius: '8px',
                   fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: '8px',
                   boxShadow: btnHover === 'crisis'
@@ -361,7 +388,7 @@ export const HeroSection = () => {
                 }}
               >
                 <PhoneCall size={16} color="var(--ux4g-danger)" />
-                Immediate Crisis Support
+                Crisis Support
               </button>
             </motion.div>
 
@@ -372,13 +399,13 @@ export const HeroSection = () => {
               style={{
                 display: 'flex', alignItems: 'center', gap: '7px',
                 fontSize: '0.82rem', color: 'var(--ux4g-text-muted)',
+                fontFamily: '"Space Mono", "Courier Prime", monospace',
               }}
             >
               <Lock size={13} />
               <span>
-                Restricted Government System.{' '}
-                <strong style={{ color: 'var(--ux4g-violet-700)' }}>No public registration.</strong>{' '}
-                Authorized sign-in only.
+                Authorized Clinical &amp; Case Management System.{' '}
+                <strong style={{ color: 'var(--ux4g-violet-700)' }}>Encrypted session credentials required.</strong>
               </span>
             </motion.div>
           </div>
