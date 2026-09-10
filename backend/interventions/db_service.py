@@ -27,11 +27,13 @@ from sqlalchemy import desc, func
 
 from backend.models import (
     Case,
+    CaseEvent,
     Prediction,
     Consent,
     DistressState,
     Intervention,
     Outcome,
+    Notification,
     TextFeature,
     Interaction,
 )
@@ -363,6 +365,40 @@ class DatabaseOperationalService:
                         "due_at": sla_record.due_at.isoformat(),
                         "district": case.district,
                     },
+                    db=db,
+                    auto_commit=auto_commit,
+                )
+
+                # Citizen-safe update for victim (no operational leaks)
+                notification_service.notify(
+                    recipient_role=NotificationRecipientRole.VICTIM,
+                    recipient_id=cid_str,
+                    notification_type=NotificationType.SUPPORT_UPDATE,
+                    title="AAROH Support Services Update",
+                    message="A support officer has been assigned to your case and will follow up with you through your preferred safe communication channel.",
+                    case_id=cid_str,
+                    intervention_id=new_intervention.id,
+                    db=db,
+                    auto_commit=auto_commit,
+                )
+
+            # High-Risk Case alert for URGENT / HIGH priority interventions
+            if decision.priority in (PriorityLevel.HIGH, PriorityLevel.URGENT):
+                notification_service.notify(
+                    recipient_role=NotificationRecipientRole.DISTRICT_OFFICIAL,
+                    recipient_id=assigned_to or f"DISTRICT-{case.district}",
+                    notification_type=NotificationType.HIGH_RISK_CASE,
+                    title=f"High-Risk Case Alert: {cid_str}",
+                    message=f"High-risk intervention '{decision.intervention_type.value}' generated for case {cid_str} (Priority: {decision.priority.value}, Escalation: {round(prob, 2)}). Immediate review required.",
+                    case_id=cid_str,
+                    intervention_id=new_intervention.id,
+                    metadata={
+                        "priority": decision.priority.value,
+                        "escalation_probability": prob,
+                        "district": case.district,
+                    },
+                    db=db,
+                    auto_commit=auto_commit,
                 )
 
             return {
@@ -504,6 +540,9 @@ class DatabaseOperationalService:
         officer_id: Optional[str] = None,
         officer_role: Optional[str] = None,
         officer_district: Optional[str] = None,
+        actor_id: Optional[str] = None,
+        actor_role: Optional[str] = None,
+        actor_district: Optional[str] = None,
         auto_commit: bool = True,
     ) -> Dict[str, Any]:
         """
@@ -516,6 +555,10 @@ class DatabaseOperationalService:
         if intervention_id is None:
             raise ValueError("intervention_id must be provided.")
 
+        effective_role = officer_role or actor_role
+        effective_officer_id = officer_id or actor_id
+        effective_district = officer_district or actor_district
+
         db, close_session = self._acquire_session(db)
 
         try:
@@ -525,8 +568,8 @@ class DatabaseOperationalService:
                 "STATE_AUTHORITY", "NATIONAL_OFFICIAL", "NATIONAL_AUTHORITY",
                 "ADMIN", "SYSTEM_SERVICE",
             }
-            if officer_role and officer_role.upper() not in ALLOWED_OFFICIAL_ROLES:
-                raise PermissionError(f"Access Denied: Role '{officer_role}' is not authorized to record outcomes.")
+            if effective_role and effective_role.upper() not in ALLOWED_OFFICIAL_ROLES:
+                raise PermissionError(f"Access Denied: Role '{effective_role}' is not authorized to record outcomes.")
 
             # Tolerant outcome resolution supporting synonyms and case-insensitivity
             try:
@@ -609,17 +652,38 @@ class DatabaseOperationalService:
                     message=f"Outcome '{out_enum.value}' recorded for intervention {interv.id}.",
                     case_id=case.case_id,
                     intervention_id=interv.id,
+                    outcome_id=outcome.id,
+                    db=db,
+                    auto_commit=auto_commit,
+                )
+
+            # Follow-up required notification if flagged
+            if follow_up_required:
+                notification_service.notify(
+                    recipient_role=NotificationRecipientRole.CASE_OFFICER,
+                    recipient_id=interv.assigned_to or f"OFFICER-{case.district}",
+                    notification_type=NotificationType.FOLLOW_UP_REQUIRED,
+                    title=f"Follow-up Required: {case.case_id}",
+                    message=f"Outcome '{out_enum.value}' indicates follow-up monitoring is required for case {case.case_id}. Scheduled follow-up action must be initiated.",
+                    case_id=case.case_id,
+                    intervention_id=interv.id,
+                    outcome_id=outcome.id,
+                    db=db,
+                    auto_commit=auto_commit,
                 )
 
             # Safe citizen notification for victim (no operational leaks)
             notification_service.notify(
                 recipient_role=NotificationRecipientRole.VICTIM,
-                recipient_id=f"VICTIM-{case.case_id}",
+                recipient_id=case.case_id,
                 notification_type=NotificationType.SUPPORT_UPDATE,
                 title="Support Services Update",
                 message="Your support case check-in has been successfully documented. Contact your case officer if you need further assistance.",
                 case_id=case.case_id,
                 intervention_id=interv.id,
+                outcome_id=outcome.id,
+                db=db,
+                auto_commit=auto_commit,
             )
 
             return {
@@ -831,6 +895,8 @@ class DatabaseOperationalService:
                 message=f"Intervention {interv.id} assigned to you by {actor_id} ({actor_role}).",
                 case_id=case.case_id,
                 intervention_id=interv.id,
+                db=db,
+                auto_commit=auto_commit,
             )
 
             return {
@@ -845,6 +911,88 @@ class DatabaseOperationalService:
                 "status": interv.status,
                 "district": case.district,
             }
+        finally:
+            if close_session:
+                db.close()
+
+    def check_and_notify_overdue_interventions(
+        self,
+        db: Optional[Session] = None,
+        auto_commit: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        Scans active, non-completed interventions for SLA breaches.
+        Dispatches INTERVENTION_OVERDUE notifications to assigned officers and district officials,
+        and logs SLA_BREACHED events.
+        """
+        db, close_session = self._acquire_session(db)
+        try:
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+            active_interventions = (
+                db.query(Intervention)
+                .filter(
+                    Intervention.status.notin_(["COMPLETED", "CANCELLED"]),
+                    Intervention.due_at.isnot(None),
+                    Intervention.due_at < now_utc,
+                )
+                .all()
+            )
+
+            overdue_list = []
+            for interv in active_interventions:
+                case = db.query(Case).filter(Case.id == interv.case_id).first()
+                cid_str = case.case_id if case else str(interv.case_id)
+                district = case.district if case else "Unknown"
+
+                # Log SLA_BREACHED event
+                db.add(CaseEvent(
+                    case_id=interv.case_id,
+                    event_type="SLA_BREACHED",
+                    event_date=now_utc,
+                    description=f"Intervention {interv.id} ({interv.intervention_type}) breached SLA deadline {interv.due_at.isoformat()}.",
+                    case_stage=case.current_stage if case else "MONITORING",
+                ))
+
+                # Notify assigned officer
+                if interv.assigned_to:
+                    notification_service.notify(
+                        recipient_role=NotificationRecipientRole.CASE_OFFICER,
+                        recipient_id=interv.assigned_to,
+                        notification_type=NotificationType.INTERVENTION_OVERDUE,
+                        title=f"Intervention Overdue: Case {cid_str}",
+                        message=f"Intervention {interv.id} ({interv.intervention_type}) is overdue. Target SLA deadline {interv.due_at.strftime('%Y-%m-%d %H:%M UTC')} was breached.",
+                        case_id=cid_str,
+                        intervention_id=interv.id,
+                        db=db,
+                        auto_commit=auto_commit,
+                    )
+
+                # Escalate / alert District Official
+                notification_service.notify(
+                    recipient_role=NotificationRecipientRole.DISTRICT_OFFICIAL,
+                    recipient_id=f"DISTRICT-{district}",
+                    notification_type=NotificationType.INTERVENTION_OVERDUE,
+                    title=f"SLA Breach Escalation: Case {cid_str}",
+                    message=f"Intervention {interv.id} in district {district} breached SLA deadline. Immediate supervisor intervention required.",
+                    case_id=cid_str,
+                    intervention_id=interv.id,
+                    db=db,
+                    auto_commit=auto_commit,
+                )
+
+                overdue_list.append({
+                    "intervention_id": interv.id,
+                    "case_id": cid_str,
+                    "district": district,
+                    "due_at": interv.due_at.isoformat(),
+                    "status": interv.status,
+                    "assigned_to": interv.assigned_to,
+                })
+
+            if auto_commit and active_interventions:
+                db.commit()
+
+            return overdue_list
         finally:
             if close_session:
                 db.close()

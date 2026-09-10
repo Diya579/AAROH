@@ -10,7 +10,8 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Index,
-    UniqueConstraint
+    UniqueConstraint,
+    func
 )
 
 from sqlalchemy.orm import relationship
@@ -394,3 +395,38 @@ class ModelVersion(Base):
     version = Column(String(50))
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    __table_args__ = (
+        Index(
+            "ix_notifications_recipient_user_id_created_at",
+            "recipient_user_id",
+            "created_at",
+        ),
+        Index(
+            "ix_notifications_recipient_role_is_read",
+            "recipient_role",
+            "is_read",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+
+    recipient_user_id = Column(String(100), nullable=False)
+    recipient_role = Column(String(50), nullable=False)
+
+    notification_type = Column(String(50), nullable=False)
+
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+
+    case_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=True)
+    intervention_id = Column(Integer, ForeignKey("interventions.id", ondelete="CASCADE"), nullable=True)
+    outcome_id = Column(Integer, ForeignKey("outcomes.id", ondelete="CASCADE"), nullable=True)
+
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    read_at = Column(DateTime, nullable=True)
