@@ -40,7 +40,7 @@ from backend.ml.training.models.fusion.model import (
 )
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Multimodal Feature Fusion Network (Slice 3.5)")
     parser.add_argument("--data-dir", type=str, default="datasets/processed", help="Processed datasets directory")
     parser.add_argument("--output-dir", type=str, default="models/multimodal_fusion", help="Export destination")
@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unfreeze-backbone", action="store_true", help="Unfreeze pretrained backbones for training")
     parser.add_argument("--fp16", action="store_true", help="Enable FP16 mixed precision on GPU")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1, help="Gradient accumulation steps")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def train_fusion_model(args: argparse.Namespace) -> Dict[str, Any]:
