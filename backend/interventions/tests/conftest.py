@@ -13,7 +13,13 @@ from sqlalchemy import create_engine, text
 from backend.interventions.notifications import notification_service
 
 
+_shared_engine = None
+
 def _get_pg_engine():
+    global _shared_engine
+    if _shared_engine is not None:
+        return _shared_engine
+    
     pg_url = os.environ.get("DATABASE_URL")
     if not pg_url or "sqlite" in pg_url:
         pg_url = "postgresql://postgres:root@localhost:5432/aaroh_db"
@@ -21,6 +27,7 @@ def _get_pg_engine():
         eng = create_engine(pg_url, pool_pre_ping=True)
         with eng.connect() as conn:
             pass
+        _shared_engine = eng
         return eng
     except Exception:
         return None
