@@ -1,0 +1,422 @@
+/* ==========================================================================
+   AAROH RETRO NEWSPAPER & CARDBOARD GAZETTE DESIGN SYSTEM
+   Inspired by Niccolò Miranda's tactile "Paper Portfolio" (niccolomiranda.com)
+   Featuring cardboard kraft hues, editorial typography, rubber ink stamps,
+   sketchy borders, and smooth kinetic motions.
+   ========================================================================== */
+
+:root {
+  /* Tactile Cardboard & Newsprint Palette */
+  --retro-bg-cardboard: #E8DEC8;       /* Primary warm cardboard kraft */
+  --retro-bg-cardboard-dark: #D8CCA8;  /* Aged packaging cardboard */
+  --retro-bg-paper: #F3EBDD;          /* Fresh newsprint paper */
+  --retro-bg-paper-light: #FAF5EB;    /* Highlighted parchment */
+  --retro-bg-paper-aged: #E4D8BE;     /* Sun-aged newspaper column */
+
+  /* Inks & Letterpress */
+  --retro-ink-black: #1A1715;         /* Deep printing press carbon ink */
+  --retro-ink-charcoal: #2E2A27;      /* Second-strike print ink */
+  --retro-ink-muted: #57514B;         /* Editorial body text / captions */
+  --retro-ink-faint: #877E74;         /* Datelines & secondary metadata */
+  --retro-border-rule: #1A1715;       /* Sharp newspaper column rules */
+  --retro-border-light: #BDB09B;      /* Subtle inner box dividers */
+
+  /* Stamp & Sealing Wax Accents */
+  --retro-stamp-red: #B91C1C;         /* Urgent / Critical rubber stamp ink */
+  --retro-stamp-red-bg: #FEF2F2;      /* Light washed red stamp fill */
+  --retro-stamp-green: #1E4731;       /* Safe / Verified postage ink */
+  --retro-stamp-green-bg: #F0FDF4;    /* Light washed green stamp fill */
+  --retro-stamp-amber: #B45309;       /* Pending SLA / Warning amber */
+  --retro-stamp-amber-bg: #FFFBEB;    /* Light amber wax fill */
+  --retro-stamp-blue: #1E3A8A;        /* Sovereign Legal / NALSA ink */
+  --retro-stamp-blue-bg: #EFF6FF;
+
+  /* Editorial Typography */
+  --retro-font-headline: 'Playfair Display', 'Fraunces', Georgia, serif;
+  --retro-font-serif: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --retro-font-mono: 'Space Mono', 'Courier Prime', Courier, monospace;
+  --retro-font-body: 'Noto Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Tactile Block Shadows */
+  --retro-shadow-sm: 2px 2px 0px var(--retro-ink-black);
+  --retro-shadow-md: 4px 4px 0px var(--retro-ink-black);
+  --retro-shadow-lg: 6px 6px 0px var(--retro-ink-black);
+  --retro-shadow-xl: 9px 9px 0px var(--retro-ink-black);
+  --retro-shadow-hover: 7px 7px 0px var(--retro-ink-black);
+}
+
+/* Base Gazette Viewport */
+.retro-gazette-wrapper {
+  background-color: var(--retro-bg-cardboard);
+  color: var(--retro-ink-black);
+  font-family: var(--retro-font-body);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  background-image: radial-gradient(#1A1715 0.45px, transparent 0.45px), radial-gradient(#1A1715 0.45px, var(--retro-bg-cardboard) 0.45px);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+}
+
+/* Paper Grain Texture Layer */
+.retro-grain-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Newspaper Masthead Layout */
+.retro-masthead {
+  border-bottom: 3px double var(--retro-ink-black);
+  background: var(--retro-bg-paper);
+  padding: 18px 24px 12px 24px;
+  position: relative;
+}
+
+.retro-masthead-dateline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1.5px solid var(--retro-ink-black);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  font-family: var(--retro-font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--retro-ink-charcoal);
+}
+
+.retro-masthead-title {
+  font-family: var(--retro-font-headline);
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  line-height: 0.95;
+  margin: 10px 0 14px 0;
+  color: var(--retro-ink-black);
+  text-shadow: 1px 1px 0px rgba(0,0,0,0.15);
+}
+
+.retro-masthead-subtitle {
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--retro-ink-muted);
+  border-top: 1px solid var(--retro-ink-black);
+  border-bottom: 1px solid var(--retro-ink-black);
+  padding: 6px 0;
+  margin-bottom: 10px;
+}
+
+/* Rubber Ink Stamps */
+.retro-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--retro-font-mono);
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 2px dashed currentColor;
+  border-radius: 2px;
+  transform: rotate(-2.5deg);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.retro-stamp:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
+.retro-stamp-urgent {
+  color: var(--retro-stamp-red);
+  border-color: var(--retro-stamp-red);
+  background-color: var(--retro-stamp-red-bg);
+  box-shadow: 2px 2px 0px var(--retro-stamp-red);
+}
+
+.retro-stamp-verified {
+  color: var(--retro-stamp-green);
+  border-color: var(--retro-stamp-green);
+  background-color: var(--retro-stamp-green-bg);
+  box-shadow: 2px 2px 0px var(--retro-stamp-green);
+}
+
+.retro-stamp-amber {
+  color: var(--retro-stamp-amber);
+  border-color: var(--retro-stamp-amber);
+  background-color: var(--retro-stamp-amber-bg);
+  box-shadow: 2px 2px 0px var(--retro-stamp-amber);
+}
+
+.retro-stamp-sovereign {
+  color: var(--retro-stamp-blue);
+  border-color: var(--retro-stamp-blue);
+  background-color: var(--retro-stamp-blue-bg);
+  box-shadow: 2px 2px 0px var(--retro-stamp-blue);
+}
+
+/* Tactile Cardboard Card */
+.retro-card {
+  background-color: var(--retro-bg-paper);
+  border: 2px solid var(--retro-ink-black);
+  box-shadow: var(--retro-shadow-md);
+  padding: 24px;
+  position: relative;
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.retro-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--retro-shadow-hover);
+}
+
+.retro-card-cardboard {
+  background-color: var(--retro-bg-cardboard-dark);
+  border: 2.5px solid var(--retro-ink-black);
+  box-shadow: var(--retro-shadow-md);
+}
+
+.retro-card-paper {
+  background-color: var(--retro-bg-paper-light);
+  border: 2px solid var(--retro-ink-black);
+  box-shadow: var(--retro-shadow-sm);
+}
+
+/* Perforated / Ticket Stub edges */
+.retro-perforated {
+  border: 2px dashed var(--retro-ink-black);
+  background: var(--retro-bg-paper);
+  position: relative;
+}
+
+/* Editorial Headlines & Typewriter Text */
+.retro-headline-lg {
+  font-family: var(--retro-font-headline);
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.08;
+  color: var(--retro-ink-black);
+  margin-bottom: 12px;
+}
+
+.retro-headline-md {
+  font-family: var(--retro-font-headline);
+  font-size: clamp(1.3rem, 2.2vw, 1.9rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--retro-ink-black);
+  margin-bottom: 8px;
+}
+
+.retro-typewriter {
+  font-family: var(--retro-font-mono);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--retro-ink-charcoal);
+}
+
+/* Drop Cap for newspaper columns */
+.retro-dropcap::first-letter {
+  font-family: var(--retro-font-headline);
+  float: left;
+  font-size: 3.8rem;
+  line-height: 0.8;
+  padding-top: 4px;
+  padding-right: 10px;
+  padding-bottom: 2px;
+  color: var(--retro-ink-black);
+  font-weight: 900;
+}
+
+/* Newspaper Column Dividers */
+.retro-columns-2 {
+  column-count: 2;
+  column-gap: 32px;
+  column-rule: 1px solid var(--retro-ink-black);
+}
+
+@media (max-width: 768px) {
+  .retro-columns-2 {
+    column-count: 1;
+    column-rule: none;
+  }
+}
+
+/* Tactile Buttons */
+.retro-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 20px;
+  border: 2px solid var(--retro-ink-black);
+  box-shadow: var(--retro-shadow-sm);
+  background-color: var(--retro-bg-paper-light);
+  color: var(--retro-ink-black);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+}
+
+.retro-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--retro-shadow-md);
+  background-color: #FFF;
+}
+
+.retro-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px var(--retro-ink-black);
+}
+
+.retro-btn-urgent {
+  background-color: var(--retro-stamp-red);
+  color: #FFF;
+  border-color: var(--retro-ink-black);
+}
+
+.retro-btn-urgent:hover {
+  background-color: #DC2626;
+  color: #FFF;
+}
+
+.retro-btn-forest {
+  background-color: var(--retro-stamp-green);
+  color: #FFF;
+  border-color: var(--retro-ink-black);
+}
+
+.retro-btn-forest:hover {
+  background-color: #166534;
+  color: #FFF;
+}
+
+/* Vintage Ticker Tape */
+.retro-ticker-tape {
+  background: var(--retro-ink-black);
+  color: var(--retro-bg-cardboard);
+  font-family: var(--retro-font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 8px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border-top: 2px solid var(--retro-ink-black);
+  border-bottom: 2px solid var(--retro-ink-black);
+}
+
+/* Floating Wax-Seal / Brass Edition Switcher */
+.retro-floating-seal {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  background-color: #8B2500;
+  color: #FDFBF7;
+  border: 3px double #FDE68A;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.35), 3px 3px 0px #1A1715;
+  border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: var(--retro-font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.retro-floating-seal:hover {
+  transform: scale(1.12) rotate(6deg);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.45), 5px 5px 0px #1A1715;
+}
+
+/* Clean Google Translate Overrides (Hiding standard invasive banner) */
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
+
+#goog-gt-tt, .goog-te-balloon-frame {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+.skiptranslate iframe {
+  display: none !important;
+}
+
+/* Custom Vintage Google Translate Dropdown */
+.retro-translate-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--retro-bg-paper-light);
+  border: 1.5px solid var(--retro-ink-black);
+  box-shadow: var(--retro-shadow-sm);
+  padding: 4px 10px;
+  font-family: var(--retro-font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.retro-translate-select {
+  background: transparent;
+  border: none;
+  font-family: var(--retro-font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--retro-ink-black);
+  cursor: pointer;
+  outline: none;
+}
+
+/* Vintage Horizontal Double Divider */
+.retro-rule-double {
+  height: 4px;
+  border-top: 1px solid var(--retro-ink-black);
+  border-bottom: 1px solid var(--retro-ink-black);
+  margin: 20px 0;
+}
+
+.retro-rule-dashed {
+  border: none;
+  border-top: 1.5px dashed var(--retro-ink-black);
+  margin: 20px 0;
+}
