@@ -78,6 +78,7 @@ def run_slice_3_7_verification() -> Dict[str, Any]:
         seed=42,
         smoke_test=True,
         unfreeze_backbone=False,
+        execution_mode="PYTORCH_FROZEN",
         fp16=False,
         history_window=10,
     )

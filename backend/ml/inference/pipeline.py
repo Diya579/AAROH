@@ -67,6 +67,7 @@ from backend.ml.inference.runner import (
     validate_trajectory_stage,
 )
 from backend.ml.training.models.audio_emotion.model import AudioEmotionModel
+from backend.ml.training.models.common import get_device
 from backend.ml.training.models.distress.dataset import (
     BEHAVIOURAL_COUNT,
     ENGAGEMENT_COUNT,
@@ -122,6 +123,7 @@ class MLInferencePipeline:
         self.registry = registry or ModelRegistry(base_dir=base_dir)
         self.cache = cache or InferenceCache()
         self.execution_mode = self.config.default_execution_mode
+        self.device = get_device()
         self._models_loaded: bool = False
         self._loaded_versions: Dict[str, str] = {}
         self._last_manifest: Optional[Dict[str, Any]] = None
@@ -251,7 +253,7 @@ class MLInferencePipeline:
             # Use load_from_artifact for robust offline loading from disk artifacts
             audio_m = AudioEmotionModel.load_from_artifact(
                 artifact_dir=audio_dir,
-                device="cuda" if self.execution_mode in NEURAL_EXECUTION_MODES else "cpu",
+                device=self.device if self.execution_mode in NEURAL_EXECUTION_MODES else "cpu",
             )
             self.audio_model = audio_m
             self.cache.put("model_audio", audio_m)
@@ -278,8 +280,14 @@ class MLInferencePipeline:
             self.registry.validate_metadata("distress", distress_meta, None)
             self._loaded_versions["distress"] = distress_meta.get("model_version", "aaroh-distress-v1")
 
-            distress_m = DynamicDistressModel(seed=self.config.seed, force_mode=self.execution_mode)
+            distress_m = DynamicDistressModel(
+                seed=self.config.seed,
+                force_mode=self.execution_mode,
+                device=self.device,
+            )
             distress_m.load_checkpoint(distress_dir / "weights")
+            if distress_m.torch_model is not None:
+                distress_m.torch_model.to(self.device)
             self.distress_model = distress_m
             self.cache.put("model_distress", distress_m)
             self.cache.put("meta_distress", distress_meta)
@@ -291,8 +299,14 @@ class MLInferencePipeline:
             self.registry.validate_metadata("trajectory", traj_meta, None)
             self._loaded_versions["trajectory"] = traj_meta.get("model_version", "aaroh-trajectory-v1")
 
-            traj_m = LongitudinalTrajectoryModel(seed=self.config.seed, force_mode=self.execution_mode)
+            traj_m = LongitudinalTrajectoryModel(
+                seed=self.config.seed,
+                force_mode=self.execution_mode,
+                device=self.device,
+            )
             traj_m.load_checkpoint(traj_dir / "weights")
+            if traj_m.torch_model is not None:
+                traj_m.torch_model.to(self.device)
             self.trajectory_model = traj_m
             self.cache.put("model_trajectory", traj_m)
             self.cache.put("meta_trajectory", traj_meta)
@@ -565,7 +579,7 @@ class MLInferencePipeline:
         # Step 1: Text Representation (Slice 3.3)
         with timer.measure("text"):
             if has_text and self.text_model is not None:
-                text_out = self.text_model.encode_and_predict([current_input.raw_text])
+                text_out = self.text_model.encode_and_predict([current_input.raw_text], device=self.device)
             else:
                 # Deterministic zero embedding and uniform emotion probabilities when text absent
                 text_out = {
@@ -582,7 +596,7 @@ class MLInferencePipeline:
             if has_audio and self.audio_model is not None:
                 # Format audio waveform
                 waveform = list(current_input.raw_audio) if isinstance(current_input.raw_audio, (list, tuple)) else [0.0] * 16000
-                audio_out = self.audio_model.encode_and_predict([waveform])
+                audio_out = self.audio_model.encode_and_predict([waveform], device=self.device)
             else:
                 # Deterministic zero embedding and uniform emotion probabilities when audio absent
                 audio_out = {

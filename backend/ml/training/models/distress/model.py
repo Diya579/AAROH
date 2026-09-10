@@ -690,10 +690,30 @@ class DynamicDistressModel:
     def load_checkpoint(self, path: Union[str, Path]) -> Dict[str, Any]:
         """Reloads checkpoint weights into model, reading thresholds from config when available."""
         in_path = Path(path)
-        with open(in_path, "r", encoding="utf-8") as f:
-            state = json.load(f)
+        try:
+            import torch
+
+            state = torch.load(in_path, map_location="cpu", weights_only=True)
+        except Exception:
+            with open(in_path, "r", encoding="utf-8") as f:
+                state = json.load(f)
 
         self.model_version = state.get("model_version", self.model_version)
+
+        if "model_state_dict" in state:
+            if self.transformer_model is None:
+                if not self.is_torch_available:
+                    raise NeuralExecutionError(
+                        "Cannot load neural distress checkpoint without PyTorch."
+                    )
+                self.execution_mode = EXECUTION_MODE_PYTORCH_FROZEN
+                self._init_transformer_model()
+            self.transformer_model.load_state_dict(state["model_state_dict"])
+            self.transformer_model.to(self.device).eval()
+            return {
+                "epoch": state.get("epoch", 1),
+                "metrics": state.get("metrics", {}),
+            }
 
         # Check for adjacent versioned config.json (new) or legacy thresholds.json
         parent_dir = in_path.parent

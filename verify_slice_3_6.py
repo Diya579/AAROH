@@ -81,6 +81,9 @@ def run_slice_3_6_verification() -> Dict[str, Any]:
         seed=42,
         smoke_test=True,
         unfreeze_backbone=False,
+        execution_mode="PYTORCH_FROZEN",
+        model_name="distilbert-base-multilingual-cased",
+        max_length=128,
         fp16=False,
         gradient_accumulation_steps=1,
     )

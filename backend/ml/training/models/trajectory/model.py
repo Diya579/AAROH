@@ -652,6 +652,11 @@ class LongitudinalTrajectoryModel:
 
         self.model_version = state.get("model_version", self.model_version)
         self.history_window = state.get("history_window", self.history_window)
+        if "model_state_dict" in state and self.torch_model is None:
+            checkpoint_mode = state.get("execution_mode")
+            if checkpoint_mode in (EXECUTION_MODE_PYTORCH_FROZEN, EXECUTION_MODE_PYTORCH_FINETUNE):
+                self.execution_mode = checkpoint_mode
+                self._init_pytorch_model()
         if self.torch_model is not None and "model_state_dict" in state:
             self.torch_model.load_state_dict(state["model_state_dict"])
             self.torch_model.to(self.device).eval()
