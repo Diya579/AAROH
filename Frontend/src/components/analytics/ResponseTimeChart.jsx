@@ -4,10 +4,10 @@ import { UX4GCard } from '../common/UX4GCard';
 
 export const ResponseTimeChart = ({
   slaTiers = [
-    { label: '≤ 2 Hours (Emergency SLA)', count: 3, compliance: '100%', color: '#B91C1C', maxTime: '2h' },
-    { label: '2–4 Hours (Urgent SLA)', count: 8, compliance: '98.5%', color: '#DC2626', maxTime: '4h' },
-    { label: '4–24 Hours (Standard SLA)', count: 38, compliance: '99.2%', color: '#6D34EC', maxTime: '24h' },
-    { label: '> 24 Hours (Routine Maintenance)', count: 96, compliance: '100%', color: '#059669', maxTime: '72h' },
+    { label: '≤ 2 Hours (Emergency SLA)', count: 3, compliance: '100%', color: '#822710', maxTime: '2h' },
+    { label: '2–4 Hours (Urgent SLA)', count: 8, compliance: '98.5%', color: '#A84824', maxTime: '4h' },
+    { label: '4–24 Hours (Standard SLA)', count: 38, compliance: '99.2%', color: '#8C6240', maxTime: '24h' },
+    { label: '> 24 Hours (Routine Maintenance)', count: 96, compliance: '100%', color: '#443F24', maxTime: '72h' },
   ],
   overallCompliance = '98.6%',
   avgResponseHours = '1.4 hrs',

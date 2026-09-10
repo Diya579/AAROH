@@ -49,7 +49,7 @@ export const LongitudinalTrendChart = ({
         </div>
         <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
           <span style={{ color: 'var(--ux4g-violet-700)' }}>● Cohort Mean</span>
-          <span style={{ color: '#64748B' }}>--- Calibrated Baseline ({baselineValue})</span>
+          <span style={{ color: 'var(--ux4g-text-muted)' }}>--- Calibrated Baseline ({baselineValue})</span>
         </div>
       </div>
 
@@ -57,8 +57,8 @@ export const LongitudinalTrendChart = ({
         <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
           <defs>
             <linearGradient id="longitudinalGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6D34EC" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#6D34EC" stopOpacity="0.01" />
+              <stop offset="0%" stopColor="#543118" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#543118" stopOpacity="0.01" />
             </linearGradient>
           </defs>
 
@@ -82,7 +82,7 @@ export const LongitudinalTrendChart = ({
             y1={baselineY}
             x2={width - padding}
             y2={baselineY}
-            stroke="#64748B"
+            stroke="var(--ux4g-text-muted)"
             strokeDasharray="6 4"
             strokeWidth="1.5"
           />
@@ -111,7 +111,7 @@ export const LongitudinalTrendChart = ({
                   cy={cy}
                   r="4.5"
                   fill="var(--ux4g-violet-700)"
-                  stroke="#FFFFFF"
+                  stroke="var(--ux4g-surface)"
                   strokeWidth="2"
                 />
                 <text

@@ -22,14 +22,14 @@
   --retro-border-light: #BDB09B;      /* Subtle inner box dividers */
 
   /* Stamp & Sealing Wax Accents */
-  --retro-stamp-red: #B91C1C;         /* Urgent / Critical rubber stamp ink */
-  --retro-stamp-red-bg: #FEF2F2;      /* Light washed red stamp fill */
-  --retro-stamp-green: #1E4731;       /* Safe / Verified postage ink */
-  --retro-stamp-green-bg: #F0FDF4;    /* Light washed green stamp fill */
-  --retro-stamp-amber: #B45309;       /* Pending SLA / Warning amber */
-  --retro-stamp-amber-bg: #FFFBEB;    /* Light amber wax fill */
-  --retro-stamp-blue: #1E3A8A;        /* Sovereign Legal / NALSA ink */
-  --retro-stamp-blue-bg: #EFF6FF;
+  --retro-stamp-red: #822710;         /* Urgent / Critical rust mahogany ink */
+  --retro-stamp-red-bg: #F5EBE7;      /* Light washed rust stamp fill */
+  --retro-stamp-green: #443F24;       /* Safe / Verified olive umber ink */
+  --retro-stamp-green-bg: #ECEAE0;    /* Light washed olive stamp fill */
+  --retro-stamp-amber: #9C631B;       /* Pending SLA / Warning bronze ochre */
+  --retro-stamp-amber-bg: #F5EFE4;    /* Light amber parchment wax fill */
+  --retro-stamp-blue: #543118;        /* Deep saddle espresso stamp ink */
+  --retro-stamp-blue-bg: #EFE7DB;     /* Light cardboard tint */
 
   /* Editorial Typography */
   --retro-font-headline: 'Playfair Display', 'Fraunces', Georgia, serif;
@@ -283,7 +283,7 @@
 .retro-btn:hover {
   transform: translate(-2px, -2px);
   box-shadow: var(--retro-shadow-md);
-  background-color: #FFF;
+  background-color: var(--retro-bg-paper-light);
 }
 
 .retro-btn:active {
@@ -298,7 +298,7 @@
 }
 
 .retro-btn-urgent:hover {
-  background-color: #DC2626;
+  background-color: #6C1E0A;
   color: #FFF;
 }
 
@@ -309,7 +309,7 @@
 }
 
 .retro-btn-forest:hover {
-  background-color: #166534;
+  background-color: #35311A;
   color: #FFF;
 }
 
@@ -334,9 +334,9 @@
   bottom: 24px;
   right: 24px;
   z-index: 1000;
-  background-color: #8B2500;
+  background-color: #543118;
   color: #FDFBF7;
-  border: 3px double #FDE68A;
+  border: 3px double #CDB397;
   box-shadow: 0 4px 15px rgba(0,0,0,0.35), 3px 3px 0px #1A1715;
   border-radius: 50%;
   width: 72px;

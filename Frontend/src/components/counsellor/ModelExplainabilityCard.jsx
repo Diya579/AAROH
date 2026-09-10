@@ -23,7 +23,7 @@ export const ModelExplainabilityCard = ({ factors = [], confidence = '89%', pred
         <span className="ux4g-badge ux4g-badge-primary">Transparent Factors</span>
       </div>
 
-      <div style={{ padding: '10px 14px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', fontSize: '0.825rem', color: '#92400E' }}>
+      <div style={{ padding: '10px 14px', backgroundColor: 'var(--ux4g-saffron-bg)', border: '1px solid var(--ux4g-saffron-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', fontSize: '0.825rem', color: 'var(--ux4g-saffron)' }}>
         <AlertTriangle size={16} style={{ flexShrink: 0 }} />
         <span>
           <strong>Clinical Note:</strong> Algorithmic factors are non-binding. Final triage decisions must be validated by the certified human psychologist.

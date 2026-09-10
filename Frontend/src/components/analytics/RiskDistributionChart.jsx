@@ -4,10 +4,10 @@ import { UX4GCard } from '../common/UX4GCard';
 
 export const RiskDistributionChart = ({
   data = [
-    { label: 'Critical', count: 3, percentage: '2.1%', color: '#B91C1C' },
-    { label: 'High', count: 8, percentage: '5.6%', color: '#DC2626' },
-    { label: 'Medium', count: 54, percentage: '38.0%', color: '#D97706' },
-    { label: 'Low', count: 77, percentage: '54.2%', color: '#059669' },
+    { label: 'Critical', count: 3, percentage: '2.1%', color: '#822710' },
+    { label: 'High', count: 8, percentage: '5.6%', color: '#A84824' },
+    { label: 'Medium', count: 54, percentage: '38.0%', color: '#9C631B' },
+    { label: 'Low', count: 77, percentage: '54.2%', color: '#443F24' },
   ],
   title = 'Algorithmic Risk Distribution',
   subtitle = 'De-identified active cohort triage distribution',

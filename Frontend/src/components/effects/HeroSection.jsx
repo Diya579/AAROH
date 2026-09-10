@@ -15,19 +15,19 @@ const OperationalCardContent = () => {
   const features = [
     {
       icon: <Brain size={20} />,
-      bg: 'rgba(109,40,217,0.08)', color: '#7C3AED',
+      bg: 'rgba(84,49,24,0.1)', color: '#543118',
       title: 'AI Distress Modeling',
       desc: 'Multimodal speech & linguistic feature analysis with individualized baseline deviation scoring.',
     },
     {
       icon: <HeartHandshake size={20} />,
-      bg: 'rgba(5,150,105,0.08)', color: '#059669',
+      bg: 'rgba(68,63,36,0.12)', color: '#443F24',
       title: 'Human-Centered Care',
       desc: 'Certified clinical counsellors and district social justice authorities take all final care actions.',
     },
     {
       icon: <Shield size={20} />,
-      bg: 'rgba(245,158,11,0.08)', color: '#D97706',
+      bg: 'rgba(162,104,41,0.12)', color: '#804F18',
       title: 'SLA-Bound Interventions',
       desc: 'Transparent escalation routing across District, State, and National tiers with strict audit logging.',
     },
@@ -44,22 +44,25 @@ const OperationalCardContent = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{
             width: '9px', height: '9px', borderRadius: '50%',
-            backgroundColor: '#22C55E',
-            boxShadow: '0 0 0 2px rgba(34,197,94,0.2)',
+            backgroundColor: '#8C6240',
+            boxShadow: '0 0 0 2px rgba(140,98,64,0.25)',
           }} />
           <span style={{
-            fontSize: '0.8rem', fontWeight: 700,
+            fontSize: '0.8rem', fontWeight: 800,
             color: 'var(--ux4g-violet-950)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
+            fontFamily: '"Space Mono", "Courier Prime", monospace',
           }}>
             Operational Framework
           </span>
         </div>
         <span style={{
           fontSize: '0.68rem', fontWeight: 800,
-          background: '#EDE9FE', color: '#5B21B6',
-          padding: '2px 9px', borderRadius: '999px',
+          background: '#E4CFB8', color: '#3E210E',
+          border: '1px solid #AB8867',
+          padding: '2px 9px', borderRadius: '4px',
           letterSpacing: '0.06em',
+          fontFamily: '"Space Mono", "Courier Prime", monospace',
         }}>
           LIVE
         </span>
@@ -138,25 +141,25 @@ export const HeroSection = () => {
   return (
     <section
       style={{
-        background: 'linear-gradient(180deg, #F3EFFE 0%, #F8F9FE 100%)',
+        background: 'linear-gradient(180deg, #E6DAC9 0%, #F4ECE0 100%)',
         padding: '64px 0 60px',
-        borderBottom: '1px solid var(--ux4g-border)',
+        borderBottom: '2px solid #3A2312',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Subtle decorative glow blobs (light) */}
+      {/* Subtle decorative glow blobs (warm sepia) */}
       <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         <div style={{
           position: 'absolute', top: '-120px', right: '-80px',
           width: '480px', height: '480px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(140,98,64,0.15) 0%, transparent 70%)',
           filter: 'blur(30px)',
         }} />
         <div style={{
           position: 'absolute', bottom: '-80px', left: '-60px',
           width: '320px', height: '320px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(109,40,217,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(84,49,24,0.12) 0%, transparent 70%)',
           filter: 'blur(40px)',
         }} />
       </div>
@@ -204,12 +207,12 @@ export const HeroSection = () => {
           <div>
             {/* Pop headline — 3 individually staggered lines */}
             <h1 style={{
-              fontSize: 'clamp(2.3rem, 4.6vw, 3.5rem)',
+              fontSize: 'clamp(2.3rem, 4.6vw, 3.8rem)',
               fontWeight: 900,
-              lineHeight: '1.1',
-              letterSpacing: '-0.03em',
+              lineHeight: '1.08',
+              letterSpacing: '-0.02em',
               marginBottom: '20px',
-              fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+              fontFamily: '"Fraunces", "Playfair Display", Georgia, serif',
               overflow: 'hidden',
             }}>
               {/* Line 1 — scale + translateY pop */}
@@ -227,11 +230,11 @@ export const HeroSection = () => {
               <motion.span
                 style={{
                   display: 'block',
-                  background: 'linear-gradient(92deg, #6D28D9 0%, #7C3AED 40%, #4F46E5 80%)',
+                  background: 'linear-gradient(92deg, #543118 0%, #8C6240 50%, #3E210E 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: reducedMotion ? 'none' : 'drop-shadow(0 2px 14px rgba(109,40,217,0.2))',
+                  filter: reducedMotion ? 'none' : 'drop-shadow(0 2px 10px rgba(84,49,24,0.25))',
                 }}
                 initial="hidden"
                 animate="show"
@@ -281,20 +284,21 @@ export const HeroSection = () => {
                     onMouseLeave={() => setBtnHover(null)}
                     style={{
                       background: btnHover === 'primary'
-                        ? 'linear-gradient(90deg, #7C3AED, #6D28D9)'
-                        : 'linear-gradient(90deg, #6D28D9, #5B21B6)',
-                      color: '#fff',
-                      border: btnHover === 'primary'
-                        ? '1.5px solid rgba(109,40,217,0.7)'
-                        : '1.5px solid rgba(109,40,217,0.4)',
-                      padding: '13px 26px', borderRadius: '12px',
-                      fontSize: '0.97rem', fontWeight: 700, cursor: 'pointer',
+                        ? 'linear-gradient(90deg, #734828, #543118)'
+                        : 'linear-gradient(90deg, #543118, #3E210E)',
+                      color: '#FAF4EB',
+                      border: '2px solid #2B180D',
+                      padding: '13px 26px', borderRadius: '6px',
+                      fontSize: '0.92rem', fontWeight: 800, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: '8px',
                       boxShadow: btnHover === 'primary'
-                        ? '0 8px 30px -8px rgba(109,40,217,0.55)'
-                        : '0 4px 14px -4px rgba(109,40,217,0.35)',
-                      transform: btnHover === 'primary' ? 'translateY(-2px)' : 'translateY(0)',
-                      transition: 'all 0.22s ease',
+                        ? '5px 5px 0px #2B180D'
+                        : '3px 3px 0px #2B180D',
+                      transform: btnHover === 'primary' ? 'translate(-2px, -2px)' : 'none',
+                      transition: 'all 0.18s ease',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      fontFamily: '"Space Mono", "Courier Prime", monospace',
                     }}
                   >
                     Go to {currentUser.role} Portal <ArrowRight size={18} />
@@ -308,20 +312,21 @@ export const HeroSection = () => {
                     onMouseLeave={() => setBtnHover(null)}
                     style={{
                       background: btnHover === 'primary'
-                        ? 'linear-gradient(90deg, #7C3AED, #6D28D9)'
-                        : 'linear-gradient(90deg, #6D28D9, #5B21B6)',
-                      color: '#fff',
-                      border: btnHover === 'primary'
-                        ? '1.5px solid rgba(109,40,217,0.7)'
-                        : '1.5px solid rgba(109,40,217,0.4)',
-                      padding: '13px 26px', borderRadius: '12px',
-                      fontSize: '0.97rem', fontWeight: 700, cursor: 'pointer',
+                        ? 'linear-gradient(90deg, #734828, #543118)'
+                        : 'linear-gradient(90deg, #543118, #3E210E)',
+                      color: '#FAF4EB',
+                      border: '2px solid #2B180D',
+                      padding: '13px 26px', borderRadius: '6px',
+                      fontSize: '0.92rem', fontWeight: 800, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: '8px',
                       boxShadow: btnHover === 'primary'
-                        ? '0 8px 30px -8px rgba(109,40,217,0.55)'
-                        : '0 4px 14px -4px rgba(109,40,217,0.35)',
-                      transform: btnHover === 'primary' ? 'translateY(-2px)' : 'translateY(0)',
-                      transition: 'all 0.22s ease',
+                        ? '5px 5px 0px #2B180D'
+                        : '3px 3px 0px #2B180D',
+                      transform: btnHover === 'primary' ? 'translate(-2px, -2px)' : 'none',
+                      transition: 'all 0.18s ease',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      fontFamily: '"Space Mono", "Courier Prime", monospace',
                     }}
                   >
                     Sign In to Authorized Portal <ArrowRight size={18} />
@@ -339,22 +344,23 @@ export const HeroSection = () => {
                   type: 'emergency',
                 })}
                 style={{
-                  backgroundColor: btnHover === 'crisis' ? '#FEF2F2' : 'var(--ux4g-surface)',
-                  color: btnHover === 'crisis' ? '#B91C1C' : 'var(--ux4g-violet-900)',
-                  border: btnHover === 'crisis'
-                    ? '1.5px solid rgba(185,28,28,0.35)'
-                    : '1.5px solid var(--ux4g-violet-300)',
-                  padding: '13px 22px', borderRadius: '12px',
-                  fontSize: '0.97rem', fontWeight: 600, cursor: 'pointer',
+                  backgroundColor: btnHover === 'crisis' ? '#F8ECE7' : 'var(--ux4g-surface)',
+                  color: 'var(--ux4g-danger)',
+                  border: '2px solid var(--ux4g-danger)',
+                  padding: '13px 22px', borderRadius: '4px',
+                  fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: '8px',
                   boxShadow: btnHover === 'crisis'
-                    ? '0 4px 20px -4px rgba(239,68,68,0.2)'
-                    : 'var(--elevation-1)',
-                  transform: btnHover === 'crisis' ? 'translateY(-2px)' : 'translateY(0)',
-                  transition: 'all 0.22s ease',
+                    ? '5px 5px 0px var(--ux4g-danger)'
+                    : '3px 3px 0px var(--ux4g-danger)',
+                  transform: btnHover === 'crisis' ? 'translate(-2px, -2px)' : 'none',
+                  transition: 'all 0.15s ease',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontFamily: '"Space Mono", "Courier Prime", monospace',
                 }}
               >
-                <PhoneCall size={18} color={btnHover === 'crisis' ? '#DC2626' : 'var(--ux4g-danger)'} />
+                <PhoneCall size={16} color="var(--ux4g-danger)" />
                 Immediate Crisis Support
               </button>
             </motion.div>

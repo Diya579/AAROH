@@ -191,7 +191,7 @@ export const VictimDashboard = () => {
             {isVoice ? (
               <Mic size={14} color="var(--ux4g-violet-700)" />
             ) : (
-              <MessageSquare size={14} color="#0284C7" />
+              <MessageSquare size={14} color="var(--ux4g-violet-700)" />
             )}
             <span>{isVoice ? 'Voice Audio' : 'Written Form'}</span>
           </div>
@@ -202,7 +202,7 @@ export const VictimDashboard = () => {
       header: 'Security Status',
       key: 'status',
       render: (_, row) => (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#15803D', fontSize: '0.8rem', fontWeight: 500 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--ux4g-success-text)', fontSize: '0.8rem', fontWeight: 600 }}>
           <CheckCircle2 size={13} />
           <span>Encrypted</span>
         </div>
@@ -225,7 +225,7 @@ export const VictimDashboard = () => {
           {/* 1. Formal Care & Daily Check-In Action Center */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--ux4g-surface)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--ux4g-border)',
               padding: '20px 24px',
@@ -271,7 +271,7 @@ export const VictimDashboard = () => {
                     padding: '6px 12px',
                     borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--ux4g-border)',
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: 'var(--ux4g-surface)',
                     color: 'var(--ux4g-text-primary)',
                     fontSize: '0.8rem',
                     fontWeight: 500,
@@ -354,7 +354,7 @@ export const VictimDashboard = () => {
           {/* 2. Statutory Multi-Agency Support Strip (Clean 4-Column Bar) */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--ux4g-surface)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--ux4g-border)',
               padding: '16px 20px',
@@ -451,69 +451,64 @@ export const VictimDashboard = () => {
       {activeTab === 'checkin' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* Active Safe Window Header */}
-          <div style={{ backgroundColor: '#F5F3FF', border: '1.5px solid var(--ux4g-violet-300)', borderRadius: 'var(--radius-md)', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-violet-100)', border: '2px solid #3A2312', boxShadow: '3px 3px 0px #3A2312', borderRadius: 'var(--radius-md)', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span className="ux4g-badge ux4g-badge-low" style={{ background: '#DCFCE7', color: '#166534' }}>
+                <span className="ux4g-badge ux4g-badge-low">
                   <CheckCircle2 size={13} /> Safe Window Active Now
                 </span>
-                <span style={{ fontSize: '0.82rem', color: 'var(--ux4g-violet-800)', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--ux4g-violet-800)', fontWeight: 700 }}>
                   17:00 – 19:00 IST • DPDP Consent Verified
                 </span>
               </div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--ux4g-violet-950)' }}>
                 Multimodal Psychological Check-In Console
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-text-secondary)', maxWidth: '640px', marginTop: '4px' }}>
-                As mandated under the AAROH protocol, check-ins are strictly consensual. Choose either spoken voice audio or written response. All data is processed via Diya's secure voice/ASR pipeline with end-to-end encryption.
+              <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-text-secondary)', marginTop: '2px' }}>
+                Submit your encrypted, self-paced check-in via spoken voice or confidential text form.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <UX4GButton variant="primary" size="md" icon={Mic} onClick={() => setVoiceModalOpen(true)}>
-                Start Voice Recording
-              </UX4GButton>
-              <UX4GButton variant="outline" size="md" icon={MessageSquare} onClick={() => setTextModalOpen(true)}>
-                Open Written Form
-              </UX4GButton>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-muted)' }}>Assigned Nodal Officer</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
+                  South Delhi District Cell
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Multimodal Options Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '22px' }}>
-            {/* Voice Check-in Card */}
+          {/* Dual Check-in Modalities Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '22px' }}>
+            {/* Spoken Voice Check-in Card */}
             <UX4GCard elevation={1} padding="24px">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'var(--ux4g-violet-50)', color: 'var(--ux4g-violet-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '6px', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-800)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Mic size={24} />
                 </div>
                 <div>
                   <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
-                    Spoken Voice Interaction (ASR Pipeline)
+                    Spoken Voice Check-In
                   </h4>
                   <p style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-muted)' }}>
-                    Recommended • Safe spoken check-in (Hindi, English & Regional)
+                    Primary Modality • 22 Scheduled Indian Languages
                   </p>
                 </div>
               </div>
 
               <div style={{ backgroundColor: 'var(--ux4g-bg)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border-subtle)', marginBottom: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '0.82rem' }}>
-                  <span style={{ color: 'var(--ux4g-text-secondary)' }}>Microphone Status:</span>
-                  <span style={{ color: 'var(--ux4g-success)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle2 size={13} /> Permission Granted
-                  </span>
+                  <span style={{ color: 'var(--ux4g-text-secondary)' }}>Audio Encryption:</span>
+                  <span style={{ color: 'var(--ux4g-success-text)', fontWeight: 700 }}>AES-256 GCM (At Rest)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '0.82rem' }}>
-                  <span style={{ color: 'var(--ux4g-text-secondary)' }}>Workflow Architecture:</span>
-                  <span style={{ color: 'var(--ux4g-violet-900)', fontWeight: 600 }}>
-                    Record → Review → Submit → Process
-                  </span>
+                  <span style={{ color: 'var(--ux4g-text-secondary)' }}>Acoustic Processing:</span>
+                  <span style={{ color: 'var(--ux4g-violet-900)', fontWeight: 600 }}>Sovereign Indian Server</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
-                  <span style={{ color: 'var(--ux4g-text-secondary)' }}>Data Privacy:</span>
-                  <span style={{ color: 'var(--ux4g-violet-700)', fontWeight: 600 }}>
-                    Encrypted Biometric Cold Storage
-                  </span>
+                  <span style={{ color: 'var(--ux4g-text-secondary)' }}>Target Duration:</span>
+                  <span style={{ color: 'var(--ux4g-violet-700)', fontWeight: 600 }}>60 – 120 seconds</span>
                 </div>
               </div>
 
@@ -525,7 +520,7 @@ export const VictimDashboard = () => {
             {/* Written Text Check-in Card */}
             <UX4GCard elevation={1} padding="24px">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '6px', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-800)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <MessageSquare size={24} />
                 </div>
                 <div>
@@ -541,7 +536,7 @@ export const VictimDashboard = () => {
               <div style={{ backgroundColor: 'var(--ux4g-bg)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border-subtle)', marginBottom: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '0.82rem' }}>
                   <span style={{ color: 'var(--ux4g-text-secondary)' }}>Linguistic Parser:</span>
-                  <span style={{ color: 'var(--ux4g-success)', fontWeight: 600 }}>Ready (Hindi &amp; English)</span>
+                  <span style={{ color: 'var(--ux4g-success-text)', fontWeight: 700 }}>Ready (Hindi &amp; English)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '0.82rem' }}>
                   <span style={{ color: 'var(--ux4g-text-secondary)' }}>Estimated Time:</span>
@@ -586,14 +581,14 @@ export const VictimDashboard = () => {
       {activeTab === 'consent' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {saveSuccess && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1.5px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success-text)', fontWeight: 700 }}>
               <CheckCircle2 size={18} />
               <span>Preferences and DPDP Act 2023 consents have been securely updated and cryptographically recorded.</span>
             </div>
           )}
 
           {/* DPDP Header Banner */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid var(--ux4g-border)', borderRadius: 'var(--radius-md)', padding: '22px 26px', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', border: '2px solid #3A2312', boxShadow: 'var(--elevation-2)', borderRadius: 'var(--radius-md)', padding: '22px 26px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -694,7 +689,7 @@ export const VictimDashboard = () => {
                   <select
                     value={preferences.safeChannel}
                     onChange={(e) => setPreferences({ ...preferences, safeChannel: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ux4g-border)', fontSize: '0.88rem', backgroundColor: '#FFFFFF' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ux4g-border)', fontSize: '0.88rem', backgroundColor: 'var(--ux4g-surface)' }}
                   >
                     <option value="voice_telemanas">In-App Web Portal Only (Most Confidential)</option>
                     <option value="sms_encrypted">Encrypted SMS (Pre-approved text alerts)</option>
@@ -712,7 +707,7 @@ export const VictimDashboard = () => {
                   <select
                     value={preferences.safeTimeSlot}
                     onChange={(e) => setPreferences({ ...preferences, safeTimeSlot: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ux4g-border)', fontSize: '0.88rem', backgroundColor: '#FFFFFF' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ux4g-border)', fontSize: '0.88rem', backgroundColor: 'var(--ux4g-surface)' }}
                   >
                     <option value="17:00-19:00">17:00 – 19:00 IST (Evening Safe Window - Active)</option>
                     <option value="10:00-12:00">10:00 – 12:00 IST (Morning Safe Window)</option>
@@ -724,7 +719,7 @@ export const VictimDashboard = () => {
                 </div>
 
                 {/* DPDP Statutory Rights Box */}
-                <div style={{ backgroundColor: '#F5F3FF', border: '1px solid var(--ux4g-violet-200)', borderRadius: 'var(--radius-sm)', padding: '12px 14px' }}>
+                <div style={{ backgroundColor: 'var(--ux4g-violet-100)', border: '1.5px solid #3A2312', borderRadius: 'var(--radius-sm)', padding: '12px 14px' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '4px' }}>
                     Statutory Data Principal Rights:
                   </div>
@@ -746,7 +741,7 @@ export const VictimDashboard = () => {
       {activeTab === 'support' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* Top Support Banner */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid var(--ux4g-border)', borderRadius: 'var(--radius-md)', padding: '22px 26px', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', border: '1px solid var(--ux4g-border)', borderRadius: 'var(--radius-md)', padding: '22px 26px', boxShadow: 'var(--elevation-1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
               <div>
                 <span className="ux4g-badge ux4g-badge-low" style={{ marginBottom: '6px' }}>
@@ -863,10 +858,10 @@ export const VictimDashboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--ux4g-success-bg)', border: '1px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-sm)' }}>
                     <div>
-                      <strong style={{ fontSize: '0.82rem', color: '#065F46' }}>Stage 1: ₹1,50,000 (Interim)</strong>
-                      <div style={{ fontSize: '0.72rem', color: '#047857' }}>Direct DBT Aadhaar transfer completed</div>
+                      <strong style={{ fontSize: '0.82rem', color: 'var(--ux4g-success-text)' }}>Stage 1: ₹1,50,000 (Interim)</strong>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--ux4g-text-secondary)' }}>Direct DBT Aadhaar transfer completed</div>
                     </div>
                     <span className="ux4g-badge ux4g-badge-low" style={{ fontSize: '0.68rem' }}>Disbursed</span>
                   </div>
@@ -970,8 +965,9 @@ export const VictimDashboard = () => {
                 style={{
                   padding: '14px',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: n.read ? '#FAFAFA' : '#F5F3FF',
-                  border: n.read ? '1px solid var(--ux4g-border)' : '1.5px solid var(--ux4g-violet-300)',
+                  backgroundColor: n.read ? 'var(--ux4g-surface)' : 'var(--ux4g-violet-100)',
+                  border: n.read ? '1.5px solid #3A2312' : '2px solid #3A2312',
+                  boxShadow: n.read ? '2px 2px 0px #3A2312' : '3px 3px 0px #3A2312',
                   position: 'relative',
                 }}
               >

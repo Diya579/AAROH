@@ -329,7 +329,7 @@ export const NationalDashboard = () => {
       {activeTab === 'states' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* 3-Tier Breadcrumb Navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', backgroundColor: '#F5F3FF', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-violet-300)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', backgroundColor: 'var(--ux4g-violet-100)', borderRadius: 'var(--radius-md)', border: '1.5px solid #3A2312', boxShadow: '2px 2px 0px #3A2312' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
               <span style={{ fontWeight: selectedState ? 500 : 700, color: 'var(--ux4g-violet-950)', cursor: selectedState ? 'pointer' : 'default' }} onClick={handleReset}>
                 🇮🇳 All-India Directorate
@@ -483,20 +483,20 @@ export const NationalDashboard = () => {
 
           {/* 3 Rollout Milestone Boxes */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-            <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 'var(--radius-md)', padding: '18px' }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1.5px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '18px', boxShadow: '2px 2px 0px #3A2312' }}>
               <span className="ux4g-badge ux4g-badge-low" style={{ marginBottom: '8px' }}>Phase 1 Complete</span>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#065F46' }}>142 Districts</div>
-              <p style={{ fontSize: '0.78rem', color: '#047857', marginTop: '4px' }}>100% active monitoring • Delhi, Maharashtra, Karnataka</p>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ux4g-success-text)' }}>142 Districts</div>
+              <p style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-secondary)', marginTop: '4px' }}>100% active monitoring • Delhi, Maharashtra, Karnataka</p>
             </div>
 
-            <div style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 'var(--radius-md)', padding: '18px' }}>
+            <div style={{ backgroundColor: 'var(--ux4g-violet-100)', border: '1.5px solid var(--ux4g-violet-300)', borderRadius: 'var(--radius-md)', padding: '18px', boxShadow: '2px 2px 0px #3A2312' }}>
               <span className="ux4g-badge ux4g-badge-primary" style={{ marginBottom: '8px' }}>Phase 2 (Active)</span>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E40AF' }}>210 Districts</div>
-              <p style={{ fontSize: '0.78rem', color: '#1D4ED8', marginTop: '4px' }}>84% clinical onboarding • UP, Tamil Nadu, MP, Gujarat</p>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ux4g-violet-950)' }}>210 Districts</div>
+              <p style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-secondary)', marginTop: '4px' }}>84% clinical onboarding • UP, Tamil Nadu, MP, Gujarat</p>
             </div>
 
-            <div style={{ backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 'var(--radius-md)', padding: '18px' }}>
-              <span className="ux4g-badge" style={{ marginBottom: '8px' }}>Phase 3 (Expanding)</span>
+            <div style={{ backgroundColor: 'var(--ux4g-saffron-50)', border: '1.5px solid var(--ux4g-saffron-400)', borderRadius: 'var(--radius-md)', padding: '18px', boxShadow: '2px 2px 0px #3A2312' }}>
+              <span className="ux4g-badge ux4g-badge-medium" style={{ marginBottom: '8px' }}>Phase 3 (Expanding)</span>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ux4g-violet-950)' }}>360 Districts</div>
               <p style={{ fontSize: '0.78rem', color: 'var(--ux4g-violet-700)', marginTop: '4px' }}>Target: Complete Pan-India saturation by 2027</p>
             </div>

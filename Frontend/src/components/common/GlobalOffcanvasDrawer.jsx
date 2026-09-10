@@ -48,45 +48,45 @@ export const GlobalOffcanvasDrawer = () => {
           border: '#FECACA',
           titleColor: '#991B1B',
           badgeClass: 'ux4g-badge ux4g-badge-critical',
-          badgeBg: '#FEE2E2',
-          badgeText: '#991B1B',
+          badgeBg: 'var(--ux4g-danger-bg)',
+          badgeText: 'var(--ux4g-danger-text)',
         };
       case 'warning':
         return {
-          bg: '#FFFBEB',
-          border: '#FDE68A',
-          titleColor: '#92400E',
+          bg: 'var(--ux4g-warning-bg)',
+          border: 'var(--ux4g-warning-border)',
+          titleColor: 'var(--ux4g-warning-text)',
           badgeClass: 'ux4g-badge ux4g-badge-medium',
-          badgeBg: '#FEF3C7',
-          badgeText: '#92400E',
+          badgeBg: 'var(--ux4g-warning-bg)',
+          badgeText: 'var(--ux4g-warning-text)',
         };
       case 'success':
         return {
-          bg: '#F0FDF4',
-          border: '#BBF7D0',
-          titleColor: '#166534',
+          bg: 'var(--ux4g-success-bg)',
+          border: 'var(--ux4g-success-border)',
+          titleColor: 'var(--ux4g-success-text)',
           badgeClass: 'ux4g-badge ux4g-badge-low',
-          badgeBg: '#DCFCE7',
-          badgeText: '#166534',
+          badgeBg: 'var(--ux4g-success-bg)',
+          badgeText: 'var(--ux4g-success-text)',
         };
       case 'info':
       case 'primary':
         return {
-          bg: '#F5F3FF',
-          border: '#DDD6FE',
-          titleColor: '#5B21B6',
+          bg: 'var(--ux4g-violet-100)',
+          border: 'var(--ux4g-violet-300)',
+          titleColor: 'var(--ux4g-violet-900)',
           badgeClass: 'ux4g-badge ux4g-badge-low',
-          badgeBg: '#EDE9FE',
-          badgeText: '#5B21B6',
+          badgeBg: 'var(--ux4g-violet-100)',
+          badgeText: 'var(--ux4g-violet-900)',
         };
       default:
         return {
-          bg: '#FFFFFF',
+          bg: 'var(--ux4g-surface)',
           border: 'var(--ux4g-border)',
           titleColor: 'var(--ux4g-text-primary)',
           badgeClass: 'ux4g-badge',
-          badgeBg: '#F1F5F9',
-          badgeText: '#475569',
+          badgeBg: 'var(--ux4g-bg-subtle)',
+          badgeText: 'var(--ux4g-text-secondary)',
         };
     }
   };

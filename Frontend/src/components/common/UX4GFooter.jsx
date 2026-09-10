@@ -9,8 +9,8 @@ export const UX4GFooter = () => {
   return (
     <footer
       style={{
-        backgroundColor: '#FFFFFF',
-        borderTop: '1px solid var(--ux4g-border)',
+        backgroundColor: 'var(--ux4g-surface)',
+        borderTop: '2px solid var(--ux4g-border)',
         marginTop: 'auto',
         color: 'var(--ux4g-text-secondary)',
         fontSize: '0.85rem',

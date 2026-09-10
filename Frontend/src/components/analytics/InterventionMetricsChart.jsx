@@ -4,11 +4,11 @@ import { UX4GCard } from '../common/UX4GCard';
 
 export const InterventionMetricsChart = ({
   stages = [
-    { label: 'Pending Review', status: 'PENDING', count: 5, color: '#D97706', description: 'Within triage queue' },
-    { label: 'Assigned to Official', status: 'ASSIGNED', count: 8, color: '#2563EB', description: 'SLA countdown active' },
-    { label: 'In Progress / Active', status: 'IN_PROGRESS', count: 14, color: '#6D34EC', description: 'Clinical / legal ongoing' },
-    { label: 'Completed / Stabilized', status: 'COMPLETED', count: 126, color: '#059669', description: 'Outcome verified' },
-    { label: 'Escalated to DM / Nodal', status: 'ESCALATED', count: 2, color: '#B91C1C', description: 'Statutory escalation' },
+    { label: 'Pending Review', status: 'PENDING', count: 5, color: '#9C631B', description: 'Within triage queue' },
+    { label: 'Assigned to Official', status: 'ASSIGNED', count: 8, color: '#8C6240', description: 'SLA countdown active' },
+    { label: 'In Progress / Active', status: 'IN_PROGRESS', count: 14, color: '#543118', description: 'Clinical / legal ongoing' },
+    { label: 'Completed / Stabilized', status: 'COMPLETED', count: 126, color: '#443F24', description: 'Outcome verified' },
+    { label: 'Escalated to DM / Nodal', status: 'ESCALATED', count: 2, color: '#822710', description: 'Statutory escalation' },
   ],
   title = 'Intervention Lifecycle Pipeline',
   subtitle = 'Progress of statutory relief across administrative stages',

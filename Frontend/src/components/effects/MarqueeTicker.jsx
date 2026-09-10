@@ -30,9 +30,9 @@ export const MarqueeTicker = ({
         whiteSpace: 'nowrap',
         display: 'flex',
         alignItems: 'center',
-        background: 'linear-gradient(90deg, #F3EFFE 0%, #EDE7F6 50%, #F3EFFE 100%)',
-        borderTop: '1px solid var(--ux4g-violet-200)',
-        borderBottom: '1px solid var(--ux4g-violet-200)',
+        background: 'linear-gradient(90deg, #E6DAC9 0%, #DCCEB9 50%, #E6DAC9 100%)',
+        borderTop: '2px solid #3A2312',
+        borderBottom: '2px solid #3A2312',
         padding: '12px 0',
         position: 'relative',
         userSelect: 'none',
@@ -46,7 +46,7 @@ export const MarqueeTicker = ({
           top: 0,
           bottom: 0,
           width: '60px',
-          background: 'linear-gradient(to right, #F3EFFE, transparent)',
+          background: 'linear-gradient(to right, #E6DAC9, transparent)',
           zIndex: 2,
           pointerEvents: 'none',
         }}
@@ -58,7 +58,7 @@ export const MarqueeTicker = ({
           top: 0,
           bottom: 0,
           width: '60px',
-          background: 'linear-gradient(to left, #F3EFFE, transparent)',
+          background: 'linear-gradient(to left, #E6DAC9, transparent)',
           zIndex: 2,
           pointerEvents: 'none',
         }}
@@ -92,10 +92,11 @@ export const MarqueeTicker = ({
               alignItems: 'center',
               gap: '24px',
               fontSize: '0.8rem',
-              fontWeight: 700,
-              color: 'var(--ux4g-violet-900)',
+              fontWeight: 800,
+              color: '#2B1508',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
+              fontFamily: '"Space Mono", "Courier Prime", monospace',
               flexShrink: 0,
             }}
           >
@@ -105,7 +106,7 @@ export const MarqueeTicker = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: 'var(--ux4g-violet-400)',
+                backgroundColor: '#AB8867',
                 display: 'inline-block',
               }}
             />

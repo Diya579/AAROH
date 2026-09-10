@@ -169,19 +169,19 @@ export const CaseDetailModal = ({ isOpen, onClose, caseData, onCaseUpdated }) =>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* 3-Col Meta Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              <div style={{ padding: '14px', backgroundColor: '#FFF', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+              <div style={{ padding: '14px', backgroundColor: 'var(--ux4g-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Registration Details</span>
                 <div style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', marginTop: '4px' }}>Registered: {caseData.registrationDate}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--ux4g-text-secondary)' }}>Under SC/ST PoA Statutory Framework</div>
               </div>
 
-              <div style={{ padding: '14px', backgroundColor: '#FFF', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+              <div style={{ padding: '14px', backgroundColor: 'var(--ux4g-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>District Oversight</span>
                 <div style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', marginTop: '4px' }}>{caseData.district}, {caseData.state}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--ux4g-text-secondary)' }}>Nodal Cell: South Delhi DM Office</div>
               </div>
 
-              <div style={{ padding: '14px', backgroundColor: '#FFF', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+              <div style={{ padding: '14px', backgroundColor: 'var(--ux4g-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Statutory SLA Adherence</span>
                 <div style={{ fontWeight: 700, color: caseData.slaHoursRemaining <= 2 ? 'var(--ux4g-danger)' : 'var(--ux4g-violet-950)', marginTop: '4px' }}>
                   {caseData.slaHoursRemaining} Hours Remaining
@@ -285,7 +285,7 @@ export const CaseDetailModal = ({ isOpen, onClose, caseData, onCaseUpdated }) =>
                       height: '12px',
                       borderRadius: '50%',
                       backgroundColor: event.type.includes('PREDICTION') || event.type.includes('SLA') ? 'var(--ux4g-danger)' : 'var(--ux4g-violet-700)',
-                      border: '2px solid #FFF',
+                      border: '2px solid var(--ux4g-surface)',
                       boxShadow: '0 0 0 2px var(--ux4g-violet-200)',
                     }}
                   />

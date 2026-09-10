@@ -424,7 +424,7 @@ export const CounsellorDashboard = () => {
       {activeTab === 'interventions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* Statutory Rule Notice */}
-          <div style={{ backgroundColor: '#F5F3FF', border: '1px solid var(--ux4g-violet-300)', borderRadius: 'var(--radius-md)', padding: '18px 22px' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-violet-100)', border: '1.5px solid #3A2312', boxShadow: '2px 2px 0px #3A2312', borderRadius: 'var(--radius-md)', padding: '18px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <Scale size={18} color="var(--ux4g-violet-700)" />
               <strong style={{ fontSize: '0.92rem', color: 'var(--ux4g-violet-950)' }}>
@@ -504,7 +504,7 @@ export const CounsellorDashboard = () => {
       {activeTab === 'outcomes' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {outcomeSuccessAlert && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1.5px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success-text)', fontWeight: 700 }}>
               <CheckCircle2 size={18} />
               <span>Intervention outcome successfully recorded and synced with District Nodal Oversight.</span>
             </div>

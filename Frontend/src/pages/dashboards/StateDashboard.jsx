@@ -338,7 +338,7 @@ export const StateDashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* Breadcrumb drill down header */}
           {selectedDistrict && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', backgroundColor: '#F5F3FF', border: '1px solid var(--ux4g-violet-300)', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', backgroundColor: 'var(--ux4g-violet-50)', border: '1px solid var(--ux4g-violet-300)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
                 <span style={{ color: 'var(--ux4g-violet-700)', fontWeight: 600, cursor: 'pointer' }} onClick={handleResetDistrict}>
                   {stateName}
@@ -405,7 +405,7 @@ export const StateDashboard = () => {
           ========================================================================= */}
       {activeTab === 'performance' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ backgroundColor: '#FFFFFF', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
               State SLA Compliance &amp; Time-to-Intervention Audit
             </h3>
@@ -453,13 +453,13 @@ export const StateDashboard = () => {
       {activeTab === 'reports' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {reportDownloadAlert && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success)', fontWeight: 600 }}>
               <CheckCircle2 size={18} />
               <span>{reportDownloadAlert}</span>
             </div>
           )}
 
-          <div style={{ backgroundColor: '#FFFFFF', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
               Official State Statutory Reports Repository
             </h3>

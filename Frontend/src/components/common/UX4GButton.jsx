@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 export const UX4GButton = ({
   children,
@@ -19,34 +19,34 @@ export const UX4GButton = ({
     switch (variant) {
       case 'secondary':
         return {
-          backgroundColor: '#F1F5F9',
-          color: '#1E3A8A',
-          border: '1px solid #CBD5E1',
+          backgroundColor: 'var(--ux4g-violet-100)',
+          color: 'var(--ux4g-violet-950)',
+          border: '2px solid #3A2312',
         };
       case 'outline':
         return {
-          backgroundColor: '#FFFFFF',
-          color: '#1E3A8A',
-          border: '1px solid #CBD5E1',
+          backgroundColor: 'var(--ux4g-surface)',
+          color: 'var(--ux4g-violet-950)',
+          border: '2px solid #3A2312',
         };
       case 'ghost':
         return {
           backgroundColor: 'transparent',
-          color: '#475569',
+          color: 'var(--ux4g-text-secondary)',
           border: '1px solid transparent',
         };
       case 'danger':
         return {
-          backgroundColor: '#DC2626',
-          color: '#FFFFFF',
-          border: '1px solid #DC2626',
+          backgroundColor: 'var(--ux4g-danger)',
+          color: '#FAF4EB',
+          border: '2px solid #3A2312',
         };
       case 'primary':
       default:
         return {
-          backgroundColor: '#1E3A8A',
-          color: '#FFFFFF',
-          border: '1px solid #1E3A8A',
+          backgroundColor: 'var(--ux4g-violet-700)',
+          color: '#FAF4EB',
+          border: '2px solid #2B1508',
         };
     }
   };
@@ -82,12 +82,14 @@ export const UX4GButton = ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    fontWeight: 600,
-    letterSpacing: '-0.01em',
+    fontWeight: 700,
+    fontFamily: '"Space Mono", "Courier Prime", monospace',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
     cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
     opacity: disabled || isLoading ? 0.65 : 1,
     transition: 'all 0.15s ease',
-    boxShadow: variant === 'primary' ? '0 1px 2px rgba(15, 23, 42, 0.08)' : 'none',
+    boxShadow: variant !== 'ghost' ? '3px 3px 0px #3A2312' : 'none',
     ...style,
   };
 

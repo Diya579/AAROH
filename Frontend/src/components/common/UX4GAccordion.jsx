@@ -27,13 +27,13 @@ export const UX4GAccordionItem = ({
   return (
     <div
       style={{
-        border: '1px solid var(--ux4g-border)',
-        borderRadius: 'var(--radius-md)',
-        marginBottom: '10px',
+        border: '2px solid #3A2312',
+        borderRadius: '6px',
+        marginBottom: '14px',
         backgroundColor: 'var(--ux4g-surface)',
         overflow: 'hidden',
         transition: 'var(--transition-fast)',
-        boxShadow: isOpen ? 'var(--elevation-2)' : 'var(--elevation-1)',
+        boxShadow: isOpen ? '5px 5px 0px #3A2312' : '3px 3px 0px #3A2312',
       }}
     >
       <button
@@ -67,7 +67,7 @@ export const UX4GAccordionItem = ({
                 height: '28px',
                 borderRadius: '50%',
                 backgroundColor: isOpen ? 'var(--ux4g-violet-700)' : 'var(--ux4g-bg-subtle)',
-                color: isOpen ? '#FFFFFF' : 'var(--ux4g-text-secondary)',
+                color: isOpen ? '#FAF4EB' : 'var(--ux4g-text-secondary)',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 flexShrink: 0,

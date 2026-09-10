@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 export const UX4GCard = ({
   children,
@@ -29,14 +29,14 @@ export const UX4GCard = ({
   const [isHovered, setIsHovered] = React.useState(false);
 
   const cardStyle = {
-    backgroundColor: '#FFFFFF',
-    borderRadius: borderRadius,
+    backgroundColor: 'var(--ux4g-surface)',
+    borderRadius: '6px',
     padding: padding,
-    border: '1px solid var(--ux4g-border)',
+    border: '2px solid #3A2312',
     boxShadow: isHovered && liftOnHover ? getElevationShadow(hoverElevation) : getElevationShadow(elevation),
-    transform: isHovered && liftOnHover ? 'translateY(-2px)' : 'none',
-    borderColor: isHovered && liftOnHover ? '#CBD5E1' : 'var(--ux4g-border)',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    transform: isHovered && liftOnHover ? 'translate(-2px, -2px)' : 'none',
+    borderColor: '#3A2312',
+    transition: 'all 0.15s ease',
     cursor: onClick ? 'pointer' : 'default',
     ...style,
   };

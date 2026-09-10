@@ -203,7 +203,7 @@ export const InterventionRoutingModal = ({
                     padding: '8px 4px',
                     borderRadius: 'var(--radius-sm)',
                     border: slaHours === item.hours ? '2px solid var(--ux4g-violet-700)' : '1px solid var(--ux4g-border)',
-                    backgroundColor: slaHours === item.hours ? 'var(--ux4g-violet-50)' : '#FFF',
+                    backgroundColor: slaHours === item.hours ? 'var(--ux4g-violet-50)' : 'var(--ux4g-surface)',
                     color: slaHours === item.hours ? 'var(--ux4g-violet-950)' : 'var(--ux4g-text-secondary)',
                     fontWeight: slaHours === item.hours ? 700 : 500,
                     fontSize: '0.75rem',

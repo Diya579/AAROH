@@ -367,30 +367,30 @@ export const DistrictDashboard = () => {
       {activeTab === 'escalations' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {escalationActionAlert && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success)', fontWeight: 600 }}>
               <CheckCircle2 size={18} />
               <span>{escalationActionAlert}</span>
             </div>
           )}
 
           {/* High Priority Critical Case Card */}
-          <div style={{ backgroundColor: '#FEF2F2', border: '1.5px solid #F87171', borderRadius: 'var(--radius-md)', padding: '22px', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-danger-bg)', border: '1.5px solid var(--ux4g-danger)', borderRadius: 'var(--radius-md)', padding: '22px', boxShadow: 'var(--elevation-1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '14px' }}>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <ShieldAlert size={26} color="#DC2626" style={{ marginTop: '2px' }} />
+                <ShieldAlert size={26} color="var(--ux4g-danger)" style={{ marginTop: '2px' }} />
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="ux4g-badge ux4g-badge-high" style={{ background: '#DC2626', color: '#FFF' }}>
+                    <span className="ux4g-badge ux4g-badge-high" style={{ background: 'var(--ux4g-danger)', color: '#FFF' }}>
                       CRITICAL STATUTORY ESCALATION
                     </span>
-                    <span style={{ fontSize: '0.8rem', color: '#991B1B', fontWeight: 700 }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--ux4g-danger)', fontWeight: 700 }}>
                       SLA Window: 2.5 Hours Remaining
                     </span>
                   </div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#7F1D1D', marginTop: '4px' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--ux4g-danger)', marginTop: '4px' }}>
                     Case #AAROH-DEL-2026-001 • Meera Sharma
                   </h3>
-                  <p style={{ fontSize: '0.85rem', color: '#991B1B', marginTop: '2px' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--ux4g-danger)', marginTop: '2px' }}>
                     Distress score spiked to 82 (+24 deviation). Acoustic pitch variation indicates acute psychological trauma following trial hearing.
                   </p>
                 </div>
@@ -398,7 +398,7 @@ export const DistrictDashboard = () => {
             </div>
 
             {/* Statutory Action Bar */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid #FCA5A5' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--ux4g-danger)' }}>
               <UX4GButton
                 variant="danger"
                 size="sm"
@@ -482,7 +482,7 @@ export const DistrictDashboard = () => {
       {activeTab === 'workload' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {rebalanceAlert && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success)', fontWeight: 600 }}>
               <CheckCircle2 size={18} />
               <span>Caseload successfully rebalanced! 2 cases transferred from Shri Vikram Malhotra (95% → 85%) to Dr. Priya Nambiar (60% → 70%).</span>
             </div>
@@ -510,19 +510,19 @@ export const DistrictDashboard = () => {
 
           {/* Capacity Insights Box */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
-            <div style={{ backgroundColor: '#FFFFFF', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+            <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Average Response SLA</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', margin: '4px 0' }}>1.6 Hours</div>
               <p style={{ fontSize: '0.75rem', color: 'var(--ux4g-success)', fontWeight: 600 }}>60% faster than 4.0 hr statutory limit</p>
             </div>
 
-            <div style={{ backgroundColor: '#FFFFFF', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+            <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total District Clinicians</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ux4g-violet-700)', margin: '4px 0' }}>4 Certified</div>
               <p style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-secondary)' }}>Tele-MANAS &amp; Social Justice Retainers</p>
             </div>
 
-            <div style={{ backgroundColor: '#FFFFFF', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+            <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--ux4g-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Overall District Saturation</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ux4g-success)', margin: '4px 0' }}>78.7%</div>
               <p style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-secondary)' }}>Healthy operational reserve margin</p>

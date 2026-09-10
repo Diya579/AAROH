@@ -141,8 +141,8 @@ export const DashboardShell = ({
           width: sidebarCollapsed ? '76px' : '260px',
           minWidth: sidebarCollapsed ? '76px' : '260px',
           flexShrink: 0,
-          backgroundColor: '#FFFFFF',
-          borderRight: '1px solid var(--ux4g-border)',
+          backgroundColor: 'var(--ux4g-surface)',
+          borderRight: '2px solid #3A2312',
           display: 'flex',
           flexDirection: 'column',
           transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -195,7 +195,7 @@ export const DashboardShell = ({
 
         {/* Portal Switcher for Officials with RBAC removed */}
         {!sidebarCollapsed && isOfficial && (
-          <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ux4g-border-subtle)', backgroundColor: '#F8FAFC' }}>
+          <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ux4g-border-subtle)', backgroundColor: 'var(--ux4g-bg-subtle)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
               <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--ux4g-violet-800)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Portal Oversight Switcher
@@ -223,12 +223,13 @@ export const DashboardShell = ({
                 width: '100%',
                 padding: '5px 8px',
                 borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--ux4g-violet-200)',
+                border: '1.5px solid #3A2312',
                 fontSize: '0.8rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 color: 'var(--ux4g-violet-950)',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--ux4g-surface)',
                 cursor: 'pointer',
+                fontFamily: '"Space Mono", monospace',
               }}
             >
               <option value="VICTIM">🛡️ Citizen / Beneficiary</option>
@@ -304,7 +305,7 @@ export const DashboardShell = ({
                 height: '34px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--ux4g-violet-700)',
-                color: '#FFFFFF',
+                color: '#FAF4EB',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -342,9 +343,10 @@ export const DashboardShell = ({
               className="dashboard-mobile-toggle ux4g-focus-glow"
               style={{
                 display: 'none',
-                background: '#FFFFFF',
-                border: '1px solid var(--ux4g-border)',
-                borderRadius: 'var(--radius-md)',
+                background: 'var(--ux4g-surface)',
+                border: '1.5px solid #3A2312',
+                boxShadow: '2px 2px 0px #3A2312',
+                borderRadius: 'var(--radius-sm)',
                 padding: '8px',
                 cursor: 'pointer',
                 color: 'var(--ux4g-violet-950)',
@@ -414,9 +416,10 @@ export const DashboardShell = ({
               aria-label="View notifications"
               className="ux4g-focus-glow"
               style={{
-                background: '#FFFFFF',
-                border: '1px solid var(--ux4g-border)',
-                borderRadius: 'var(--radius-md)',
+                background: 'var(--ux4g-surface)',
+                border: '1.5px solid #3A2312',
+                boxShadow: '2px 2px 0px #3A2312',
+                borderRadius: 'var(--radius-sm)',
                 width: '38px',
                 height: '38px',
                 display: 'flex',
@@ -424,7 +427,6 @@ export const DashboardShell = ({
                 justifyContent: 'center',
                 cursor: 'pointer',
                 position: 'relative',
-                boxShadow: 'var(--elevation-1)',
               }}
             >
               <Bell size={18} color="var(--ux4g-text-secondary)" />

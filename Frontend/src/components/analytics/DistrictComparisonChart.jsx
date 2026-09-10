@@ -33,7 +33,7 @@ export const DistrictComparisonChart = ({
         </div>
         <div style={{ display: 'flex', gap: '10px', fontSize: '0.75rem', fontWeight: 600 }}>
           <span style={{ color: 'var(--ux4g-violet-700)' }}>■ Total Caseload</span>
-          <span style={{ color: '#DC2626' }}>■ High Risk</span>
+          <span style={{ color: 'var(--ux4g-danger)' }}>■ High Risk</span>
         </div>
       </div>
 
@@ -69,7 +69,7 @@ export const DistrictComparisonChart = ({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem' }}>
                   <span><strong>{totalVal}</strong> cases</span>
-                  <span style={{ color: '#DC2626', fontWeight: 600 }}>{highRiskVal} high risk</span>
+                  <span style={{ color: 'var(--ux4g-danger)', fontWeight: 600 }}>{highRiskVal} high risk</span>
                   <span className="ux4g-badge ux4g-badge-low" style={{ fontSize: '0.72rem' }}>
                     {item.compliance} SLA
                   </span>
@@ -93,7 +93,7 @@ export const DistrictComparisonChart = ({
                   style={{
                     width: `${Math.max(highRiskWidth, 4)}%`,
                     height: '100%',
-                    backgroundColor: '#DC2626',
+                    backgroundColor: 'var(--ux4g-danger)',
                     borderRadius: '5px 0 0 5px',
                     position: 'absolute',
                     left: 0,

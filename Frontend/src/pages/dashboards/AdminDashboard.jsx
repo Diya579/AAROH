@@ -184,7 +184,7 @@ export const AdminDashboard = () => {
           </div>
 
           {/* Model Governance Banner */}
-          <div style={{ backgroundColor: '#FFFFFF', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
               <div>
                 <span className="ux4g-badge ux4g-badge-primary" style={{ marginBottom: '6px' }}>
@@ -229,7 +229,7 @@ export const AdminDashboard = () => {
           ========================================================================= */}
       {activeTab === 'rbac' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          <div style={{ backgroundColor: '#FFFFFF', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
               Authorized Role-Based Access Control (RBAC) Architecture
             </h3>
@@ -297,13 +297,13 @@ export const AdminDashboard = () => {
       {activeTab === 'audit' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {exportAlert && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success)', fontWeight: 600 }}>
               <CheckCircle2 size={18} />
               <span>{exportAlert}</span>
             </div>
           )}
 
-          <div style={{ backgroundColor: '#FFFFFF', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
                 Immutable DPDP Act 2023 Security &amp; Audit Trail
@@ -328,7 +328,7 @@ export const AdminDashboard = () => {
           ========================================================================= */}
       {activeTab === 'health' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          <div style={{ backgroundColor: '#FFFFFF', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '22px 26px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)', boxShadow: 'var(--elevation-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
                 Backend Integration Health &amp; Microservices API Status
@@ -350,7 +350,7 @@ export const AdminDashboard = () => {
           </div>
 
           {diagnosticDone && (
-            <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 600 }}>
+            <div style={{ backgroundColor: 'var(--ux4g-success-bg)', border: '1px solid var(--ux4g-success-border)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ux4g-success)', fontWeight: 600 }}>
               <CheckCircle2 size={18} />
               <span>Live Diagnostic Complete: All 5 core services responding with 0 errors. Average latency: 108ms.</span>
             </div>
@@ -381,15 +381,15 @@ export const AdminDashboard = () => {
 
           {/* Active Model Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '18px' }}>
-            <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+            <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ux4g-violet-700)', textTransform: 'uppercase' }}>Speech Acoustic Model</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', margin: '4px 0' }}>Distress-Acoustic-v2.4</div>
               <p style={{ fontSize: '0.8rem', color: 'var(--ux4g-text-secondary)' }}>Feature extractor: F0 pitch variance, jitter, shimmer, speaking rate deviations.</p>
               <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--ux4g-success)', fontWeight: 600 }}>Validation Accuracy: 94.2% • DPDP Compliant</div>
             </div>
 
-            <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284C7', textTransform: 'uppercase' }}>NLP Semantic Model</div>
+            <div style={{ backgroundColor: 'var(--ux4g-surface)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--ux4g-border)' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ux4g-violet-700)', textTransform: 'uppercase' }}>NLP Semantic Model</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', margin: '4px 0' }}>NLP-Sentiment-PoA-v3.1</div>
               <p style={{ fontSize: '0.8rem', color: 'var(--ux4g-text-secondary)' }}>Linguistic parser: Fear, helplessness, sleep disruption, trauma indicators.</p>
               <div style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--ux4g-success)', fontWeight: 600 }}>Validation Accuracy: 96.8% • DPDP Compliant</div>

@@ -55,11 +55,11 @@ export const UX4GHeader = () => {
         <div className="container flex-between" style={{ flexWrap: 'wrap', gap: '10px' }}>
           {/* Government of India Official Header Text */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 700, color: '#0F172A', letterSpacing: '0.03em', fontSize: '0.76rem' }}>
+            <span style={{ fontWeight: 700, color: 'var(--ux4g-violet-950)', letterSpacing: '0.03em', fontSize: '0.76rem' }}>
               भारत सरकार | GOVERNMENT OF INDIA
             </span>
-            <span style={{ color: '#CBD5E1' }}>•</span>
-            <span style={{ color: '#475569', fontSize: '0.76rem' }}>Ministry of Social Justice & Empowerment</span>
+            <span style={{ color: 'var(--ux4g-violet-300)' }}>•</span>
+            <span style={{ color: 'var(--ux4g-text-secondary)', fontSize: '0.76rem' }}>Ministry of Social Justice & Empowerment</span>
           </div>
 
           {/* Accessibility & Helpline Strip */}
@@ -72,13 +72,13 @@ export const UX4GHeader = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                background: '#FEF2F2',
-                color: '#991B1B',
-                border: '1px solid #FECACA',
+                background: 'var(--ux4g-danger-bg)',
+                color: 'var(--ux4g-danger-text)',
+                border: '1px solid var(--ux4g-danger-border)',
                 padding: '2px 8px',
                 borderRadius: '4px',
                 fontSize: '0.74rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
               aria-label="24x7 Emergency Mental Health Helpline"
@@ -91,20 +91,20 @@ export const UX4GHeader = () => {
             <GoogleTranslateWidget compact={true} />
 
             {/* Font Scaling */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1px', borderLeft: '1px solid #E2E8F0', paddingLeft: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1px', borderLeft: '1px solid var(--ux4g-violet-300)', paddingLeft: '10px' }}>
               <button
                 type="button"
                 onClick={() => adjustFontScale(0.9)}
                 title="Decrease font size"
                 style={{
-                  background: fontScale === 0.9 ? '#E2E8F0' : 'transparent',
+                  background: fontScale === 0.9 ? 'var(--ux4g-violet-200)' : 'transparent',
                   border: 'none',
                   padding: '2px 5px',
                   borderRadius: '3px',
                   cursor: 'pointer',
                   fontWeight: fontScale === 0.9 ? 700 : 500,
                   fontSize: '0.72rem',
-                  color: '#334155'
+                  color: 'var(--ux4g-violet-900)'
                 }}
               >
                 A-
@@ -114,14 +114,14 @@ export const UX4GHeader = () => {
                 onClick={() => adjustFontScale(1.0)}
                 title="Normal font size"
                 style={{
-                  background: fontScale === 1.0 ? '#E2E8F0' : 'transparent',
+                  background: fontScale === 1.0 ? 'var(--ux4g-violet-200)' : 'transparent',
                   border: 'none',
                   padding: '2px 5px',
                   borderRadius: '3px',
                   cursor: 'pointer',
                   fontWeight: fontScale === 1.0 ? 700 : 500,
                   fontSize: '0.72rem',
-                  color: '#334155'
+                  color: 'var(--ux4g-violet-900)'
                 }}
               >
                 A
@@ -131,14 +131,14 @@ export const UX4GHeader = () => {
                 onClick={() => adjustFontScale(1.15)}
                 title="Increase font size"
                 style={{
-                  background: fontScale === 1.15 ? '#E2E8F0' : 'transparent',
+                  background: fontScale === 1.15 ? 'var(--ux4g-violet-200)' : 'transparent',
                   border: 'none',
                   padding: '2px 5px',
                   borderRadius: '3px',
                   cursor: 'pointer',
                   fontWeight: fontScale === 1.15 ? 700 : 500,
                   fontSize: '0.72rem',
-                  color: '#334155'
+                  color: 'var(--ux4g-violet-900)'
                 }}
               >
                 A+
@@ -154,9 +154,9 @@ export const UX4GHeader = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                background: highContrast ? '#0F172A' : 'transparent',
-                color: highContrast ? '#FFFFFF' : '#475569',
-                border: '1px solid #CBD5E1',
+                background: highContrast ? 'var(--ux4g-violet-950)' : 'transparent',
+                color: highContrast ? 'var(--ux4g-surface)' : 'var(--ux4g-text-secondary)',
+                border: '1px solid var(--ux4g-violet-300)',
                 padding: '2px 7px',
                 borderRadius: '4px',
                 fontSize: '0.72rem',
@@ -176,13 +176,13 @@ export const UX4GHeader = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                background: reducedMotion ? '#1E3A8A' : 'transparent',
-                color: reducedMotion ? '#FFFFFF' : '#1E3A8A',
-                border: '1px solid #CBD5E1',
+                background: reducedMotion ? 'var(--ux4g-violet-800)' : 'transparent',
+                color: reducedMotion ? '#FAF4EB' : 'var(--ux4g-violet-800)',
+                border: '1px solid var(--ux4g-violet-300)',
                 padding: '2px 7px',
                 borderRadius: '4px',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
@@ -205,7 +205,7 @@ export const UX4GHeader = () => {
                 style={{
                   width: '1px',
                   height: '34px',
-                  backgroundColor: '#E2E8F0',
+                  backgroundColor: 'var(--ux4g-violet-300)',
                   margin: '0 2px',
                 }}
                 aria-hidden="true"
@@ -214,14 +214,14 @@ export const UX4GHeader = () => {
               {/* Title & Subtitle */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--ux4g-violet-950)', letterSpacing: '-0.02em' }}>
                     AAROH
                   </span>
-                  <span style={{ fontSize: '0.7rem', backgroundColor: '#EFF6FF', color: '#1E3A8A', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
+                  <span style={{ fontSize: '0.7rem', backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-900)', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--ux4g-violet-300)' }}>
                     PORTAL
                   </span>
                 </div>
-                <p style={{ fontSize: '0.75rem', color: '#64748B', lineHeight: 1.2, marginTop: '2px' }}>
+                <p style={{ fontSize: '0.75rem', color: 'var(--ux4g-text-secondary)', lineHeight: 1.2, marginTop: '2px' }}>
                   Mental Health Monitoring & Distress Prediction System
                 </p>
               </div>
@@ -236,7 +236,7 @@ export const UX4GHeader = () => {
                   to={getDashboardPath(currentUser?.role)}
                   style={{
                     textDecoration: 'none',
-                    color: location.pathname.startsWith('/dashboard') ? '#1E3A8A' : '#475569',
+                    color: location.pathname.startsWith('/dashboard') ? 'var(--ux4g-violet-800)' : 'var(--ux4g-text-secondary)',
                     fontWeight: 700,
                     fontSize: '0.9rem',
                     letterSpacing: '-0.01em',
@@ -245,15 +245,15 @@ export const UX4GHeader = () => {
                     gap: '8px',
                     padding: '6px 12px',
                     borderRadius: '6px',
-                    backgroundColor: location.pathname.startsWith('/dashboard') ? '#EFF6FF' : 'transparent',
-                    border: location.pathname.startsWith('/dashboard') ? '1px solid #DBEAFE' : '1px solid transparent',
+                    backgroundColor: location.pathname.startsWith('/dashboard') ? 'var(--ux4g-violet-100)' : 'transparent',
+                    border: location.pathname.startsWith('/dashboard') ? '1px solid var(--ux4g-violet-300)' : '1px solid transparent',
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
-                    if (!location.pathname.startsWith('/dashboard')) e.currentTarget.style.color = '#1E3A8A';
+                    if (!location.pathname.startsWith('/dashboard')) e.currentTarget.style.color = 'var(--ux4g-violet-800)';
                   }}
                   onMouseLeave={(e) => {
-                    if (!location.pathname.startsWith('/dashboard')) e.currentTarget.style.color = '#475569';
+                    if (!location.pathname.startsWith('/dashboard')) e.currentTarget.style.color = 'var(--ux4g-text-secondary)';
                   }}
                 >
                   <LayoutDashboard size={16} />
@@ -279,8 +279,8 @@ export const UX4GHeader = () => {
                     to="/"
                     style={{
                       textDecoration: 'none',
-                      color: location.pathname === '/' ? '#1E3A8A' : '#475569',
-                      fontWeight: location.pathname === '/' ? 700 : 500,
+                      color: location.pathname === '/' ? 'var(--ux4g-violet-900)' : 'var(--ux4g-text-secondary)',
+                      fontWeight: location.pathname === '/' ? 800 : 600,
                       fontSize: '0.9rem',
                       letterSpacing: '-0.01em',
                       transition: 'color 0.15s ease',
@@ -303,15 +303,15 @@ export const UX4GHeader = () => {
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      color: '#475569',
-                      fontWeight: 500,
+                      color: 'var(--ux4g-text-secondary)',
+                      fontWeight: 600,
                       fontSize: '0.9rem',
                       letterSpacing: '-0.01em',
                       fontFamily: 'inherit',
                       transition: 'color 0.15s ease',
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#1E3A8A'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ux4g-violet-900)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--ux4g-text-secondary)'}
                   >
                     About AAROH
                   </button>
@@ -330,15 +330,15 @@ export const UX4GHeader = () => {
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      color: '#475569',
-                      fontWeight: 500,
+                      color: 'var(--ux4g-text-secondary)',
+                      fontWeight: 600,
                       fontSize: '0.9rem',
                       letterSpacing: '-0.01em',
                       fontFamily: 'inherit',
                       transition: 'color 0.15s ease',
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#1E3A8A'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ux4g-violet-900)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--ux4g-text-secondary)'}
                   >
                     Workflow
                   </button>
@@ -358,15 +358,15 @@ export const UX4GHeader = () => {
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      color: '#475569',
-                      fontWeight: 500,
+                      color: 'var(--ux4g-text-secondary)',
+                      fontWeight: 600,
                       fontSize: '0.9rem',
                       letterSpacing: '-0.01em',
                       fontFamily: 'inherit',
                       transition: 'color 0.15s ease',
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#1E3A8A'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ux4g-violet-900)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--ux4g-text-secondary)'}
                   >
                     Safety & Support
                   </button>
@@ -390,9 +390,9 @@ export const UX4GHeader = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '4px 10px',
-                      backgroundColor: '#F8FAFC',
+                      backgroundColor: 'var(--ux4g-bg-subtle)',
                       borderRadius: '6px',
-                      border: '1px solid #E2E8F0',
+                      border: '1px solid var(--ux4g-border)',
                     }}
                   >
                     <div
@@ -400,8 +400,8 @@ export const UX4GHeader = () => {
                         width: '26px',
                         height: '26px',
                         borderRadius: '50%',
-                        backgroundColor: '#1E3A8A',
-                        color: '#FFFFFF',
+                        backgroundColor: 'var(--ux4g-violet-700)',
+                        color: '#FAF4EB',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -412,7 +412,7 @@ export const UX4GHeader = () => {
                       {currentUser.avatar}
                     </div>
                     <div style={{ display: 'none' }} className="user-text-pill">
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0F172A' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ux4g-violet-950)' }}>
                         {currentUser.name}
                       </span>
                     </div>

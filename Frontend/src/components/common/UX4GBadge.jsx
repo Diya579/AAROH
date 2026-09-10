@@ -64,9 +64,9 @@ export const RiskBadge = ({ level = 'Low', showIcon = true, size = 'md' }) => {
 export const StatusBadge = ({ status = 'PENDING', size = 'md' }) => {
   const norm = String(status).toUpperCase();
 
-  let bg = '#F1F5F9';
-  let color = '#475569';
-  let border = '#CBD5E1';
+  let bg = 'var(--ux4g-violet-100)';
+  let color = 'var(--ux4g-violet-900)';
+  let border = 'var(--ux4g-violet-300)';
   let Icon = Clock;
   let text = status;
 
@@ -86,17 +86,17 @@ export const StatusBadge = ({ status = 'PENDING', size = 'md' }) => {
       text = 'Assigned';
       break;
     case 'ACKNOWLEDGED':
-      bg = '#F0FDF4';
-      color = '#15803D';
-      border = '#BBF7D0';
+      bg = 'var(--ux4g-success-bg)';
+      color = 'var(--ux4g-success-text)';
+      border = 'var(--ux4g-success-border)';
       Icon = CheckCircle2;
       text = 'Acknowledged';
       break;
     case 'IN_PROGRESS':
     case 'IN PROGRESS':
-      bg = '#EFF6FF';
-      color = '#1D4ED8';
-      border = '#BFDBFE';
+      bg = 'var(--ux4g-saffron-100)';
+      color = 'var(--ux4g-saffron-600)';
+      border = 'var(--ux4g-saffron-400)';
       Icon = RefreshCw;
       text = 'In Progress';
       break;

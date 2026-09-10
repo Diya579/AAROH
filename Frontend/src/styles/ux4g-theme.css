@@ -1,119 +1,93 @@
 /* ==========================================================================
-   UX4G DESIGN SYSTEM 3.0 — AAROH THEME & DESIGN TOKENS (REFINED)
-   Formal, Clean, Spacious, Elegant Government of India Aesthetic
+   AAROH RETRO CARDBOARD & ALL-BROWN DESIGN SYSTEM
+   Inspired by Niccolò Miranda's Paper Reference (niccolomiranda.com)
+   Eye-catching editorial typography, tactile offset block shadows,
+   cardboard kraft backgrounds, and pure shades of brown & sepia.
+   (STRICTLY NO BLUE, NO PURPLE)
    ========================================================================== */
 
 :root {
-  /* Sovereign Royal Violet / Indigo (Primary Brand) */
-  --ux4g-violet-50: #FAF5FF;
-  --ux4g-violet-100: #F3E8FF;
-  --ux4g-violet-200: #E9D5FF;
-  --ux4g-violet-300: #D8B4FE;
-  --ux4g-violet-400: #C084FC;
-  --ux4g-violet-500: #A855F7;
-  --ux4g-violet-600: #9333EA;
-  --ux4g-violet-700: #6D28D9; /* Signature Sovereign Violet */
-  --ux4g-violet-800: #5B21B6;
-  --ux4g-violet-900: #4C1D95;
-  --ux4g-violet-950: #2E1065;
+  /* ==========================================================================
+     SHADES OF BROWN & CARDBOARD KRAFT (Primary Brand & UI Tokens)
+     Replaces all purple/blue across the entire platform
+     ========================================================================== */
+  --ux4g-violet-50: #FAF4EB;       /* Light Cream Paper */
+  --ux4g-violet-100: #F3E7D7;      /* Biscuit Parchment */
+  --ux4g-violet-200: #E4CFB8;      /* Warm Tan Kraft */
+  --ux4g-violet-300: #CDB397;      /* Warm Sandstone */
+  --ux4g-violet-400: #AB8867;      /* Caramel Brown */
+  --ux4g-violet-500: #8C6240;      /* Cognac / Saddle Brown */
+  --ux4g-violet-600: #734828;      /* Roasted Chestnut Brown */
+  --ux4g-violet-700: #543118;      /* Deep Espresso Brown (Primary Accent) */
+  --ux4g-violet-800: #3E210E;      /* Dark Roasted Coffee */
+  --ux4g-violet-900: #2C1508;      /* Deep Walnut Ink */
+  --ux4g-violet-950: #1B0C04;      /* Carbon Brown Black */
 
-  /* National Accent Saffron / Warm Amber */
-  --ux4g-saffron-50: #FFFBEB;
-  --ux4g-saffron-100: #FEF3C7;
-  --ux4g-saffron-400: #FBBF24;
-  --ux4g-saffron-500: #D97706;
-  --ux4g-saffron-600: #B45309;
+  /* Warm Ochre & Amber Browns */
+  --ux4g-saffron-50: #FBF6EE;
+  --ux4g-saffron-100: #F4E8D1;
+  --ux4g-saffron-400: #C28B45;
+  --ux4g-saffron-500: #A26829;
+  --ux4g-saffron-600: #804F18;
 
-  /* Semantic State Tokens */
-  --ux4g-success: #059669;
-  --ux4g-success-bg: #F0FDF4;
-  --ux4g-success-border: #BBF7D0;
-  --ux4g-success-text: #166534;
+  /* Semantic State Tokens — All Themed in Shades of Brown */
+  /* Critical / High Risk: Burnt Mahogany / Rust Brown (No neon red) */
+  --ux4g-danger: #822710;
+  --ux4g-danger-bg: #F8ECE7;
+  --ux4g-danger-border: #E5BDB2;
+  --ux4g-danger-text: #591605;
 
-  --ux4g-warning: #D97706;
-  --ux4g-warning-bg: #FFFBEB;
-  --ux4g-warning-border: #FDE68A;
-  --ux4g-warning-text: #92400E;
+  /* Warning / Pending: Golden Caramel / Warm Ochre Brown */
+  --ux4g-warning: #945B1C;
+  --ux4g-warning-bg: #FBF4EB;
+  --ux4g-warning-border: #E8CEAF;
+  --ux4g-warning-text: #61370B;
 
-  --ux4g-danger: #DC2626;
-  --ux4g-danger-bg: #FEF2F2;
-  --ux4g-danger-border: #FECACA;
-  --ux4g-danger-text: #991B1B;
+  /* Safe / Low Risk / Resolved: Deep Olive Umber Brown */
+  --ux4g-success: #443F24;
+  --ux4g-success-bg: #F3F1E7;
+  --ux4g-success-border: #CEC8B1;
+  --ux4g-success-text: #2D2913;
 
-  --ux4g-info: #0284C7;
-  --ux4g-info-bg: #F0F9FF;
-  --ux4g-info-border: #BAE6FD;
-  --ux4g-info-text: #075985;
+  /* Info / Routine: Rich Saddle Leather Brown (No Blue!) */
+  --ux4g-info: #704423;
+  --ux4g-info-bg: #F6EFE6;
+  --ux4g-info-border: #DFC7B2;
+  --ux4g-info-text: #45260F;
 
-  /* Cardboard Newspaper White Surface Tokens (Niccolò Miranda Paper Reference) */
-  --ux4g-bg: #EFE8DB;                /* Warm cardboard paper background */
-  --ux4g-bg-subtle: #E5DDD0;         /* Subtle secondary cardboard tone */
-  --ux4g-surface: #F8F3EA;           /* Cardboard-type white (Miranda paper white) */
-  --ux4g-surface-card: #F8F3EA;      /* Cardboard-type paper white for cards */
-  --ux4g-border: #D8CEBF;            /* Warm cardboard paper border */
-  --ux4g-border-subtle: #E2D8C9;
-  --ux4g-border-focus: #6D28D9;
-  --ux4g-text-primary: #1E1B18;      /* Deep ink text */
-  --ux4g-text-secondary: #4A443D;    /* Warm ink secondary text */
-  --ux4g-text-muted: #6B6258;
-  --ux4g-text-white: #FFFFFF;
+  /* Cardboard Paper White & Surface Tokens */
+  --ux4g-bg: #E6DAC9;              /* Warm Cardboard Kraft Page Background */
+  --ux4g-bg-subtle: #DCCEB9;       /* Secondary Cardboard Surface */
+  --ux4g-surface: #F7F1E6;         /* Cardboard Paper White (Miranda Reference) */
+  --ux4g-surface-card: #F4ECE0;    /* Cardboard Card Surface */
+  --ux4g-border: #3A2312;          /* Crisp Tactile Espresso Border */
+  --ux4g-border-subtle: #8C6E52;   /* Medium Earth Brown Border */
+  --ux4g-border-focus: #543118;
+  --ux4g-text-primary: #1C120C;    /* Deep Coffee Black Ink */
+  --ux4g-text-secondary: #4A3423;  /* Warm Medium Earth Brown */
+  --ux4g-text-muted: #785F49;      /* Muted Sepia Brown */
+  --ux4g-text-white: #FAF4EB;
 
-  /* Airy, Elegant Elevation System */
-  --elevation-1: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
-  --elevation-2: 0 4px 12px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.02);
-  --elevation-3: 0 10px 25px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.03);
-  --elevation-4: 0 20px 40px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.04);
+  /* Eye-Catching Tactile Offset Shadows (Niccolò Miranda Paper Style) */
+  --elevation-1: 3px 3px 0px #3A2312;
+  --elevation-2: 5px 5px 0px #3A2312;
+  --elevation-3: 8px 8px 0px #3A2312;
+  --elevation-4: 12px 12px 0px #3A2312;
 
-  /* Transitions & Spacing */
-  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-glide: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Retro Sharp Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-full: 9999px;
 
   /* Dynamic Accessibility Font Scaling */
   --font-scale: 1;
 }
 
-/* Accessibility: High Contrast Mode */
-[data-contrast="high"] {
-  --ux4g-bg: #FFFFFF;
-  --ux4g-surface: #FFFFFF;
-  --ux4g-text-primary: #000000;
-  --ux4g-text-secondary: #111111;
-  --ux4g-border: #000000;
-  --ux4g-violet-700: #000080;
-  --ux4g-violet-50: #EEEEEE;
-  --ux4g-border-subtle: #333333;
-}
-
-/* Accessibility: Universal Motion Toggle (Reduced Motion) */
-[data-reduced-motion="true"] *,
-[data-reduced-motion="true"] *::before,
-[data-reduced-motion="true"] *::after {
-  animation-duration: 0.0001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.0001ms !important;
-  scroll-behavior: auto !important;
-  transform: none !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.0001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.0001ms !important;
-    scroll-behavior: auto !important;
-    transform: none !important;
-  }
-}
-
-/* Base Reset & Typography */
+/* ==========================================================================
+   RETRO EDITORIAL TYPOGRAPHY & GLOBAL RESET
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -123,216 +97,232 @@
 html {
   font-size: calc(16px * var(--font-scale));
   scroll-behavior: smooth;
+  background-color: var(--ux4g-bg);
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: var(--ux4g-bg);
-  color: var(--ux4g-text-primary);
+  font-family: 'Space Mono', 'Courier Prime', Courier, monospace !important;
+  background-color: var(--ux4g-bg) !important;
+  color: var(--ux4g-text-primary) !important;
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  /* Authentic subtle newspaper paper texture */
+  background-image: radial-gradient(#3A2312 0.75px, transparent 0.75px), radial-gradient(#3A2312 0.75px, #E6DAC9 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+  background-blend-mode: multiply;
 }
 
-/* Headings with Dignified Government Hierarchy */
+/* Retro Editorial Serif Headings (Fraunces & Playfair Display) */
 h1, h2, h3, h4, h5, h6 {
-  color: var(--ux4g-violet-950);
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
+  font-family: 'Fraunces', 'Playfair Display', Georgia, serif !important;
+  font-weight: 800 !important;
+  color: var(--ux4g-violet-950) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
 }
 
-/* Clean Elevation Classes */
-.elevation-1 {
-  box-shadow: var(--elevation-1);
-  border: 1px solid var(--ux4g-border);
+p, span, label, input, select, textarea, button, a {
+  font-family: 'Space Mono', 'Courier Prime', Courier, monospace;
 }
 
-.elevation-2 {
-  box-shadow: var(--elevation-2);
-  border: 1px solid var(--ux4g-border);
+/* Base Link Styling */
+a {
+  color: var(--ux4g-violet-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: all 0.15s ease;
 }
 
-.elevation-3 {
-  box-shadow: var(--elevation-3);
-  border: 1px solid var(--ux4g-border);
+a:hover {
+  color: var(--ux4g-violet-900);
 }
 
-.elevation-4 {
-  box-shadow: var(--elevation-4);
-  border: 1px solid var(--ux4g-border);
-}
-
-.card-lift {
-  transition: var(--transition-smooth);
-  box-shadow: var(--elevation-1);
-  border: 1px solid var(--ux4g-border);
-  background-color: var(--ux4g-surface);
-}
-
-.card-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-  border-color: #CBD5E1;
-}
-
-/* Focus Mode Glow */
-.ux4g-focus-glow {
-  transition: var(--transition-fast);
-}
-
-.ux4g-focus-glow:focus,
-.ux4g-focus-glow:focus-within {
-  outline: none;
-  border-color: var(--ux4g-violet-700) !important;
-  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.15) !important;
-}
-
-/* Collapsible Accordion */
-.ux4g-collapsible {
-  overflow: hidden;
-  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
-}
-
-.ux4g-collapsible.closed {
-  max-height: 0 !important;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.ux4g-collapsible.open {
-  max-height: 800px;
-  opacity: 1;
-}
-
-/* Offcanvas Flyout */
-.ux4g-offcanvas-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  transition: opacity 0.3s ease;
-}
-
-.ux4g-offcanvas-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(440px, 92vw);
-  background-color: var(--ux4g-surface);
-  z-index: 1001;
-  box-shadow: var(--elevation-4);
-  display: flex;
-  flex-direction: column;
-  transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.ux4g-offcanvas-drawer.open {
-  transform: translateX(0);
-}
-
-/* National Tricolor Top Bar */
-.ux4g-tricolor-bar {
-  height: 3px;
-  width: 100%;
-  background: linear-gradient(90deg, #FF9933 33.33%, #FFFFFF 33.33% 66.66%, #138808 66.66%);
-}
-
-/* Spacious Container */
+/* Containers */
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
-  padding-left: 28px;
-  padding-right: 28px;
-}
-
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 .flex-between {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-}
-
-/* Badges — Formal Government Clean Standard */
-.ux4g-badge {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.02em;
-  text-transform: none;
-  line-height: 1.3;
-}
-
-.ux4g-badge-low {
-  background-color: #F0FDF4;
-  color: #166534;
-  border: 1px solid #BBF7D0;
-}
-
-.ux4g-badge-medium {
-  background-color: #FFFBEB;
-  color: #92400E;
-  border: 1px solid #FDE68A;
-}
-
-.ux4g-badge-high {
-  background-color: #FFF7ED;
-  color: #C2410C;
-  border: 1px solid #FFEDD5;
-}
-
-.ux4g-badge-critical {
-  background-color: #FEF2F2;
-  color: #991B1B;
-  border: 1px solid #FECACA;
-}
-
-.ux4g-badge-primary {
-  background-color: #EFF6FF;
-  color: #1E3A8A;
-  border: 1px solid #DBEAFE;
-}
-
-/* Responsive helpers */
-@media (max-width: 768px) {
-  .container {
-    padding-left: 18px;
-    padding-right: 18px;
-  }
 }
 
 /* ==========================================================================
-   NICCOLÒ MIRANDA PAPER / CARDBOARD WHITE ADAPTATIONS
-   Transforms all pure white surfaces into warm cardboard paper white (#F8F3EA)
-   with warm cardboard background (#EFE8DB)
+   RETRO TACTILE CARDS & SURFACES (Miranda Style)
    ========================================================================== */
+.ux4g-card,
+.ux4g-card-surface,
+.ux4g-modal,
+.ux4g-table,
+.ux4g-offcanvas-drawer {
+  background-color: var(--ux4g-surface) !important;
+  border: 2px solid #3A2312 !important;
+  box-shadow: 4px 4px 0px #3A2312 !important;
+  border-radius: var(--radius-md) !important;
+}
 
-body, html, #root {
-  background-color: var(--ux4g-bg) !important;
-  color: var(--ux4g-text-primary);
+.ux4g-card:hover {
+  box-shadow: 6px 6px 0px #3A2312 !important;
+}
+
+/* Force all white containers to adopt Cardboard Paper White */
+div[style*="backgroundColor: '#FFFFFF'"],
+div[style*="backgroundColor: '#ffffff'"],
+div[style*="background-color: #FFFFFF"],
+div[style*="background-color: #ffffff"],
+div[style*="background: #FFFFFF"],
+div[style*="background: #ffffff"],
+section[style*="backgroundColor: '#FFFFFF'"],
+section[style*="backgroundColor: '#ffffff'"],
+section[style*="background: #FFFFFF"],
+section[style*="background: #ffffff"],
+footer[style*="backgroundColor: '#FFFFFF'"],
+footer[style*="backgroundColor: '#ffffff'"] {
+  background-color: var(--ux4g-surface) !important;
+  border-color: #3A2312 !important;
+}
+
+/* ==========================================================================
+   TACTILE RETRO BUTTONS (Shades of Brown with Offset Shadows)
+   ========================================================================== */
+button,
+.ux4g-btn {
+  font-family: 'Space Mono', 'Courier Prime', Courier, monospace !important;
+  font-weight: 800 !important;
+  font-size: 0.82rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border: 2px solid #3A2312 !important;
+  box-shadow: 3px 3px 0px #3A2312 !important;
+  border-radius: var(--radius-sm) !important;
+  cursor: pointer !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+button:hover,
+.ux4g-btn:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 5px 5px 0px #3A2312 !important;
+}
+
+button:active,
+.ux4g-btn:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 0px 0px 0px #3A2312 !important;
+}
+
+/* Primary Button: Deep Espresso Brown */
+.ux4g-btn-primary {
+  background: var(--ux4g-violet-700) !important;
+  color: #FAF4EB !important;
+  border-color: #2B1508 !important;
+}
+
+.ux4g-btn-primary:hover {
+  background: var(--ux4g-violet-800) !important;
+  color: #FFF !important;
+}
+
+/* Outline Button: Cardboard White with Brown Border */
+.ux4g-btn-outline {
+  background: var(--ux4g-surface) !important;
+  color: var(--ux4g-text-primary) !important;
+}
+
+/* Secondary Button: Warm Tan / Kraft */
+.ux4g-btn-secondary {
+  background: var(--ux4g-violet-200) !important;
+  color: var(--ux4g-violet-950) !important;
+}
+
+/* ==========================================================================
+   RETRO STAMPS & BADGES (Miranda Paper Style)
+   ========================================================================== */
+.ux4g-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Space Mono', 'Courier Prime', monospace !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  padding: 3px 8px !important;
+  border: 1.5px solid #3A2312 !important;
+  border-radius: 3px !important;
+  box-shadow: 2px 2px 0px #3A2312 !important;
+  background-color: var(--ux4g-surface) !important;
+  color: var(--ux4g-text-primary) !important;
+}
+
+.ux4g-badge-low {
+  background-color: var(--ux4g-success-bg) !important;
+  color: var(--ux4g-success-text) !important;
+  border-color: var(--ux4g-success) !important;
+  box-shadow: 2px 2px 0px var(--ux4g-success) !important;
+}
+
+.ux4g-badge-medium {
+  background-color: var(--ux4g-warning-bg) !important;
+  color: var(--ux4g-warning-text) !important;
+  border-color: var(--ux4g-warning) !important;
+  box-shadow: 2px 2px 0px var(--ux4g-warning) !important;
+}
+
+.ux4g-badge-high {
+  background-color: #F8ECE7 !important;
+  color: #822710 !important;
+  border-color: #822710 !important;
+  box-shadow: 2px 2px 0px #822710 !important;
+}
+
+.ux4g-badge-critical {
+  background-color: #F8ECE7 !important;
+  color: #591605 !important;
+  border-color: #591605 !important;
+  box-shadow: 2px 2px 0px #591605 !important;
+}
+
+.ux4g-badge-primary {
+  background-color: var(--ux4g-violet-100) !important;
+  color: var(--ux4g-violet-900) !important;
+  border-color: var(--ux4g-violet-700) !important;
+  box-shadow: 2px 2px 0px var(--ux4g-violet-700) !important;
+}
+
+/* ==========================================================================
+   RETRO HEADER & BRASS RULER (Replaces GIGW Tricolor Bar)
+   ========================================================================== */
+.ux4g-tricolor-bar {
+  height: 4px !important;
+  background: linear-gradient(90deg, #3A2312 0%, #A88867 50%, #3A2312 100%) !important;
+  border-bottom: 1px solid #3A2312 !important;
 }
 
 header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 900 !important;
   background-color: var(--ux4g-surface) !important;
-  border-bottom: 1px solid var(--ux4g-border) !important;
+  border-bottom: 2px solid #3A2312 !important;
+  box-shadow: 0 4px 0px rgba(58, 35, 18, 0.08) !important;
 }
 
-/* Clean Google Translate styles */
+header > div:first-of-type {
+  background-color: var(--ux4g-bg-subtle) !important;
+  border-bottom: 1px solid #8C6E52 !important;
+}
+
+/* Clean Google Translate Overrides */
 .goog-te-banner-frame.skiptranslate {
   display: none !important;
 }
@@ -354,25 +344,35 @@ body {
   display: none !important;
 }
 
-/* Force all white cards, surfaces, and sections to use cardboard-type paper white */
-.ux4g-card,
-.ux4g-card-surface,
-.ux4g-modal,
-.ux4g-table,
-.ux4g-offcanvas-drawer,
-div[style*="backgroundColor: '#FFFFFF'"],
-div[style*="backgroundColor: '#ffffff'"],
-div[style*="background-color: #FFFFFF"],
-div[style*="background-color: #ffffff"],
-div[style*="background: #FFFFFF"],
-div[style*="background: #ffffff"],
-section[style*="backgroundColor: '#FFFFFF'"],
-section[style*="backgroundColor: '#ffffff'"],
-section[style*="background: #FFFFFF"],
-section[style*="background: #ffffff"],
-footer[style*="backgroundColor: '#FFFFFF'"],
-footer[style*="backgroundColor: '#ffffff'"] {
-  background-color: var(--ux4g-surface) !important;
-  border-color: var(--ux4g-border) !important;
+/* ==========================================================================
+   TABLES & ACCORDIONS (Retro Brown Ledger Style)
+   ========================================================================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Space Mono', 'Courier Prime', monospace;
 }
 
+th {
+  background-color: var(--ux4g-bg-subtle) !important;
+  color: var(--ux4g-violet-950) !important;
+  font-family: 'Fraunces', Georgia, serif !important;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #3A2312 !important;
+  padding: 10px 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+td {
+  border-bottom: 1px solid var(--ux4g-border-subtle) !important;
+  padding: 10px 12px !important;
+}
+
+/* Responsive helpers */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

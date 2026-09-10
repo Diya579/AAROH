@@ -262,7 +262,7 @@ export const HomePage = () => {
             <BentoItem colSpan={1} rowSpan={1}>
               <KineticTiltCard maxTilt={10} elevation={2} style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', backgroundColor: '#ECFDF5', color: 'var(--ux4g-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '6px', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-success-bg)', color: 'var(--ux4g-success-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                     <Volume2 size={24} />
                   </div>
                   <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
@@ -272,7 +272,7 @@ export const HomePage = () => {
                     Inclusive spoken voice check-ins for citizens across diverse educational backgrounds and dialects.
                   </p>
                 </div>
-                <span className="ux4g-badge" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>22 Indian Languages</span>
+                <span className="ux4g-badge" style={{ backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-800)', border: '1.5px solid #3A2312' }}>22 Indian Languages</span>
               </KineticTiltCard>
             </BentoItem>
 
@@ -340,7 +340,7 @@ export const HomePage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '22px' }}>
             {/* Pillar 1 */}
             <KineticTiltCard maxTilt={10} elevation={1} padding="24px">
-              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: '#F3EFFE', color: 'var(--ux4g-violet-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '6px', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <Heart size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
@@ -353,7 +353,7 @@ export const HomePage = () => {
 
             {/* Pillar 2 */}
             <KineticTiltCard maxTilt={10} elevation={1} padding="24px">
-              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: '#ECFDF5', color: 'var(--ux4g-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '6px', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-success-bg)', color: 'var(--ux4g-success-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <Shield size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>
@@ -379,7 +379,7 @@ export const HomePage = () => {
 
             {/* Pillar 4 */}
             <KineticTiltCard maxTilt={10} elevation={1} padding="24px">
-              <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: '#EFF6FF', color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '6px', border: '1.5px solid #3A2312', backgroundColor: 'var(--ux4g-violet-100)', color: 'var(--ux4g-violet-800)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <Scale size={22} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--ux4g-violet-950)', marginBottom: '8px' }}>

@@ -97,12 +97,12 @@ export const DistressTrendChart = ({ caseData }) => {
       </div>
 
       {/* Accessible Responsive SVG Chart */}
-      <div style={{ width: '100%', overflowX: 'auto', backgroundColor: '#FFFFFF', borderRadius: 'var(--radius-md)', padding: '8px 0' }}>
+      <div style={{ width: '100%', overflowX: 'auto', backgroundColor: 'var(--ux4g-surface)', borderRadius: 'var(--radius-md)', padding: '8px 0' }}>
         <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
           <defs>
             <linearGradient id="distressGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6D34EC" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#6D34EC" stopOpacity="0.01" />
+              <stop offset="0%" stopColor="#543118" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#543118" stopOpacity="0.01" />
             </linearGradient>
           </defs>
 
@@ -126,11 +126,11 @@ export const DistressTrendChart = ({ caseData }) => {
             y1={baselineY}
             x2={width - padding}
             y2={baselineY}
-            stroke="#94A3B8"
+            stroke="var(--ux4g-text-muted)"
             strokeDasharray="6 4"
             strokeWidth="1.5"
           />
-          <text x={width - padding - 4} y={baselineY - 5} fill="#64748B" fontSize="10" textAnchor="end" fontWeight="600">
+          <text x={width - padding - 4} y={baselineY - 5} fill="var(--ux4g-text-muted)" fontSize="10" textAnchor="end" fontWeight="600">
             Individual Baseline ({caseData.baselineScore})
           </text>
 
@@ -159,7 +159,7 @@ export const DistressTrendChart = ({ caseData }) => {
                   cy={cy}
                   r={isLast ? 6 : 4}
                   fill={isLast ? 'var(--ux4g-danger)' : 'var(--ux4g-violet-700)'}
-                  stroke="#FFFFFF"
+                  stroke="var(--ux4g-surface)"
                   strokeWidth="2"
                 />
                 <text
