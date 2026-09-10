@@ -92,6 +92,7 @@ class TestDay4RealPostgreSqlWorkflow(unittest.TestCase):
         self._clean_all_test_interventions()
 
     def tearDown(self) -> None:
+        self.db.rollback()
         self._clean_all_test_interventions()
         self.db.close()
 

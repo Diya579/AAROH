@@ -82,6 +82,7 @@ class TestIntegrationResilience(unittest.TestCase):
         self._clean_interventions()
 
     def tearDown(self) -> None:
+        self.db.rollback()
         self._clean_interventions()
         self.db.close()
 

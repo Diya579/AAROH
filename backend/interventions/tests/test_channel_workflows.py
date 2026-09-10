@@ -88,6 +88,7 @@ class TestChannelWorkflows(unittest.TestCase):
         self._clean_test_records()
 
     def tearDown(self) -> None:
+        self.db.rollback()
         self._clean_test_records()
         consent = self.db.query(Consent).filter(Consent.case_id == 1).first()
         if consent:
