@@ -83,7 +83,12 @@ class MentalHealthLanguageModel:
                     self.dropout = nn.Dropout(drop)
                     self.projection = nn.Linear(emb_dim, emb_dim)
 
-                def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
+                def forward(
+                    self,
+                    input_ids: torch.Tensor,
+                    attention_mask: torch.Tensor,
+                    token_type_ids: Optional[torch.Tensor] = None,
+                ):
                     outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
                     last_hidden_state = outputs.last_hidden_state
                     mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
